@@ -239,4 +239,4 @@ module.exports = {
   markLeaveAsViewed,
   getLeavesByDateRange,
   markLeavesAsViewedByAdmin
-};
+}
