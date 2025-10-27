@@ -157,12 +157,20 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: 'Worker not found' });
         }
 
-        const attendanceData = await Attendance.find({
-            worker: id,
-            date: {
-                $gte: new Date(fromDate),
-                $lte: new Date(toDate)
-            }
+        // Since the date field in Attendance model is stored as a string,
+        // we need to fetch all attendance records and filter them manually
+        const allAttendanceData = await Attendance.find({
+            worker: id
+        });
+
+        // Filter attendance data manually by parsing the date strings
+        const fromDateObj = new Date(fromDate);
+        const toDateObj = new Date(toDate);
+        
+        const attendanceData = allAttendanceData.filter(record => {
+            // Parse the string date from the record
+            const recordDate = new Date(record.date);
+            return recordDate >= fromDateObj && recordDate <= toDateObj;
         });
 
         const leaveData = await Leave.find({
