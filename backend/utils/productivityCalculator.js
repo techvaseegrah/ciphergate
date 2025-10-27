@@ -1,3 +1,4 @@
+
 // backend/utils/productivityCalculator.js
 
 const calculateWorkerProductivity = (productivityParameters) => {
@@ -24,7 +25,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(':').map(Number);
-    const hours = parts[0] || 0;
+    const hours = parts[0] || 0;ˀ
     const minutes = parts[1] || 0;
     const seconds = parts[2] || 0;
     return hours * 60 + minutes + seconds / 60;
@@ -795,7 +796,9 @@ const calculateWorkerProductivity = (productivityParameters) => {
 
   const groupedByDate = {};
   filteredData.forEach(record => {
-    const dateKey = new Date(record.date).toDateString();
+    // Parse the string date and convert to consistent YYYY-MM-DD format for grouping
+    const recordDate = new Date(record.date);
+    const dateKey = recordDate.toISOString().split('T')[0];
     if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
     groupedByDate[dateKey].push(record);
   });
@@ -988,7 +991,8 @@ const calculateWorkerProductivity = (productivityParameters) => {
   };
 
   allDates.forEach(date => {
-    const dateKey = date.toDateString();
+    // Use consistent date format (YYYY-MM-DD) for matching to match groupedByDate keys
+    const dateKey = date.toISOString().split('T')[0];
     const dateString = date.toISOString().split('T')[0];
     if (groupedByDate[dateKey]) {
       const punches = groupedByDate[dateKey];
