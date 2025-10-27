@@ -25,7 +25,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(':').map(Number);
-    const hours = parts[0] || 0;ˀ
+    const hours = parts[0] || 0;
     const minutes = parts[1] || 0;
     const seconds = parts[2] || 0;
     return hours * 60 + minutes + seconds / 60;
