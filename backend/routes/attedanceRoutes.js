@@ -1,12 +1,21 @@
 const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
-const { putAttendance, getAttendance, getWorkerAttendance, putRfidAttendance } = require('../controllers/attendanceController');
+const { 
+  putAttendance, 
+  getAttendance, 
+  getWorkerAttendance, 
+  putRfidAttendance, 
+  getWorkerLastAttendance,
+  recognizeFaceAndMarkAttendance
+} = require('../controllers/attendanceController');
 
 const router = express.Router();
 
 router.put('/', protect, putAttendance);
 router.post('/', protect, getAttendance);
-router.post('/rfid', putRfidAttendance);
+router.post('/rfid', protect, putRfidAttendance);
 router.post('/worker', protect, getWorkerAttendance);
+router.post('/worker-last', protect, getWorkerLastAttendance);
+router.post('/face-recognition', protect, recognizeFaceAndMarkAttendance);
 
 module.exports = router;

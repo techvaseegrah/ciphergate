@@ -116,7 +116,8 @@ function App() {
 
   return (
     <appContext.Provider value={contextValue}>
-      <div className="App">
+      {/* Added w-full overflow-x-hidden to prevent horizontal scrolling */}
+      <div className="App w-full overflow-x-hidden">
         {/* Debug info - remove in production */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{ 

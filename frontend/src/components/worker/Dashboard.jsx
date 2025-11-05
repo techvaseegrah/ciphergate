@@ -11,10 +11,15 @@ import Spinner from '../common/Spinner';
 import CustomTaskForm from './CustomTaskForm';
 import { readNotification } from '../../services/notificationService';
 import appContext from '../../context/AppContext';
-import { FaMoneyBillAlt } from 'react-icons/fa';
+import { FaMoneyBillAlt, FaCamera } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import CountUp from 'react-countup';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+// Removed Link import since we won't be using it for navigation
+import api from '../../services/api';
+// Import the attendance components
+import FaceAttendance from '../admin/FaceAttendance';
+import RFIDAttendancePopup from './RFIDAttendancePopup'; // We'll create this component
 
 const Dashboard = () => {
   const { subdomain } = useContext(appContext);
@@ -25,7 +30,11 @@ const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [topics, setTopics] = useState([]);
   const [columns, setColumns] = useState([]);
-  const [showAllRecentTasks, setShowAllRecentTasks] = useState(false); 
+  const [showAllRecentTasks, setShowAllRecentTasks] = useState(false);
+  const [attendanceLocation, setAttendanceLocation] = useState(null);
+  // State for controlling attendance popups
+  const [showFaceAttendance, setShowFaceAttendance] = useState(false);
+  const [showRFIDAttendance, setShowRFIDAttendance] = useState(false);
 
   // prepare breakdown for tooltip
   const baseSalary = typeof user?.salary === 'number' ? user.salary : 0;
@@ -47,8 +56,23 @@ const Dashboard = () => {
     }
   };
 
+  // Fetch attendance location settings
+  const fetchAttendanceLocation = async () => {
+    try {
+      if (subdomain && subdomain !== 'main') {
+        const response = await api.get(`/settings/public/${subdomain}`);
+        if (response.data?.attendanceLocation?.enabled) {
+          setAttendanceLocation(response.data.attendanceLocation);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching attendance location:', error);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
+    fetchAttendanceLocation();
   }, []);
 
   useEffect(() => {
@@ -99,9 +123,32 @@ const Dashboard = () => {
   }
 
   return (
-    <div>
+    // Added w-full overflow-x-hidden to prevent horizontal scrolling
+    <div className="w-full overflow-x-hidden">
+      {/* Face Attendance Popup */}
+      {showFaceAttendance && (
+        <FaceAttendance
+          subdomain={subdomain}
+          isOpen={showFaceAttendance}
+          onClose={() => setShowFaceAttendance(false)}
+          workerMode={true}
+          currentWorker={user}
+        />
+      )}
+
+      {/* RFID Attendance Popup */}
+      {showRFIDAttendance && (
+        <RFIDAttendancePopup
+          isOpen={showRFIDAttendance}
+          onClose={() => setShowRFIDAttendance(false)}
+          subdomain={subdomain}
+          user={user}
+        />
+      )}
+
+      {/* Improved responsive grid for salary cards */}
       <div
-        className="mb-6 rounded-lg p-6 shadow-lg bg-gradient-to-r from-black to-black"
+        className="mb-6 rounded-lg p-4 md:p-6 shadow-lg bg-gradient-to-r from-black to-black"
       >
         <motion.h2
           initial={{ x: -20, opacity: 0 }}
@@ -122,14 +169,15 @@ const Dashboard = () => {
             {user?.subdomain}
           </motion.span>
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Responsive grid that works well on all screen sizes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Base Salary with Icon */}
-          <div className="bg-black p-4 rounded-lg flex items-center space-x-4">
-          <div className="bg-yellow-500/20 p-3 rounded-full">
+          <div className="bg-black p-4 rounded-lg flex items-center space-x-4 min-w-0">
+          <div className="bg-yellow-500/20 p-3 rounded-full flex-shrink-0">
                         <FaMoneyBillAlt className="h-6 w-6 text-blue-300" />
             </div>
-            <div>
-             <p className="text-sm text-blue-200">Base Monthly Salary</p>
+            <div className="min-w-0">
+             <p className="text-sm text-blue-200 truncate">Base Monthly Salary</p>
              {baseSalary > 0 ? (
                 <CountUp
                   start={0}
@@ -137,20 +185,20 @@ const Dashboard = () => {
                   duration={1}
                   prefix="₹"
                   decimals={2}
-                  className="text-2xl font-bold text-white"
+                  className="text-2xl font-bold text-white truncate"
                 />
               ) : (
-                <p className="text-2xl font-bold text-white">N/A</p>
+                <p className="text-2xl font-bold text-white truncate">N/A</p>
               )}
             </div>
           </div>
           {/* Final Monthly Salary with Icon */}
-          <div className="bg-black p-4 rounded-lg flex items-center space-x-4">
-          <div className="bg-green-500/20 p-3 rounded-full">
+          <div className="bg-black p-4 rounded-lg flex items-center space-x-4 min-w-0">
+          <div className="bg-green-500/20 p-3 rounded-full flex-shrink-0">
                       <FaMoneyBillAlt className="h-6 w-6 text-yellow-300" />
             </div>
-            <div>
-            <p className="text-sm text-blue-200">Final Monthly Salary</p>
+            <div className="min-w-0">
+            <p className="text-sm text-blue-200 truncate">Final Monthly Salary</p>
              {finalSalary > 0 ? (
                 <div
                   title={
@@ -165,54 +213,110 @@ const Dashboard = () => {
                     duration={1}
                     prefix="₹"
                     decimals={2}
-                    className="text-2xl font-bold text-white"
+                    className="text-2xl font-bold text-white truncate"
                   />
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-white">N/A</p>
+                <p className="text-2xl font-bold text-white truncate">N/A</p>
               )}
             </div>
           </div>
+          {/* Face Attendance Card - Changed to button that opens popup */}
+          <button 
+            onClick={() => setShowFaceAttendance(true)}
+            className="bg-black p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-800 transition-colors min-w-0"
+          >
+            <div className="bg-pink-500/20 p-3 rounded-full flex-shrink-0">
+              <FaCamera className="h-6 w-6 text-blue-300" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-blue-200 truncate">Face Attendance</p>
+              <p className="text-lg font-bold text-white truncate">Mark Attendance</p>
+            </div>
+          </button>
+          
+          {/* RFID Attendance Card - Changed to button that opens popup */}
+          <button 
+            onClick={() => setShowRFIDAttendance(true)}
+            className="bg-black p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-800 transition-colors min-w-0"
+          >
+            <div className="bg-blue-500/20 p-3 rounded-full flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-blue-200 truncate">RFID Attendance</p>
+              <p className="text-lg font-bold text-white truncate">Mark Attendance</p>
+            </div>
+          </button>
         </div>
       </div>
 
+      {/* Attendance Location Information */}
+      {attendanceLocation && (
+        <Card className="mb-6 bg-blue-50 border-blue-200">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div className="ml-3 min-w-0">
+              <h3 className="text-lg font-medium text-blue-800">Attendance Location</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>Attendance is restricted to a specific location:</p>
+                <p className="mt-1 font-medium truncate">
+                  Coordinates: {attendanceLocation.latitude.toFixed(6)}, {attendanceLocation.longitude.toFixed(6)}
+                </p>
+                <p className="mt-1 truncate">
+                  Radius: {attendanceLocation.radius} meters
+                </p>
+                <p className="mt-2 text-xs">
+                  You must be within this area to mark attendance using Face or RFID methods.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {
         Array.isArray(notifications) && notifications.length > 0 && (
           <Card
               title={
                 <div className="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  Latest Notification
+                  <span className="truncate">Latest Notification</span>
                 </div>
               }
               className="mb-6"
             >
-              <p>
+              <p className="truncate">
                 {notifications[0]?.messageData || "No notifications found."}
               </p>
           </Card>
         )
       }
 
-
       <Card className="mb-6">
         <h2 className="text-xl font-bold mb-4 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          Submit Custom Task
+          <span className="truncate">Submit Custom Task</span>
         </h2>
         <CustomTaskForm />
       </Card>
 
       <h1 className="text-2xl font-bold mb-6 flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
-        Employee Dashboard
+        <span className="truncate">Employee Dashboard</span>
       </h1>
 
       <Card className="mb-6">
@@ -226,10 +330,10 @@ const Dashboard = () => {
       <Card
     title={
       <div className="flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
-        Your Recent Activity
+        <span className="truncate">Your Recent Activity</span>
       </div>
     }
   >
@@ -246,15 +350,15 @@ const Dashboard = () => {
             className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0"
           >
             <div className="flex justify-between items-start">
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="font-medium truncate">
                   Submitted task: {task.points} points
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 truncate">
                   {new Date(task.createdAt).toLocaleString()}
                 </p>
               </div>
-              <div className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded-full">
+              <div className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1 rounded-full flex-shrink-0">
                 +{task.points}
               </div>
             </div>
@@ -266,7 +370,7 @@ const Dashboard = () => {
                   {task.topics.map((topic, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full truncate max-w-[120px]"
                     >
                       {topic?.name || 'Unknown Topic'}
                     </span>

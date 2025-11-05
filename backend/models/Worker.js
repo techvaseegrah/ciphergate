@@ -36,6 +36,11 @@ const workerSchema = mongoose.Schema({
     type: String,
     default: ''
   },
+  // Face embeddings for face recognition
+  faceEmbeddings: {
+    type: [[Number]], // Storing arrays of numbers for face embeddings
+    default: []
+  },
   totalPoints: {
     type: Number,
     default: 0

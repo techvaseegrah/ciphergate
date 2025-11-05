@@ -16,7 +16,8 @@ import {
     FiToggleLeft,
     FiToggleRight,
     FiPlus,
-    FiTrash2
+    FiTrash2,
+    FiMapPin
 } from 'react-icons/fi';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -29,6 +30,7 @@ const Settings = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [currentLocation, setCurrentLocation] = useState(null); // Add this state to track current location
 
     const { subdomain } = useContext(appContext);
 
@@ -88,7 +90,15 @@ const Settings = () => {
                 to: '14:30',
                 isBreakConsider: false
             }
-        ]
+        ],
+
+        // Location settings
+        attendanceLocation: {
+            enabled: false,
+            latitude: 0,
+            longitude: 0,
+            radius: 100
+        }
     });
 
     const formatTimeTo12Hour = (time24) => {
@@ -141,25 +151,31 @@ const Settings = () => {
             setSettings((prevSettings) => ({
                 ...prevSettings,
                 // Breakfast settings
-                breakfastEnabled: fetchedSettings.breakfast.enabled,
-                breakfastOpenTime: fetchedSettings.breakfast.openTime,
-                breakfastCloseTime: fetchedSettings.breakfast.closeTime,
-                breakfastAutoSwitch: fetchedSettings.breakfast.autoSwitch,
+                breakfastEnabled: fetchedSettings.breakfastEnabled !== undefined ? fetchedSettings.breakfastEnabled : false,
+                breakfastOpenTime: fetchedSettings.breakfastOpenTime || '07:00',
+                breakfastCloseTime: fetchedSettings.breakfastCloseTime || '09:00',
+                breakfastAutoSwitch: fetchedSettings.breakfastAutoSwitch !== undefined ? fetchedSettings.breakfastAutoSwitch : false,
+
+                // Lunch (food request) settings
+                foodRequestEnabled: fetchedSettings.foodRequestEnabled !== undefined ? fetchedSettings.foodRequestEnabled : false,
+                foodRequestOpenTime: fetchedSettings.foodRequestOpenTime || '12:00',
+                foodRequestCloseTime: fetchedSettings.foodRequestCloseTime || '14:00',
+                foodRequestAutoSwitch: fetchedSettings.foodRequestAutoSwitch !== undefined ? fetchedSettings.foodRequestAutoSwitch : false,
 
                 // Dinner settings
-                dinnerEnabled: fetchedSettings.dinner.enabled,
-                dinnerOpenTime: fetchedSettings.dinner.openTime,
-                dinnerCloseTime: fetchedSettings.dinner.closeTime,
-                dinnerAutoSwitch: fetchedSettings.dinner.autoSwitch,
+                dinnerEnabled: fetchedSettings.dinnerEnabled !== undefined ? fetchedSettings.dinnerEnabled : false,
+                dinnerOpenTime: fetchedSettings.dinnerOpenTime || '18:00',
+                dinnerCloseTime: fetchedSettings.dinnerCloseTime || '20:00',
+                dinnerAutoSwitch: fetchedSettings.dinnerAutoSwitch !== undefined ? fetchedSettings.dinnerAutoSwitch : false,
 
                 // Email settings
-                emailReportsEnabled: fetchedSettings.emailReportsEnabled,
+                emailReportsEnabled: fetchedSettings.emailReportsEnabled !== undefined ? fetchedSettings.emailReportsEnabled : false,
 
                 // Attendance and productivity settings
-                considerOvertime: fetchedSettings.considerOvertime,
-                deductSalary: fetchedSettings.deductSalary,
-                permissionTimeMinutes: fetchedSettings.permissionTimeMinutes,
-                salaryDeductionPerBreak: fetchedSettings.salaryDeductionPerBreak,
+                considerOvertime: fetchedSettings.considerOvertime !== undefined ? fetchedSettings.considerOvertime : false,
+                deductSalary: fetchedSettings.deductSalary !== undefined ? fetchedSettings.deductSalary : true,
+                permissionTimeMinutes: fetchedSettings.permissionTimeMinutes || 15,
+                salaryDeductionPerBreak: fetchedSettings.salaryDeductionPerBreak || 10,
 
                 // Batches and intervals
                 batches: fetchedSettings.batches || [{
@@ -173,7 +189,15 @@ const Settings = () => {
                 intervals: fetchedSettings.intervals || [
                     { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
                     { intervalName: 'interval2', from: '14:15', to: '14:30', isBreakConsider: false }
-                ]
+                ],
+
+                // Location settings
+                attendanceLocation: {
+                    enabled: fetchedSettings.attendanceLocation?.enabled !== undefined ? fetchedSettings.attendanceLocation.enabled : false,
+                    latitude: fetchedSettings.attendanceLocation?.latitude || 0,
+                    longitude: fetchedSettings.attendanceLocation?.longitude || 0,
+                    radius: fetchedSettings.attendanceLocation?.radius || 100
+                }
             }));
 
             setOriginalSettings({
@@ -189,7 +213,13 @@ const Settings = () => {
                 intervals: fetchedSettings.intervals || [
                     { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
                     { intervalName: 'interval2', from: '14:15', to: '14:30', isBreakConsider: false }
-                ]
+                ],
+                attendanceLocation: {
+                    enabled: fetchedSettings.attendanceLocation?.enabled !== undefined ? fetchedSettings.attendanceLocation.enabled : false,
+                    latitude: fetchedSettings.attendanceLocation?.latitude || 0,
+                    longitude: fetchedSettings.attendanceLocation?.longitude || 0,
+                    radius: fetchedSettings.attendanceLocation?.radius || 100
+                }
             });
             setHasChanges(false);
         } catch (error) {
@@ -301,6 +331,45 @@ const Settings = () => {
         };
         setSettings(updatedSettings);
         checkForChanges(updatedSettings);
+    };
+
+    // Handle location input changes
+    const handleLocationChange = (field, value) => {
+        const updatedSettings = {
+            ...settings,
+            attendanceLocation: {
+                ...settings.attendanceLocation,
+                [field]: value
+            }
+        };
+        setSettings(updatedSettings);
+        checkForChanges(updatedSettings);
+    };
+
+    // Handle location capture
+    const handleCaptureLocation = async () => {
+        try {
+            // Import the geolocation service function
+            const { getCurrentPosition } = await import('../../services/geolocationService');
+            
+            const position = await getCurrentPosition();
+            // Update both latitude and longitude in a single state update
+            const updatedSettings = {
+                ...settings,
+                attendanceLocation: {
+                    ...settings.attendanceLocation,
+                    latitude: position.latitude,
+                    longitude: position.longitude
+                }
+            };
+            setSettings(updatedSettings);
+            checkForChanges(updatedSettings);
+            setCurrentLocation(position); // Set the current location state
+            toast.success('Location captured successfully');
+        } catch (error) {
+            console.error('Error capturing location:', error);
+            toast.error('Failed to capture location: ' + error.message);
+        }
     };
 
     // Handle settings save
@@ -666,7 +735,114 @@ const Settings = () => {
                         </div>
                     </Card>
                 </div>
+                
+                {/* Location Settings */}
+                <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
+                    <div className="h-2 bg-gradient-to-r from-teal-400 to-cyan-400" />
+                    <div className="p-6">
+                        <h3 className="text-lg font-semibold mb-6 flex items-center text-gray-900">
+                            <div className="p-2 bg-teal-100 rounded-lg mr-3">
+                                <FiMapPin className="h-5 w-5 text-teal-600" />
+                            </div>
+                            Location Settings
+                        </h3>
 
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700">Enable Location Restriction</label>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Restrict attendance to a specific location
+                                    </p>
+                                </div>
+                                <CustomToggle
+                                    checked={settings.attendanceLocation.enabled}
+                                    onChange={() => handleLocationChange('enabled', !settings.attendanceLocation.enabled)}
+                                />
+                            </div>
+
+                            {settings.attendanceLocation.enabled && (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Latitude
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                value={settings.attendanceLocation.latitude}
+                                                onChange={(e) => handleLocationChange('latitude', parseFloat(e.target.value) || 0)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Longitude
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                value={settings.attendanceLocation.longitude}
+                                                onChange={(e) => handleLocationChange('longitude', parseFloat(e.target.value) || 0)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Radius (meters)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="10"
+                                            max="1000"
+                                            value={settings.attendanceLocation.radius}
+                                            onChange={(e) => handleLocationChange('radius', parseInt(e.target.value) || 100)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            Workers must be within this radius to mark attendance (10-1000 meters)
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-4">
+                                        <Button
+                                            onClick={handleCaptureLocation}
+                                            variant="secondary"
+                                            className="flex items-center"
+                                        >
+                                            <FiMapPin className="mr-2 h-4 w-4" />
+                                            Capture Current Location
+                                        </Button>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Your browser will ask for location permission.{' '}
+                                            {currentLocation ? (
+                                                <span>
+                                                    Current location: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+                                                    {currentLocation.accuracy && ` (±${Math.round(currentLocation.accuracy)}m)`}
+                                                </span>
+                                            ) : (
+                                                <span>
+                                                    Location set to: {settings.attendanceLocation.latitude.toFixed(6)}, {settings.attendanceLocation.longitude.toFixed(6)}
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="pt-2 bg-blue-50 p-3 rounded-lg">
+                                        <p className="text-xs text-blue-700">
+                                            <strong>Tip:</strong> Enable location restriction to ensure workers can only mark attendance when they are physically present at the designated location.
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+                
                 {/* Financial Settings */}
                 <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
                     <div className="h-2 bg-gradient-to-r from-emerald-400 to-teal-400" />
@@ -1004,6 +1180,46 @@ const Settings = () => {
                                             {settings.deductSalary ? '✓ Enabled' : '✗ Disabled'}
                                         </span>
                                     </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-white p-4 rounded-lg shadow-sm">
+                                <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+                                    <FiMapPin className="mr-2 h-4 w-4" />
+                                    Location Settings
+                                </h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span>Location Restriction:</span>
+                                        <span className={settings.attendanceLocation.enabled ? 'text-green-600 font-medium' : 'text-gray-600'}>
+                                            {settings.attendanceLocation.enabled ? '✓ Enabled' : '✗ Disabled'}
+                                        </span>
+                                    </div>
+                                    {settings.attendanceLocation.enabled && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Latitude:</span>
+                                                <span className="font-medium">{settings.attendanceLocation.latitude.toFixed(6)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Longitude:</span>
+                                                <span className="font-medium">{settings.attendanceLocation.longitude.toFixed(6)}</span>
+                                            </div>
+                                            {currentLocation && (
+                                                <div className="flex justify-between">
+                                                    <span>Current Location:</span>
+                                                    <span className="font-medium">
+                                                        {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+                                                        {currentLocation.accuracy && ` (±${Math.round(currentLocation.accuracy)}m)`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between">
+                                                <span>Radius:</span>
+                                                <span className="font-medium">{settings.attendanceLocation.radius}m</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

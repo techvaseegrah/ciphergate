@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext,useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaCamera } from 'react-icons/fa';
 import { getWorkers, createWorker, updateWorker, deleteWorker, getUniqueId } from '../../services/workerService';
 import { getDepartments } from '../../services/departmentService';
 import { getSettings } from '../../services/settingsService';
@@ -12,6 +12,7 @@ import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
 import QRCode from 'qrcode';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import FaceCapture from './FaceCapture'; // Import FaceCapture component
 
 const WorkerManagement = () => {
   const nameInputRef = useRef(null);
@@ -24,7 +25,10 @@ const WorkerManagement = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
-  
+  const [showFaceCapture, setShowFaceCapture] = useState(false); // State for face capture modal
+  const [selectedWorkerForFace, setSelectedWorkerForFace] = useState(null); // Worker selected for face capture
+  const [workerFaceEmbeddings, setWorkerFaceEmbeddings] = useState([]); // Store face embeddings for worker
+
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     setFormData(prev => ({ ...prev, photo: file }));
@@ -42,11 +46,12 @@ const WorkerManagement = () => {
     username: '',
     rfid: '',
     salary: 0,
-    batch: '' ,
+    batch: '',
     password: '',
     confirmPassword: '',
     department: '',
-    photo: ''
+    photo: '',
+    faceEmbeddings: [] // Add face embeddings to form data
   });
 
   // Subdomain
@@ -123,43 +128,84 @@ useEffect(() => {
 
   // Open add worker modal
 const openAddModal = () => {
-    setFormData(prev => ({
-      ...prev,
-      name: '',
-      username: '',
-      password: '',
-      department: departments.length > 0 ? departments[0]._id : '', // Ensure first department is selected
-      photo: '',
-      batch: batches.length > 0 ? batches[0].batchName : '' // ADDED: Set the first batch as default
-    }));
-    getWorkerId();
-    setIsAddModalOpen(true);
-  };
+    setFormData(prev => ({
+      ...prev,
+      name: '',
+      username: '',
+      password: '',
+      department: departments.length > 0 ? departments[0]._id : '', // Ensure first department is selected
+      photo: '',
+      batch: batches.length > 0 ? batches[0].batchName : '', // ADDED: Set the first batch as default
+      faceEmbeddings: [] // Reset face embeddings
+    }));
+    getWorkerId();
+    setIsAddModalOpen(true);
+  };
 
-  // Open edit worker modal
-  const openEditModal = (worker) => {
-    // Determine the correct department ID
-    const departmentId = typeof worker.department === 'object'
-      ? worker.department._id
-      : (departments.find(dept => dept.name === worker.department)?._id || worker.department);
+  // Open edit worker modal
+  const openEditModal = (worker) => {
+    // Determine the correct department ID
+    const departmentId = typeof worker.department === 'object'
+      ? worker.department._id
+      : (departments.find(dept => dept.name === worker.department)?._id || worker.department);
 
-    setSelectedWorker(worker);
-    setFormData({
-      name: worker.name,
-      username: worker.username,
-      department: departmentId, // Use the department ID
-      photo: worker.photo || '',
-      salary: worker.salary,
-      password: '',
-      confirmPassword: '',
-      batch: worker.batch || '' // ADDED: Set the worker's current batch
-    });
-    setIsEditModalOpen(true);
-  };
+    setSelectedWorker(worker);
+    setFormData({
+      name: worker.name,
+      username: worker.username,
+      department: departmentId, // Use the department ID
+      photo: worker.photo || '',
+      salary: worker.salary,
+      password: '',
+      confirmPassword: '',
+      batch: worker.batch || '', // ADDED: Set the worker's current batch
+      faceEmbeddings: worker.faceEmbeddings || [] // Set existing face embeddings
+    });
+    setIsEditModalOpen(true);
+  };
+
   // Open delete worker modal
   const openDeleteModal = (worker) => {
     setSelectedWorker(worker);
     setIsDeleteModalOpen(true);
+  };
+
+  // Open face capture modal
+  const openFaceCaptureModal = (worker) => {
+    setSelectedWorkerForFace(worker);
+    setWorkerFaceEmbeddings(worker.faceEmbeddings || []);
+    setShowFaceCapture(true);
+  };
+
+  // Handle face embeddings captured
+  const handleFacesCaptured = async (faces) => {
+    const embeddings = faces.map(face => face.embedding);
+    setWorkerFaceEmbeddings(embeddings);
+    
+    // If we're editing an existing worker, update their face embeddings immediately
+    if (selectedWorkerForFace) {
+      try {
+        const updateData = {
+          faceEmbeddings: embeddings
+        };
+        
+        const updatedWorker = await updateWorker(selectedWorkerForFace._id, updateData);
+        
+        // Update the workers list
+        setWorkers(prev =>
+          prev.map(worker =>
+            worker._id === selectedWorkerForFace._id ? updatedWorker : worker
+          )
+        );
+        
+        toast.success('Face data captured and saved successfully');
+      } catch (error) {
+        console.error('Error saving face data:', error);
+        toast.error('Failed to save face data');
+      }
+    }
+    
+    setShowFaceCapture(false);
   };
 
   const generateQRCode = async (username, uniqueId) => {
@@ -242,6 +288,7 @@ const handleAddWorker = async (e) => {
       password: trimmedPassword,
       photo: formData.photo || '',
       batch: formData.batch, // ADDED: Include the batch
+      faceEmbeddings: workerFaceEmbeddings // Include face embeddings
     });
 
     generateQRCode(trimmedUsername, formData.rfid);
@@ -280,7 +327,8 @@ const handleAddWorker = async (e) => {
       const updateData = {
         name: formData.name,
         username: formData.username,
-        department: formData.department // Always include department
+        department: formData.department, // Always include department
+        faceEmbeddings: workerFaceEmbeddings // Include face embeddings
       };
 
       // ADDED: Only include batch if it has a value
@@ -369,6 +417,24 @@ const handleAddWorker = async (e) => {
     {
       header: 'Department',
       accessor: 'department'
+    },
+    {
+      header: 'Face Data',
+      accessor: 'faceData',
+      render: (worker) => (
+        <div className="flex items-center">
+          <span className={worker.faceEmbeddings && worker.faceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
+            {worker.faceEmbeddings && worker.faceEmbeddings.length > 0 ? 'Captured' : 'Not Captured'}
+          </span>
+          <button
+            onClick={() => openFaceCaptureModal(worker)}
+            className="ml-2 p-1 text-blue-600 hover:text-blue-800"
+            title="Capture Face"
+          >
+            <FaCamera />
+          </button>
+        </div>
+      )
     },
     {
       header: 'Actions',
@@ -565,6 +631,23 @@ const handleAddWorker = async (e) => {
             />
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Face Data</label>
+            <div className="flex items-center">
+              <span className={workerFaceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
+                {workerFaceEmbeddings.length > 0 ? `${workerFaceEmbeddings.length} face(s) captured` : 'No face data captured'}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowFaceCapture(true)}
+                className="ml-2"
+              >
+                <FaCamera className="mr-1" /> Capture Face
+              </Button>
+            </div>
+          </div>
+
           <div className="flex justify-end mt-6 space-x-2">
             <Button
               type="button"
@@ -733,6 +816,23 @@ const handleAddWorker = async (e) => {
             </select>
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Face Data</label>
+            <div className="flex items-center">
+              <span className={workerFaceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
+                {workerFaceEmbeddings.length > 0 ? `${workerFaceEmbeddings.length} face(s) captured` : 'No face data captured'}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowFaceCapture(true)}
+                className="ml-2"
+              >
+                <FaCamera className="mr-1" /> {workerFaceEmbeddings.length > 0 ? 'Re-capture Face' : 'Capture Face'}
+              </Button>
+            </div>
+          </div>
+
           <div className="flex justify-end mt-6 space-x-2">
             <Button
               type="button"
@@ -750,6 +850,17 @@ const handleAddWorker = async (e) => {
           </div>
         </form>
       </Modal>
+      
+      {/* Face Capture Modal */}
+      <Modal
+        isOpen={showFaceCapture}
+        onClose={() => setShowFaceCapture(false)}
+        title={selectedWorkerForFace ? `Capture Face for ${selectedWorkerForFace.name}` : "Capture Face"}
+        size="lg"
+      >
+        <FaceCapture onFacesCaptured={handleFacesCaptured} />
+      </Modal>
+      
       {/* Delete Worker Modal */}
       <Modal
         isOpen={isDeleteModalOpen}

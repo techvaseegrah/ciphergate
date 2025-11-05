@@ -212,7 +212,7 @@ const WorkerLogin = () => {
       );
     }
 
-    return <div className="flex justify-center items-center space-x-3 mt-8">{pageNumbers}</div>;
+    return <div className="flex justify-center items-center space-x-3 mt-8 flex-wrap">{pageNumbers}</div>;
   };
 
   // Generate floating particles for background animation
@@ -318,7 +318,7 @@ const WorkerLogin = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-[85%] max-w-md z-10 bg-[#121630]/80 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-[#2a3260] mx-auto"
+          className="w-[95%] max-w-md z-10 bg-[#121630]/80 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-[#2a3260] mx-auto"
         >
           <div className="mb-6 text-center">
             <motion.h1 
@@ -419,7 +419,7 @@ const WorkerLogin = () => {
           transition={{ duration: 0.5 }}
           className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4"
         >
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
+          <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600 text-center w-full md:w-auto">
             Employee Login
           </h1>
 
@@ -435,15 +435,16 @@ const WorkerLogin = () => {
               setCurrentPage(1);
               setDepartment('All');
             }}
-            className="absolute top-10 right-4 px-4 py-2 bg-[#1d2451]/60 border border-[#2a3260] text-blue-400 rounded-lg hover:bg-[#1d2451] transition-colors flex items-center gap-2 text-sm"
+            className="absolute top-4 right-4 px-3 py-2 bg-[#1d2451]/60 border border-[#2a3260] text-blue-400 rounded-lg hover:bg-[#1d2451] transition-colors flex items-center gap-1 text-xs sm:text-sm md:static md:mt-0"
           >
-            Change Company <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+            <span className="hidden sm:inline">Change Company</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
 
           </button>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
             <div className="relative flex-grow">
               <input
                 type="text"
@@ -458,7 +459,7 @@ const WorkerLogin = () => {
             <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              className="px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+              className="px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white w-full sm:w-auto"
             >
               {departments.map(dept => (
                 <option key={dept} value={dept}>{dept}</option>
@@ -512,7 +513,7 @@ const WorkerLogin = () => {
                       : 'bg-[#1d2451]/40 border border-[#2a3260] hover:border-blue-500/50'
                   }`}
                 >
-                  <div className="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden border-2 border-blue-500/30">
+                  <div className="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-2 border-blue-500/30">
                     <img
                       src={
                         worker.photo
@@ -554,7 +555,7 @@ const WorkerLogin = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center mb-6">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-500/50 mr-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-500/50 mr-4 flex-shrink-0">
                     <img
                       src={
                         selectedWorker.photo
@@ -565,15 +566,15 @@ const WorkerLogin = () => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-white">{selectedWorker.name}</h2>
-                    <p className="text-blue-400">{selectedWorker.department}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold text-white truncate">{selectedWorker.name}</h2>
+                    <p className="text-blue-400 truncate">{selectedWorker.department}</p>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setSelectedWorker(null)}
-                    className="ml-auto text-gray-400 hover:text-white focus:outline-none rounded-full w-8 h-8 flex items-center justify-center bg-[#1d2451]/50 hover:bg-[#1d2451]"
+                    className="ml-auto text-gray-400 hover:text-white focus:outline-none rounded-full w-8 h-8 flex items-center justify-center bg-[#1d2451]/50 hover:bg-[#1d2451] flex-shrink-0"
                   >
                     ✕
                   </motion.button>

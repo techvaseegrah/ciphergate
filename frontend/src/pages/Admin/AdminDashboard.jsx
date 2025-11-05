@@ -12,6 +12,8 @@ import FoodRequestManagement from '../../components/admin/FoodRequestManagement'
 import CustomTasks from '../../components/admin/CustomTasks';
 import SalaryManagement from '../../components/admin/SalaryManagement';
 import HolidayManagement from '../../components/admin/HolidayManagement';
+import FaceAttendancePage from '../../components/admin/FaceAttendancePage';
+import FaceTest from '../../components/admin/FaceTest'; // Import FaceTest
 
 const AdminDashboard = () => {
   return (
@@ -28,6 +30,8 @@ const AdminDashboard = () => {
       <Route path="departments" element={<DepartmentManagement />} />
       <Route path="food-requests" element={<FoodRequestManagement />} /> 
       <Route path="custom-tasks" element={<CustomTasks />} />
+      <Route path="face-attendance" element={<FaceAttendancePage />} />
+      <Route path="face-test" element={<FaceTest />} /> {/* Add FaceTest route */}
       {/* Redirect to dashboard for unknown routes */}
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

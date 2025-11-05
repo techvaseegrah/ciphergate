@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaBars, FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { FiLogOut } from "react-icons/fi";
 import appContext from '../../context/AppContext';
 
@@ -37,15 +37,17 @@ const Sidebar = ({
 
   return (
     <>
-      {/* Mobile menu button */}
-      <button
-        type="button"
-        className="md:hidden fixed top-4 left-4 z-20 p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-        onClick={toggleSidebar}
-      >
+      {/* External toggle button - positioned in the middle of the page when sidebar is closed */}
+      {!isOpen && (
+        <button
+          type="button"
+          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-pulse"
+          onClick={toggleSidebar}
+        >
         <span className="sr-only">Open sidebar</span>
-        <FaBars className="h-6 w-6" />
-      </button>
+          <FaChevronRight className="h-6 w-6" />
+        </button>
+      )}
 
       {/* Sidebar Backdrop */}
       {isOpen && (
@@ -55,31 +57,35 @@ const Sidebar = ({
         ></div>
       )}
 
-      {/* Sidebar */}
+      {/* Close toggle button - positioned outside the sidebar when open */}
+      {isOpen && (
+        <button
+          type="button"
+          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-bounce"
+          onClick={toggleSidebar}
+        >
+          <span className="sr-only">Close sidebar</span>
+          <FaChevronLeft className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Sidebar - Improved responsive classes */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-800 transition-transform duration-300 ease-in-out transform overflow-y-scroll ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-800 transition-transform duration-300 ease-in-out transform overflow-y-auto md:overflow-y-scroll ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
-        {/* Logo and close button */}
+        {/* Logo - no close button in header */}
         <div className="flex items-center justify-between h-16 px-4 bg-gray-900">
           <div className="flex items-center">
-            <span className="text-xl font-semibold text-white">{logoText}</span>
+            <span className="text-xl font-semibold text-white truncate">{logoText}</span>
           </div>
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-md text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-            onClick={toggleSidebar}
-          >
-            <span className="sr-only">Close sidebar</span>
-            <FaTimes className="h-6 w-6" />
-          </button>
         </div>
 
         {/* User profile */}
         {user && (
           <div className="px-4 py-5 border-b border-gray-700">
             <div className="flex items-center justify-between">
-              <div className='flex items-center'>
+              <div className='flex items-center min-w-0'>
                 <div className="flex-shrink-0">
                   <img
                     className="h-10 w-10 rounded-full object-cover"
@@ -87,9 +93,9 @@ const Sidebar = ({
                     alt={user.name || user.username}
                   />
                 </div>
-                <div className="ml-3">
-                  <p className="text-base font-medium text-white">{user.name || user.username}</p>
-                  <p className="text-sm font-medium text-gray-400">{user.department || user.role} - {subdomain}</p>
+                <div className="ml-3 min-w-0">
+                  <p className="text-base font-medium text-white truncate">{user.name || user.username}</p>
+                  <p className="text-sm font-medium text-gray-400 truncate">{user.department || user.role} - {subdomain}</p>
                 </div>
               </div>
               <div className="ml-3">
@@ -111,7 +117,7 @@ const Sidebar = ({
             if (link.isHeader) {
               return (
                 <div key={`header-${index}`} className="pt-4 pb-2">
-                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
                     {link.label}
                   </h3>
                 </div>
@@ -140,20 +146,20 @@ const Sidebar = ({
                     `}
                   >
                     {link.icon && (
-                      <span className="mr-3 h-6 w-6 flex items-center justify-center">
+                      <span className="mr-3 h-6 w-6 flex items-center justify-center flex-shrink-0">
                         {link.icon}
                       </span>
                     )}
-                    <span className="flex-1">{link.label}</span>
+                    <span className="flex-1 text-left truncate">{link.label}</span>
                     {link.badge && (
-                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                         {link.badge}
                       </span>
                     )}
-                    <span className="ml-2">
+                    <span className="ml-2 flex-shrink-0">
                       {isExpanded ? 
-                        <FaChevronDown className="h-4 w-4" /> : 
-                        <FaChevronRight className="h-4 w-4" />
+                        <FaChevronUp className="h-4 w-4" /> : 
+                        <FaChevronDown className="h-4 w-4" />
                       }
                     </span>
                   </button>
@@ -178,13 +184,13 @@ const Sidebar = ({
                           onClick={closeSidebar}
                         >
                           {child.icon && (
-                            <span className="mr-3 h-5 w-5 flex items-center justify-center">
+                            <span className="mr-3 h-5 w-5 flex items-center justify-center flex-shrink-0">
                               {child.icon}
                             </span>
                           )}
-                          <span className="flex-1">{child.label}</span>
+                          <span className="flex-1 text-left truncate">{child.label}</span>
                           {child.badge && (
-                            <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                            <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                               {child.badge}
                             </span>
                           )}
@@ -214,13 +220,13 @@ const Sidebar = ({
                 onClick={closeSidebar}
               >
                 {link.icon && (
-                  <span className="mr-3 h-6 w-6 flex items-center justify-center">
+                  <span className="mr-3 h-6 w-6 flex items-center justify-center flex-shrink-0">
                     {link.icon}
                   </span>
                 )}
-                <span className="flex-1">{link.label}</span>
+                <span className="flex-1 text-left truncate">{link.label}</span>
                 {link.badge && (
-                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                     {link.badge}
                   </span>
                 )}

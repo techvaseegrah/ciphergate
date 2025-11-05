@@ -246,41 +246,41 @@ function processAttendanceByDay(attendanceData) {
             header: 'Name',
             accessor: 'name',
             render: (record) => (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                     {record?.photo && (
                         <img
                             src={record.photo ? record.photo : `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}`}
                             alt="Employee"
-                            className="w-8 h-8 rounded-full mr-2"
+                            className="w-8 h-8 rounded-full mr-2 flex-shrink-0"
                         />
                     )}
-                    {record?.name || 'Unknown'}
+                    <span className="truncate">{record?.name || 'Unknown'}</span>
                 </div>
             )
         },
         {
             header: 'Employee ID',
             accessor: 'rfid',
-            render: (record) => record.rfid || 'Unknown'
+            render: (record) => <span className="truncate">{record.rfid || 'Unknown'}</span>
         },
         
             {
                 header: 'Department',
                 accessor: 'departmentName',
-                render: (record) => record.departmentName || record.department || 'Unknown'
+                render: (record) => <span className="truncate">{record.departmentName || record.department || 'Unknown'}</span>
             },
         {
             header: 'Date',
             accessor: 'date',
-            render: (record) => record.date || 'Unknown'
+            render: (record) => <span className="truncate">{record.date || 'Unknown'}</span>
         },
         {
             header: 'In Time',
             accessor: 'inTimes',
             render: (record) => (
-                <div>
+                <div className="min-w-0">
                     {record.inTimes.map((time, index) => (
-                        <div key={index} className="text-green-600">{time}</div>
+                        <div key={index} className="text-green-600 truncate">{time}</div>
                     ))}
                 </div>
             )
@@ -289,9 +289,9 @@ function processAttendanceByDay(attendanceData) {
             header: 'Out Time',
             accessor: 'outTimes',
             render: (record) => (
-                <div>
+                <div className="min-w-0">
                     {record.outTimes.map((time, index) => (
-                        <div key={index} className="text-red-600">{time}</div>
+                        <div key={index} className="text-red-600 truncate">{time}</div>
                     ))}
                 </div>
             )
@@ -299,47 +299,49 @@ function processAttendanceByDay(attendanceData) {
         {
             header: 'Duration',
             accessor: 'duration',
-            render: (record) => record.duration || '00:00:00'
+            render: (record) => <span className="truncate">{record.duration || '00:00:00'}</span>
         }
     ];
     
 
     return (
+        // Added w-full overflow-x-hidden to prevent horizontal scrolling
         <Fragment>      
             <h1 className='text-2xl font-bold'>Attendance Report</h1>
-            <div className='bg-white border rounded-lg p-4'>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className='bg-white border rounded-lg p-4 w-full overflow-x-hidden'>
+            {/* Improved responsive grid for filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <input
                 type="text"
-                className="form-input"
+                className="form-input w-full"
                 placeholder="Search by name..."
                 value={filterName}
                 onChange={e => setFilterName(e.target.value)}
               />
               <input
                 type="text"
-                className="form-input"
+                className="form-input w-full"
                 placeholder="Filter by RFID..."
                 value={filterRFID}
                 onChange={e => setFilterRFID(e.target.value)}
               />
               <input
                 type="text"
-                className="form-input"
+                className="form-input w-full"
                 placeholder="Filter by department..."
                 value={filterDepartment}
                 onChange={e => setFilterDepartment(e.target.value)}
               />
               <input
                 type="date"
-                className="form-input"
+                className="form-input w-full"
                 placeholder="Filter by date..."
                 value={filterDate}
                 onChange={e => setFilterDate(e.target.value)}
               />
             </div>
             <div className="flex justify-end mb-6">
-              <Button variant="primary" onClick={downloadAttendanceCSV}>
+              <Button variant="primary" onClick={downloadAttendanceCSV} className="w-full sm:w-auto">
                 <FaDownload className="mr-2" /> Download
               </Button>
             </div>
@@ -349,11 +351,14 @@ function processAttendanceByDay(attendanceData) {
                 {isLoading ? (
                     <Spinner size="md" variant="default" />
                 ) : (
-                    <Table
+                    // Added responsive wrapper for table
+                    <div className="overflow-x-auto w-full">
+                        <Table
                                       columns={columns}
                                       data={processedAttendance}
                                       noDataMessage="No attendance records found."
                                     />
+                    </div>
                 )}
             </div>
         </Fragment>

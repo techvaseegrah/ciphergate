@@ -6,15 +6,15 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
-import {
-  readHolidays,
-  createHoliday,
-  updateHoliday,
-  deleteHoliday,
-  getHolidaysByDateRange,
-  getUpcomingHolidays
+import { 
+  readHolidays, 
+  createHoliday, 
+  updateHoliday, 
+  deleteHoliday, 
+  getUpcomingHolidays, 
+  getHolidaysByDateRange 
 } from '../../services/holidayService';
-import { readWorkers } from '../../services/workerService';
+import { getWorkers } from '../../services/workerService';
 
 const HolidayManagement = () => {
   const holidayDescRef = useRef(null);
@@ -62,7 +62,7 @@ const HolidayManagement = () => {
 
   const fetchWorkers = async () => {
     try {
-      const data = await readWorkers(subdomain);
+      const data = await getWorkers(subdomain);
       setWorkers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch workers', err);

@@ -135,7 +135,8 @@ const WorkerLayout = ({ children }) => {
   ];
 
   return (
-    <div className="flex bg-gray-100">
+    // Added w-full overflow-x-hidden to prevent horizontal scrolling
+    <div className="flex bg-gray-100 w-full overflow-x-hidden">
       <Sidebar
         links={sidebarLinks}
         logoText="Employee Dashboard"
@@ -146,8 +147,9 @@ const WorkerLayout = ({ children }) => {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 md:ml-64"> 
-      <main className="p-4 md:p-6 min-h-0">
+      {/* Main content area - adjusted for sidebar */}
+      <div className="flex-1 md:ml-64 w-full overflow-x-hidden"> 
+        <main className="p-4 md:p-6 min-h-screen w-full overflow-x-hidden">
           {children}
         </main>
       </div>

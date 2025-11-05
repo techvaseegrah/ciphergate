@@ -13,6 +13,11 @@ const fs = require('fs');
 // @access  Private/Admin
 const createWorker = asyncHandler(async (req, res) => {
   try {
+    // Handle both object and string formats for subdomain
+    const subdomain = typeof req.body === 'object' && req.body.subdomain 
+      ? req.body.subdomain.trim() 
+      : '';
+
     // Trim and validate name with extra checks
     const name = req.body.name ? req.body.name.trim() : '';
     const username = req.body.username ? req.body.username.trim() : '';
@@ -21,10 +26,10 @@ const createWorker = asyncHandler(async (req, res) => {
     const salary = req.body.salary ? Number(String(req.body.salary).trim()) : 0;
     const finalSalary = req.body.salary ? Number(String(req.body.salary).trim()) : 0;
     const password = req.body.password ? req.body.password.trim() : '';
-    const subdomain = req.body.subdomain ? req.body.subdomain.trim() : '';
     const department = req.body.department ? req.body.department.trim() : '';
     const photo = req.body.photo ? req.body.photo.trim() : '';
     const batch = req.body.batch ? req.body.batch.trim() : ''; // ADDED THIS
+    const faceEmbeddings = req.body.faceEmbeddings ? req.body.faceEmbeddings : []; // ADDED THIS
     let perDaySalary = 0;
 
     if (salary <= 0) {
@@ -91,6 +96,7 @@ const createWorker = asyncHandler(async (req, res) => {
       department: departmentDoc._id,
       photo: photo || '',
       batch, // ADDED THIS
+      faceEmbeddings: faceEmbeddings || [], // ADDED THIS
       totalPoints: 0
     });
 
@@ -105,7 +111,8 @@ const createWorker = asyncHandler(async (req, res) => {
       subdomain: worker.subdomain,
       department: departmentDoc.name,
       photo: worker.photo,
-      batch: worker.batch // ADDED THIS
+      batch: worker.batch, // ADDED THIS
+      faceEmbeddings: worker.faceEmbeddings // ADDED THIS
     });
 
   } catch (error) {
@@ -156,7 +163,12 @@ const generateId = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getWorkers = asyncHandler(async (req, res) => {
     try {
-        const workers = await Worker.find({ subdomain: req.body.subdomain })
+        // Handle both object and string formats for subdomain
+        const subdomain = typeof req.body === 'object' && req.body.subdomain 
+          ? req.body.subdomain 
+          : req.body;
+
+        const workers = await Worker.find({ subdomain })
             .select('-password')
             .populate('department', 'name');
 
@@ -178,7 +190,12 @@ const getWorkers = asyncHandler(async (req, res) => {
 });
 const getPublicWorkers = asyncHandler(async (req, res) => {
   try {
-    const workers = await Worker.find({ subdomain: req.body.subdomain })
+    // Handle both object and string formats for subdomain
+    const subdomain = typeof req.body === 'object' && req.body.subdomain 
+      ? req.body.subdomain 
+      : req.body;
+      
+    const workers = await Worker.find({ subdomain })
       .select('name username subdomain department photo')
       .populate('department', 'name');
 
@@ -232,7 +249,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    const { name, username, salary, department, password, photo, batch } = req.body; // ADDED batch
+    const { name, username, salary, department, password, photo, batch, faceEmbeddings } = req.body; // ADDED faceEmbeddings
     const updateData = {};
 
     // Validate department if provided
@@ -277,6 +294,11 @@ const updateWorker = asyncHandler(async (req, res) => {
         updateData.batch = batch;
     }
 
+    // ADDED: Handle face embeddings update
+    if (faceEmbeddings) {
+        updateData.faceEmbeddings = faceEmbeddings;
+    }
+
     // Update salary-related fields if salary is provided
     if (salary) {
       const numericSalary = Number(salary);
@@ -306,7 +328,8 @@ const updateWorker = asyncHandler(async (req, res) => {
       finalSalary: updatedWorker.finalSalary,
       department: updatedWorker.department.name,
       photo: updatedWorker.photo,
-      batch: updatedWorker.batch // ADDED this to the response
+      batch: updatedWorker.batch, // ADDED this to the response
+      faceEmbeddings: updatedWorker.faceEmbeddings // ADDED this to the response
     });
   } catch (error) {
     console.error('Update Worker Error:', error);
@@ -408,6 +431,45 @@ const getWorkersByDepartment = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get worker by RFID
+// @route   POST /api/worker/get-worker-by-rfid
+// @access  Private
+const getWorkerByRfid = asyncHandler(async (req, res) => {
+  try {
+    const { rfid } = req.body;
+
+    if (!rfid) {
+      res.status(400);
+      throw new Error('RFID is required');
+    }
+
+    const worker = await Worker.findOne({ rfid })
+      .select('-password')
+      .populate('department', 'name');
+
+    if (!worker) {
+      res.status(404);
+      throw new Error('Worker not found');
+    }
+
+    res.json({
+      worker: {
+        _id: worker._id,
+        name: worker.name,
+        username: worker.username,
+        rfid: worker.rfid,
+        subdomain: worker.subdomain,
+        department: worker.department ? worker.department.name : 'N/A',
+        photo: worker.photo
+      }
+    });
+  } catch (error) {
+    console.error('Get Worker by RFID Error:', error);
+    res.status(400);
+    throw new Error(error.message || 'Failed to retrieve worker');
+  }
+});
+
 module.exports = {
   getWorkers,
   createWorker,
@@ -418,5 +480,6 @@ module.exports = {
   resetWorkerActivities,
   getWorkersByDepartment,
   getPublicWorkers,
-  generateId
+  generateId,
+  getWorkerByRfid
 };

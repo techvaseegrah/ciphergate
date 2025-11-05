@@ -41,8 +41,17 @@ export const createWorker = async (workerData) => {
       throw new Error('Batch is required');
     }
 
-    const urlResponse = await uploadUtils(workerData.photo);
-    workerData.photo = urlResponse;
+    // Handle photo upload if it's a file
+    if (workerData.photo && workerData.photo instanceof File) {
+      const urlResponse = await uploadUtils(workerData.photo);
+      // Only update the photo field if upload was successful
+      if (urlResponse) {
+        workerData.photo = urlResponse;
+      } else {
+        // If upload failed, remove the photo field or keep the existing one
+        delete workerData.photo;
+      }
+    }
 
     const response = await api.post('/workers', workerData);
     return response.data;
@@ -54,7 +63,9 @@ export const createWorker = async (workerData) => {
 
 export const getWorkers = async (subdomain) => {
   try {
-    const response = await api.post('/workers/all', subdomain);
+    // Add timestamp to prevent caching
+    const timestamp = new Date().getTime();
+    const response = await api.post(`/workers/all?_t=${timestamp}`, subdomain);
     return response.data || [];
   } catch (error) {
     console.error('Workers fetch error:', error);
@@ -62,23 +73,36 @@ export const getWorkers = async (subdomain) => {
   }
 };
 
-export const readWorkers = async (subdomain) => {
+export const getWorkerById = async (id) => {
   try {
-    const response = await api.post('/workers/all', { subdomain }, {
-      headers: {
-        Authorization: `Bearer ${getAuthToken()}`
-      }
-    });
-    return response.data || [];
+    // Add timestamp to prevent caching
+    const timestamp = new Date().getTime();
+    const response = await api.get(`/workers/${id}?_t=${timestamp}`);
+    return response.data;
   } catch (error) {
-    console.error('Workers fetch error:', error);
-    throw error.response?.data || new Error('Failed to fetch workers');
+    console.error('Worker fetch error:', error);
+    throw error.response?.data || new Error('Failed to fetch worker');
   }
 };
 
-export const getPublicWorkers = async (subdomain) => {
+export const getWorkersInDepartment = async (departmentId, subdomain) => {
   try {
-    const response = await api.post('/workers/public', subdomain);
+    const response = await api.get(`/workers/department/${departmentId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: subdomain // Pass subdomain in the request body
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('Workers in department fetch error:', error);
+    return [];
+  }
+};
+
+export const getPublicWorkers = async (subdomainObj) => {
+  try {
+    const response = await api.post('/workers/public', subdomainObj);
     return response.data || [];
   } catch (error) {
     console.error('Public workers fetch error:', error);
@@ -88,15 +112,16 @@ export const getPublicWorkers = async (subdomain) => {
 
 export const updateWorker = async (id, workerData) => {
   try {
-    // Check for batch data in workerData and add validation if needed
-    if (workerData.photo) {
+    // Handle photo upload if it's a file
+    if (workerData.photo && workerData.photo instanceof File) {
       const urlResponse = await uploadUtils(workerData.photo);
-      workerData.photo = urlResponse;
-    }
-
-    // ADDED: Client-side validation for batch
-    if ('batch' in workerData && !workerData.batch) {
-      throw new Error('Batch is required');
+      // Only update the photo field if upload was successful
+      if (urlResponse) {
+        workerData.photo = urlResponse;
+      } else {
+        // If upload failed, remove the photo field to keep the existing one
+        delete workerData.photo;
+      }
     }
 
     const response = await api.put(`/workers/${id}`, workerData);
@@ -117,5 +142,16 @@ export const deleteWorker = async (id) => {
     return response.data;
   } catch (error) {
     throw error.response ? error.response.data : new Error('Failed to delete worker');
+  }
+};
+
+// Get worker by RFID
+export const getWorkerByRfid = async (rfid) => {
+  try {
+    const response = await api.post('/workers/get-worker-by-rfid', { rfid });
+    return response.data;
+  } catch (error) {
+    console.error('Worker fetch by RFID error:', error);
+    throw error.response?.data || new Error('Failed to fetch worker by RFID');
   }
 };
