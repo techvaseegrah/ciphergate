@@ -222,6 +222,7 @@ const GenerateQuestions = () => {
   });
   const [jobId, setJobId] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [questionFormat, setQuestionFormat] = useState('mcq'); // Add question format state here
   const cancelRef = useRef(false);
 
   const dropdownRef = useRef(null);
@@ -497,8 +498,9 @@ const GenerateQuestions = () => {
         timeDuration: parseInt(timeDuration),
         totalTestDuration: parseInt(totalTestDuration),
         topicMode,
-        totalWorkers: selectedWorkers.length, // Add total workers count for better progress tracking
-        totalQuestions: selectedWorkers.length * parseInt(numQuestions) // Calculate total questions for progress display
+        questionFormat, // Add question format to payload
+        totalWorkers: selectedWorkers.length,
+        totalQuestions: selectedWorkers.length * parseInt(numQuestions)
       };
       if (topicMode === 'common') {
         // For common mode, use the topic as entered by the admin
@@ -959,8 +961,8 @@ const GenerateQuestions = () => {
                 icon={BookOpen} 
                 headerActions={
                     <div className="flex items-center space-x-2">
-                        <button type="button" onClick={() => setTopicMode('common')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${topicMode === 'common' ? 'bg-green-500 text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>Common Topic</button>
-                        <button type="button" onClick={() => setTopicMode('individual')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${topicMode === 'individual' ? 'bg-green-500 text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>Individual Topics</button>
+                        <button type="button" onClick={() => setTopicMode('common')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'common' ? 'bg-theme-red text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'}`}>Common Topic</button>
+                        <button type="button" onClick={() => setTopicMode('individual')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'individual' ? 'bg-theme-red text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'}`}>Individual Topics</button>
                     </div>
                 }
             >
@@ -1051,7 +1053,7 @@ const GenerateQuestions = () => {
             </Card>
 
             <Card title="Step 3: Question Configuration" icon={Settings}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center"><Target className="mr-2 text-gray-500" size={16} />Questions Per Employee</label>
                         <input type="number" min="1" max="100" value={numQuestions} onChange={(e) => setNumQuestions(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
@@ -1073,6 +1075,39 @@ const GenerateQuestions = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center"><Clock className="mr-2 text-gray-500" size={16} />Total Test Duration (min)</label>
                         <input type="number" min="1" max="120" value={totalTestDuration} onChange={(e) => setTotalTestDuration(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
                         <p className="text-xs text-gray-500 mt-1">e.g., 10 for 10 minutes</p>
+                    </div>
+                    {/* New Question Format Toggle */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center"><Settings className="mr-2 text-gray-500" size={16} />Question Format</label>
+                        <div className="flex space-x-2">
+                            <button
+                                type="button"
+                                onClick={() => setQuestionFormat('mcq')}
+                                className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
+                                    questionFormat === 'mcq' 
+                                        ? 'bg-theme-red text-white shadow-md' 
+                                        : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'
+                                }`}
+                            >
+                                MCQ Type
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuestionFormat('upsc')}
+                                className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
+                                    questionFormat === 'upsc' 
+                                        ? 'bg-theme-red text-white shadow-md' 
+                                        : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'
+                                }`}
+                            >
+                                UPSC/GK Style
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {questionFormat === 'mcq' 
+                                ? 'Standard multiple-choice questions' 
+                                : 'Structured statements with reasoning'}
+                        </p>
                     </div>
                 </div>
             </Card>

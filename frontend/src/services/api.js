@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 const api = axios.create({
@@ -29,10 +28,20 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       console.error('Unauthorized access');
-      // Optionally clear localStorage and redirect to login
+      // Clear localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/admin/login';
+      
+      // Check if user is on a worker page or admin page to redirect appropriately
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/worker')) {
+        // For worker routes, we don't want to redirect to admin login
+        // The component should handle the error display
+        console.log('Worker authentication failed, staying on current page');
+      } else {
+        // For admin routes, redirect to admin login
+        window.location.href = '/admin/login';
+      }
     }
     return Promise.reject(error);
   }

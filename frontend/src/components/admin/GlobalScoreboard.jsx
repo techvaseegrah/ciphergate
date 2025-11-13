@@ -40,12 +40,11 @@ const GlobalScoreboard = () => {
 
     const exportScoresToCSV = () => {
         const csvContent = [
-            ['Rank', 'Name', 'Department', 'Type', 'Points', 'Total Questions', 'Percentage', 'Tests'].join(','),
+            ['Rank', 'Name', 'Department', 'Points', 'Total Questions', 'Percentage', 'Tests'].join(','),
             ...scores.map((score, index) => [
                 index + 1,
                 score.name || 'Unknown User',
                 score.department || '',
-                score.type === 'worker' ? 'Employee' : 'Guest',
                 score.totalScore || 0,
                 score.totalPossibleScore || 0,
                 score.totalPossibleScore > 0 ? Math.round((score.totalScore / score.totalPossibleScore) * 100) : 0,
@@ -72,7 +71,7 @@ const GlobalScoreboard = () => {
         
         // Add title
         doc.setFontSize(18);
-        doc.text('Global Scoreboard Report', 14, 20);
+        doc.text('Overall Scoreboard Report', 14, 20);
         
         // Add date if filtered
         if (dateFilter) {
@@ -84,13 +83,12 @@ const GlobalScoreboard = () => {
         doc.setFontSize(10);
         doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, dateFilter ? 37 : 30);
         
-        // Prepare table data
-        const tableColumn = ['Rank', 'Name', 'Department', 'Type', 'Points', 'Total Questions', 'Percentage', 'Tests'];
+        // Prepare table data - removed TYPE column
+        const tableColumn = ['Rank', 'Name', 'Department', 'Points', 'Total Questions', 'Percentage', 'Tests'];
         const tableRows = scores.map((score, index) => [
             index + 1,
             score.name || 'Unknown User',
             score.department || '',
-            score.type === 'worker' ? 'Employee' : 'Guest',
             score.totalScore || 0,
             score.totalPossibleScore || 0,
             score.totalPossibleScore > 0 ? Math.round((score.totalScore / score.totalPossibleScore) * 100) + '%' : '0%',
@@ -107,13 +105,12 @@ const GlobalScoreboard = () => {
             alternateRowStyles: { fillColor: [245, 245, 245] }, // Light gray for alternate rows
             columnStyles: {
                 0: { halign: 'center' }, // Rank
-                1: { halign: 'left' },   // Name
-                2: { halign: 'left' },   // Department
-                3: { halign: 'center' }, // Type
-                4: { halign: 'center' }, // Points
-                5: { halign: 'center' }, // Total Questions
-                6: { halign: 'center' }, // Percentage
-                7: { halign: 'center' }  // Tests
+                1: { halign: 'center' }, // Name - changed to center alignment
+                2: { halign: 'center' }, // Department - changed to center alignment
+                3: { halign: 'center' }, // Points
+                4: { halign: 'center' }, // Total Questions
+                5: { halign: 'center' }, // Percentage
+                6: { halign: 'center' }  // Tests
             }
         });
         

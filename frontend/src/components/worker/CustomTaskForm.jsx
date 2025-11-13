@@ -86,8 +86,8 @@ const CustomTaskForm = () => {
 
   const getTabClassName = (tabName) => {
     return `px-3 py-1 rounded-md cursor-pointer ${activeView === tabName
-        ? 'bg-blue-600 text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      ? 'bg-theme-red text-white'
+      : 'bg-gray-200 text-gray-700 hover:bg-theme-red hover:text-white'
       }`;
   };
 
@@ -112,7 +112,7 @@ const CustomTaskForm = () => {
 
         <button
           type="submit"
-          className={`px-4 py-2 rounded-md text-white ${submitting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+          className={`px-4 py-2 rounded-md text-white ${submitting ? 'bg-theme-red' : 'bg-theme-red hover:bg-white hover:text-theme-red border-2 border-theme-red'
             }`}
           disabled={submitting}
         >
@@ -127,7 +127,7 @@ const CustomTaskForm = () => {
             <h3 className="text-md font-medium">Your Custom Tasks</h3>
             <button
               onClick={() => setShowAllTasks(!showAllTasks)}
-              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+              className="text-theme-red hover:text-theme-red text-sm flex items-center"
             >
               {showAllTasks ? (
                 <>Show Less {<FaChevronUp className="ml-1" />}</>
@@ -190,7 +190,7 @@ const CustomTaskForm = () => {
           {!showAllTasks && customTasks.length > 3 && (
             <button
               onClick={() => setShowAllTasks(true)}
-              className="mt-4 w-full py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md"
+              className="mt-4 w-full py-2 text-sm text-theme-red hover:text-theme-red border border-theme-red rounded-md hover:bg-theme-red hover:text-white"
             >
               View All ({customTasks.length}) Tasks
             </button>

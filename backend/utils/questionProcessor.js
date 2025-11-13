@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const Question = require('../models/Question');
 const Worker = require('../models/Worker');
 const LearningTopic = require('../models/LearningTopic');
-const { generateMCQQuestions } = require('./openai');
+const { generateMCQQuestions, generateUPSCQuestions } = require('./openai'); // Updated import
 const jobManager = require('./jobManager');
 const {
     CONCURRENT_WORKERS,
@@ -51,10 +51,11 @@ const processQuestionGeneration = async (jobData, jobId) => {
         topicMode,
         topic: commonTopic,
         commonTopics,
-        individualTopics
+        individualTopics,
+        questionFormat = 'mcq' // Add question format with default value
     } = jobData;
 
-    log.info('Starting robust, concurrent question generation job:', { numWorkers: workerIds.length, jobId });
+    log.info('Starting robust, concurrent question generation job:', { numWorkers: workerIds.length, jobId, questionFormat });
 
     const workers = await Worker.find({ _id: { $in: workerIds } });
     const workerMap = new Map(workers.map(w => [w._id.toString(), w]));
@@ -136,7 +137,7 @@ const processQuestionGeneration = async (jobData, jobId) => {
                             try {
                                 // SUPER OPTIMIZATION: Check cache first for common topics
                                 if (ENABLE_TOPIC_CACHING && topicMode === 'common') {
-                                    const cacheKey = `${currentTopic}-${difficulty}-${questionsForThisTopic}`;
+                                    const cacheKey = `${currentTopic}-${difficulty}-${questionsForThisTopic}-${questionFormat}`; // Updated cache key
                                     if (topicCache.has(cacheKey)) {
                                         const cached = topicCache.get(cacheKey);
                                         if (Date.now() - cached.timestamp < CACHE_TTL) {
@@ -149,12 +150,19 @@ const processQuestionGeneration = async (jobData, jobId) => {
                                     }
                                 }
                                 
-                                const result = await generateMCQQuestions([currentTopic], questionsForThisTopic, difficulty);
-                                const generatedQuestions = result[currentTopic] || [];
+                                // Use the appropriate generator based on question format
+                                let generatedQuestions = [];
+                                if (questionFormat === 'upsc') {
+                                    const result = await generateUPSCQuestions([currentTopic], questionsForThisTopic, difficulty);
+                                    generatedQuestions = result[currentTopic] || [];
+                                } else {
+                                    const result = await generateMCQQuestions([currentTopic], questionsForThisTopic, difficulty);
+                                    generatedQuestions = result[currentTopic] || [];
+                                }
                                 
                                 // SUPER OPTIMIZATION: Cache results for common topics
                                 if (ENABLE_TOPIC_CACHING && topicMode === 'common') {
-                                    const cacheKey = `${currentTopic}-${difficulty}-${questionsForThisTopic}`;
+                                    const cacheKey = `${currentTopic}-${difficulty}-${questionsForThisTopic}-${questionFormat}`; // Updated cache key
                                     topicCache.set(cacheKey, {
                                         questions: generatedQuestions,
                                         timestamp: Date.now()
@@ -182,18 +190,29 @@ const processQuestionGeneration = async (jobData, jobId) => {
                 }
 
                 const questionsToSave = allQuestionsForWorker.map(q => {
-                    const correctOptionIndex = q.options.findIndex(
-                        (opt) => String(opt).trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase()
+                    // Clean options by removing internal letters like (a), (b), (c), (d)
+                    const cleanedOptions = q.options.map(option => {
+                        // Remove patterns like "(a) ", "(b) ", etc. from the beginning of options
+                        return option.replace(/^\([a-d]\)\s*/i, '').trim();
+                    });
+                    
+                    // Also clean the correctAnswer
+                    const cleanedCorrectAnswer = q.correctAnswer.replace(/^\([a-d]\)\s*/i, '').trim();
+                    
+                    const correctOptionIndex = cleanedOptions.findIndex(
+                        (opt) => String(opt).trim().toLowerCase() === String(cleanedCorrectAnswer).trim().toLowerCase()
                     );
+                    
                     return {
                         worker: worker._id,
                         topic: combinedTopicString,
                         questionText: q.questionText,
-                        options: q.options,
-                        correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * q.options.length),
+                        options: cleanedOptions,
+                        correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * cleanedOptions.length),
                         difficulty: q.difficulty || difficulty,
                         timeDuration: parseInt(timeDuration),
-                        totalTestDuration: parseInt(totalTestDuration)
+                        totalTestDuration: parseInt(totalTestDuration),
+                        questionFormat: questionFormat // Store the question format
                     };
                 }).filter(Boolean);
 

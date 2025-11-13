@@ -48,7 +48,7 @@ import Settings from './components/admin/Settings';
 import ForgotPassword from './components/admin/ForgotPassword';
 import ResetPassword from './components/admin/ResetPassword';
 import HolidayManagement from './components/admin/HolidayManagement';
-
+import TestSidebarAnimation from './pages/Admin/TestSidebarAnimation';
 
 function App() {
   // Initialize subdomain with the actual value from localStorage immediately
@@ -116,8 +116,8 @@ function App() {
 
   return (
     <appContext.Provider value={contextValue}>
-      {/* Added w-full overflow-x-hidden to prevent horizontal scrolling */}
-      <div className="App w-full overflow-x-hidden">
+      {/* Updated with consistent theme colors */}
+      <div className="App w-full overflow-x-hidden bg-[#FFF3F2]">
         {/* Debug info - remove in production */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{ 
@@ -145,6 +145,9 @@ function App() {
           {/* NEW PASSWORD ROUTES */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+          {/* Test Animation Route */}
+          <Route path="/test-sidebar-animation" element={<TestSidebarAnimation />} />
 
           {/* Protected Admin routes with Layout */}
           <Route element={<PrivateRoute allowedRoles={['admin']} />}>

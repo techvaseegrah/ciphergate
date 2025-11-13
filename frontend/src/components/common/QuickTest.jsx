@@ -360,24 +360,89 @@ const QuickTest = () => {
 
                     {/* Question */}
                     <div className="bg-gray-800 p-8 rounded-lg mb-8">
-                        <h2 className="text-xl font-semibold mb-6">{currentQuestion.questionText}</h2>
-                        
-                        <div className="space-y-4">
-                            {currentQuestion.options.map((option, index) => (
-                                <button
-                                    key={index}
-                                    className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
-                                        answers[currentQuestionIndex] === index
-                                            ? 'border-blue-500 bg-blue-900 text-blue-100'
-                                            : 'border-gray-600 bg-gray-700 hover:border-gray-500 hover:bg-gray-600'
-                                    }`}
-                                    onClick={() => handleAnswerSelect(index)}
-                                >
-                                    <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
-                                    {option}
-                                </button>
-                            ))}
-                        </div>
+                        {currentQuestion.questionFormat === 'upsc' ? (
+                            // UPSC/GK Style Question Format
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold mb-4 whitespace-pre-line">
+                                    {currentQuestion.questionText}
+                                </h2>
+                                <div className="space-y-2 mt-4">
+                                    {currentQuestion.options.map((option, index) => {
+                                        // Determine styling based on the selected answer
+                                        let divStyle = 'p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+                                        
+                                        // When an answer is selected
+                                        if (answers[currentQuestionIndex] === index) {
+                                            divStyle = 'p-3 bg-blue-900 rounded-lg border-2 border-blue-500';
+                                        }
+                                        
+                                        return (
+                                            <div 
+                                                key={index} 
+                                                className={divStyle}
+                                                onClick={() => handleAnswerSelect(index)}
+                                            >
+                                                <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
+                                                {option}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            // Standard MCQ Format
+                            <>
+                                <h2 className="text-xl font-semibold mb-6">{currentQuestion.questionText}</h2>
+                                {/* Define correctAnswerIndex in a higher scope */}
+                                {(() => {
+                                    const correctAnswerIndex = typeof currentQuestion.correctOption === 'number' 
+                                        ? currentQuestion.correctOption 
+                                        : (typeof currentQuestion.correctAnswer === 'number' ? currentQuestion.correctAnswer : 0);
+                                    
+                                    return (
+                                        <div className="space-y-4">
+                                            {currentQuestion.options.map((option, index) => {
+                                                // Determine styling based on the selected answer and feedback state
+                                                let buttonStyle = 'border-gray-600 bg-gray-700 hover:border-blue-500 hover:bg-gray-600';
+                                                let iconMarkup = null;
+                                                
+                                                // When showing feedback after answer selection
+                                                if (showFeedback) {
+                                                    // Highlight the correct answer in green regardless of what was selected
+                                                    if (index === correctAnswerIndex) {
+                                                        buttonStyle = 'border-green-500 bg-green-700 text-green-100';
+                                                        iconMarkup = <span className="float-right text-green-400 font-bold">✓ CORRECT</span>;
+                                                    }
+                                                    
+                                                    // If this is the selected answer and it's wrong
+                                                    if (selectedAnswerIndex === index && index !== correctAnswerIndex) {
+                                                        buttonStyle = 'border-orange-500 bg-orange-900 text-orange-100';
+                                                        iconMarkup = <span className="float-right text-orange-400 font-bold">✗ WRONG</span>;
+                                                    }
+                                                } 
+                                                // When not showing feedback but an answer is selected
+                                                else if (answers[currentQuestionIndex] === index) {
+                                                    buttonStyle = 'border-blue-500 bg-blue-900 text-blue-100 transform scale-105';
+                                                }
+                                                
+                                                return (
+                                                    <button
+                                                        key={index}
+                                                        className={`w-full p-4 text-left rounded-lg border-2 transition-all duration-300 hover:scale-105 ${buttonStyle}`}
+                                                        onClick={() => handleAnswerSelect(index)}
+                                                        disabled={selectedAnswerIndex !== null || answers[currentQuestionIndex] !== null}
+                                                    >
+                                                        <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
+                                                        {option}
+                                                        {iconMarkup}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </>
+                        )}
                     </div>
 
                     {/* Navigation */}

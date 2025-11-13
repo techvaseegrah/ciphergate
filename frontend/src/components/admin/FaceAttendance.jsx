@@ -9,7 +9,7 @@ import { getWorkers, getWorkerById } from '../../services/workerService';
 import { putAttendance, getWorkerLastAttendance } from '../../services/attendanceService';
 import { getCurrentPosition, isWorkerInAllowedLocation } from '../../services/geolocationService';
 
-const FaceAttendance = ({ subdomain, isOpen, onClose, workerMode = false, currentWorker = null }) => {
+const FaceAttendance = ({ subdomain, isOpen, onClose, workerMode = false, currentWorker = null, onAttendanceMarked }) => {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
@@ -488,6 +488,11 @@ const FaceAttendance = ({ subdomain, isOpen, onClose, workerMode = false, curren
       
       // Show success message with current punch status
       toast.success(`Attendance marked: ${nextAction}`);
+      
+      // Call the callback to notify the parent component
+      if (onAttendanceMarked) {
+        onAttendanceMarked();
+      }
       
       // Close the modal after successful attendance
       setTimeout(() => {

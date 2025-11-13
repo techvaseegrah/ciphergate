@@ -27,8 +27,18 @@ const PrivateRoute = ({
   
   // Intelligent redirect path
   const getRedirectPath = () => {
+    // Check current path to determine appropriate redirect
+    const currentPath = window.location.pathname;
+    
     if (allowedRoles.includes('admin')) return '/admin/login';
-    if (allowedRoles.includes('worker')) return '/worker/login';
+    if (allowedRoles.includes('worker')) {
+      // For worker routes, check if we're already on a worker login page
+      // to avoid redirect loops
+      if (currentPath.startsWith('/worker/login')) {
+        return '/worker/login';
+      }
+      return '/worker/login';
+    }
     return redirectPath;
   };
 

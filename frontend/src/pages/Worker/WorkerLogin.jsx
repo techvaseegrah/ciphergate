@@ -40,6 +40,16 @@ const WorkerLogin = () => {
   const totalWorkers = filteredWorkers.length;
   const totalPages = Math.ceil(totalWorkers / workersPerPage);
 
+  // Generate floating particles for background animation - moved to component level
+  const particles = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 3 + 1,
+    duration: Math.random() * 20 + 10,
+    delay: Math.random() * 5
+  }));
+
   // Handle subdomain submission
   const handleSubdomainSubmit = (e) => {
     e.preventDefault();
@@ -148,7 +158,10 @@ const WorkerLogin = () => {
       toast.success(`Welcome, ${selectedWorker.name}!`);
       navigate('/worker');
     } catch (error) {
+      // Show error message but don't redirect
       toast.error(error.message || 'Login failed. Check your credentials.');
+      // Clear password field for retry
+      setPassword('');
     } finally {
       setIsLoading(false);
     }
@@ -171,7 +184,7 @@ const WorkerLogin = () => {
         <motion.button 
           key="prev" 
           onClick={() => setCurrentPage(currentPage - 1)} 
-          className="p-2 bg-[#1d2451]/80 text-blue-400 rounded-full hover:bg-[#1d2451] transition-colors"
+          className="p-2 bg-theme-red text-white rounded-full hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
@@ -187,9 +200,9 @@ const WorkerLogin = () => {
           onClick={() => setCurrentPage(i)}
           className={`w-9 h-9 rounded-full flex items-center justify-center ${
             currentPage === i 
-              ? 'bg-blue-600 text-white' 
-              : 'bg-[#1d2451]/50 text-gray-300 hover:bg-[#1d2451] hover:text-white'
-          } transition-colors`}
+              ? 'bg-theme-red text-white' 
+              : 'bg-gray-200 text-black hover:bg-theme-red hover:text-white'
+          } transition-colors border-2 border-theme-red`}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
@@ -203,7 +216,7 @@ const WorkerLogin = () => {
         <motion.button 
           key="next" 
           onClick={() => setCurrentPage(currentPage + 1)} 
-          className="p-2 bg-[#1d2451]/80 text-blue-400 rounded-full hover:bg-[#1d2451] transition-colors"
+          className="p-2 bg-theme-red text-white rounded-full hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
@@ -212,85 +225,22 @@ const WorkerLogin = () => {
       );
     }
 
-    return <div className="flex justify-center items-center space-x-3 mt-8 flex-wrap">{pageNumbers}</div>;
-  };
-
-  // Generate floating particles for background animation
-  const particles = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    duration: Math.random() * 20 + 10,
-    delay: Math.random() * 5
-  }));
-
-  if (showWrongSubdomainModal) { // New condition: If the modal flag is true, only render the modal
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1020] to-[#1a1a2e] text-white p-4 relative overflow-hidden">
-        {/* Animated Particles Background (optional, but good for consistent background) */}
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute rounded-full bg-blue-500/20"
-            initial={{ 
-              x: `${particle.x}%`, 
-              y: `${particle.y}%`, 
-              opacity: 0.1 + Math.random() * 0.3 
-            }}
-            animate={{ 
-              x: [`${particle.x}%`, `${particle.x + (Math.random() * 10 - 5)}%`],
-              y: [`${particle.y}%`, `${particle.y - 20}%`],
-              opacity: [0.1 + Math.random() * 0.3, 0]
-            }}
-            transition={{ 
-              repeat: Infinity,
-              duration: particle.duration,
-              delay: particle.delay,
-              ease: "linear"
-            }}
-            style={{ 
-              width: `${particle.size}px`, 
-              height: `${particle.size}px` 
-            }}
-          />
-        ))}
-        {/* Wrong Subdomain Modal */}
-        <Modal
-          isOpen={showWrongSubdomainModal}
-          onClose={() => setShowWrongSubdomainModal(false)}
-          title="Company Name Not Found"
-        >
-          <div className="text-center p-4">
-            <p className="text-lg text-gray-700 mb-6">
-              The company name you entered was not found. Please check and try again.
-            </p>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setShowWrongSubdomainModal(false);
-                setSubdomain('main'); // Reset subdomain to show the input field again
-                localStorage.removeItem('tasktracker-subdomain'); // Clear from local storage
-                setManualSubdomain(''); // Clear the input field
-              }}
-            >
-              Re-enter Company Name
-            </Button>
-          </div>
-        </Modal>
+      <div className="flex justify-center items-center space-x-2 mt-6">
+        {pageNumbers}
       </div>
     );
-  }
+  };
 
-  // Original return statement logic for subdomain input form
-  if (!subdomain || subdomain === 'main') {
+  // If no subdomain or subdomain is 'main', show the company name input
+  if (!subdomain || subdomain === "main") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1020] to-[#1a1a2e] text-white p-4 relative overflow-hidden">
-        {/* Animated Particles Background */}
+      <div className="min-h-screen bg-white text-black p-4 relative overflow-hidden">
+        {/* Animated Particles */}
         {particles.map((particle) => (
           <motion.div
             key={particle.id}
-            className="absolute rounded-full bg-blue-500/20"
+            className="absolute rounded-full bg-theme-red/20"
             initial={{ 
               x: `${particle.x}%`, 
               y: `${particle.y}%`, 
@@ -314,64 +264,70 @@ const WorkerLogin = () => {
           />
         ))}
         
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-[95%] max-w-md z-10 bg-[#121630]/80 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-[#2a3260] mx-auto"
-        >
-          <div className="mb-6 text-center">
-            <motion.h1 
-              className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600"
-              initial={{ y: -20 }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              Enter Your Company Name
-            </motion.h1>
-            <motion.div 
-              className="h-1 bg-blue-500 rounded-full w-0 mx-auto mt-2"
-              initial={{ width: 0 }}
-              animate={{ width: "60px" }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            />
-          </div>
-
-          <form onSubmit={handleSubdomainSubmit} className="space-y-4">
-          <motion.div
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <label className="text-gray-300 text-sm font-medium mb-2 block">Company Domain</label>
-              <input
-                ref={manualSubdomainInputRef} 
-                placeholder="e.g. company123"
-                value={manualSubdomain}
-                onChange={(e) => setManualSubdomain(e.target.value)}
-                className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                required
+        {/* Gradient Orbs */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-theme-red/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-theme-red/5 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+        
+        <div className="container mx-auto relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="w-[95%] max-w-md z-10 bg-white backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-gray-200 mx-auto"
+          >
+            <div className="mb-6 text-center">
+              <motion.h1 
+                className="text-2xl sm:text-3xl font-bold text-theme-red"
+                initial={{ y: -20 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                Enter Your Company Name
+              </motion.h1>
+              <motion.div 
+                className="h-1 bg-theme-red rounded-full w-0 mx-auto mt-2"
+                initial={{ width: 0 }}
+                animate={{ width: "60px" }}
+                transition={{ duration: 0.5, delay: 0.4 }}
               />
-            </motion.div>
-            
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ 
-                type: "spring", 
-                duration: 0.5, 
-                delay: 0.5,
-                stiffness: 120 
-              }}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Continue
-            </motion.button>
-          </form>
-        </motion.div>
+            </div>
+
+            <form onSubmit={handleSubdomainSubmit} className="space-y-4">
+            <motion.div
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+              >
+                <label className="text-black text-sm font-medium mb-2 block">Company Domain</label>
+                <input
+                  ref={manualSubdomainInputRef} 
+                  placeholder="e.g. company123"
+                  value={manualSubdomain}
+                  onChange={(e) => setManualSubdomain(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
+                  required
+                />
+              </motion.div>
+              
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ 
+                  type: "spring", 
+                  duration: 0.5, 
+                  delay: 0.5,
+                  stiffness: 120 
+                }}
+                className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors font-medium"
+              >
+                Continue
+              </motion.button>
+            </form>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -379,12 +335,12 @@ const WorkerLogin = () => {
   // Main Worker Login UI (This part remains unchanged from previous responses for clarity,
   // as the request specifically asked for modifications to the 'if (!subdomain || subdomain === "main")' block.)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f1020] to-[#1a1a2e] text-white p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-white text-black p-4 relative overflow-hidden">
       {/* Animated Particles */}
       {particles.map((particle) => (
         <motion.div
           key={particle.id}
-          className="absolute rounded-full bg-blue-500/20"
+          className="absolute rounded-full bg-theme-red/20"
           initial={{ 
             x: `${particle.x}%`, 
             y: `${particle.y}%`, 
@@ -409,8 +365,8 @@ const WorkerLogin = () => {
       ))}
       
       {/* Gradient Orbs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-theme-red/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-theme-red/5 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
       
       <div className="container mx-auto relative z-10">
         <motion.div 
@@ -419,7 +375,7 @@ const WorkerLogin = () => {
           transition={{ duration: 0.5 }}
           className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600 text-center w-full md:w-auto">
+          <h1 className="text-2xl sm:text-3xl font-bold text-theme-red text-center w-full md:w-auto">
             Employee Login
           </h1>
 
@@ -435,7 +391,7 @@ const WorkerLogin = () => {
               setCurrentPage(1);
               setDepartment('All');
             }}
-            className="absolute top-4 right-4 px-3 py-2 bg-[#1d2451]/60 border border-[#2a3260] text-blue-400 rounded-lg hover:bg-[#1d2451] transition-colors flex items-center gap-1 text-xs sm:text-sm md:static md:mt-0"
+            className="absolute top-4 right-4 px-3 py-2 bg-gray-200 border border-gray-300 text-black rounded-lg hover:bg-theme-red hover:text-white transition-colors flex items-center gap-1 text-xs sm:text-sm md:static md:mt-0"
           >
             <span className="hidden sm:inline">Change Company</span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -451,18 +407,18 @@ const WorkerLogin = () => {
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
               />
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400" />
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-theme-red" />
             </div>
 
             <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              className="px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white w-full sm:w-auto"
+              className="px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black w-full sm:w-auto"
             >
               {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
+                <option key={dept} value={dept} className="text-black">{dept}</option>
               ))}
             </select>
           </div>
@@ -470,20 +426,20 @@ const WorkerLogin = () => {
 
         {isLoadingWorkers ? (
           <div className="flex justify-center items-center h-96">
-            <Spinner size="lg" className="text-blue-500" />
+            <Spinner size="lg" className="text-theme-red" />
           </div>
         ) : (filteredWorkers.length === 0 && (subdomain && subdomain !== 'main')) ? ( // This line was modified previously
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="text-center py-16 text-gray-300"
+            className="text-center py-16 text-black"
           >
             No employees found for {subdomain}. Try adjusting your search or filter.
             <motion.button
               whileHover={{ scale: 1.1, rotate: 180 }}
               transition={{ duration: 0.5 }}
-              className='block mx-auto bg-[#1d2451]/60 border border-[#2a3260] p-3 my-3 rounded-full text-blue-400'
+              className='block mx-auto bg-gray-200 border border-gray-300 p-3 my-3 rounded-full text-black'
               onClick={loadWorkers}
             >
               <IoMdRefresh />
@@ -509,24 +465,27 @@ const WorkerLogin = () => {
                   whileHover={{ scale: 1.05, y: -5 }}
                   className={`cursor-pointer p-4 rounded-lg text-center transition-all ${
                     selectedWorker?._id === worker._id
-                      ? 'bg-[#1d2451]/90 border-2 border-blue-500 shadow-lg shadow-blue-500/20'
-                      : 'bg-[#1d2451]/40 border border-[#2a3260] hover:border-blue-500/50'
+                      ? 'bg-white border-2 border-theme-red shadow-lg shadow-theme-red/20'
+                      : 'bg-white border border-gray-300 hover:border-theme-red'
                   }`}
                 >
-                  <div className="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-2 border-blue-500/30">
+                  <div className="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-2 border-theme-red/30">
                     <img
                       src={
                         worker.photo
                           ? worker.photo
-                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0f3460&color=fff`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=ED1C24&color=fff`
                       }
                       alt="Employee"
                       className="w-full h-full object-cover"
                     />
                   </div>
-
-                  <h3 className="font-medium truncate text-white">{worker.name}</h3>
-                  <p className="text-xs text-blue-400/80 truncate">{worker.department}</p>
+                  <h3 className={`font-semibold truncate ${selectedWorker?._id === worker._id ? 'text-theme-red' : 'text-black'}`}>
+                    {worker.name}
+                  </h3>
+                  <p className={`text-sm truncate ${selectedWorker?._id === worker._id ? 'text-theme-red' : 'text-gray-600'}`}>
+                    {worker.department || 'No Department'}
+                  </p>
                 </motion.div>
               ))}
             </motion.div>
@@ -542,7 +501,7 @@ const WorkerLogin = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={(e) => {
                 if (e.target === e.currentTarget) setSelectedWorker(null);
               }}
@@ -551,30 +510,33 @@ const WorkerLogin = () => {
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
-                className="bg-[#121630]/95 border border-[#2a3260] rounded-2xl p-6 w-full max-w-md shadow-xl"
+                className="bg-white backdrop-blur-lg border border-gray-300 rounded-2xl p-6 w-full max-w-md shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center mb-6">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-500/50 mr-4 flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-theme-red/50 mr-4 flex-shrink-0">
                     <img
                       src={
                         selectedWorker.photo
                           ? selectedWorker.photo
-                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedWorker.name)}&background=0f3460&color=fff`
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedWorker.name)}&background=ED1C24&color=fff`
                       }
                       alt="Employee"
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-xl font-semibold text-white truncate">{selectedWorker.name}</h2>
-                    <p className="text-blue-400 truncate">{selectedWorker.department}</p>
+                    <h2 className="text-xl font-semibold text-theme-red truncate">{selectedWorker.name}</h2>
+                    <p className="text-theme-red truncate">{selectedWorker.department}</p>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => setSelectedWorker(null)}
-                    className="ml-auto text-gray-400 hover:text-white focus:outline-none rounded-full w-8 h-8 flex items-center justify-center bg-[#1d2451]/50 hover:bg-[#1d2451] flex-shrink-0"
+                    onClick={() => {
+                      setSelectedWorker(null);
+                      setPassword(''); // Clear password when closing modal
+                    }}
+                    className="ml-auto text-gray-600 hover:text-theme-red focus:outline-none rounded-full w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-theme-red hover:text-white flex-shrink-0"
                   >
                     ✕
                   </motion.button>
@@ -582,8 +544,8 @@ const WorkerLogin = () => {
 
                 <form onSubmit={handleLogin} className="space-y-5">
                   <div className="form-group relative">
-                    <label htmlFor="password" className="text-gray-300 flex items-center text-sm font-medium mb-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <label htmlFor="password" className="text-black flex items-center text-sm font-medium mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-theme-red" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
                       Password
@@ -593,15 +555,16 @@ const WorkerLogin = () => {
                         type={showPassword ? 'text' : 'password'}
                         id="password"
                         name="password"
-                        className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white pr-10"
+                        className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black pr-10"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
                         required
+                        autoFocus
                       />
                       <button
                         type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-theme-red focus:outline-none"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? (
@@ -624,7 +587,7 @@ const WorkerLogin = () => {
                     disabled={isLoading}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 font-medium"
+                    className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-70 font-medium"
                   >
                     {isLoading ? (
                       <span className="flex items-center justify-center">
@@ -641,6 +604,45 @@ const WorkerLogin = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Wrong Subdomain Modal */}
+        <Modal
+          isOpen={showWrongSubdomainModal}
+          onClose={() => setShowWrongSubdomainModal(false)}
+          title="Company Not Found"
+        >
+          <div className="p-4">
+            <p className="text-black mb-4">
+              We couldn't find any company with the name "<span className="font-semibold">{subdomain}</span>".
+            </p>
+            <p className="text-black mb-6">
+              Please check the spelling and try again, or enter a different company name.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWrongSubdomainModal(false);
+                  setSubdomain('main');
+                  localStorage.removeItem('tasktracker-subdomain');
+                }}
+                className="flex-1"
+              >
+                Re-enter Company Name
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setShowWrongSubdomainModal(false);
+                  loadWorkers();
+                }}
+                className="flex-1"
+              >
+                Try Again
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

@@ -6,7 +6,14 @@ import Button from '../common/Button';
 import Modal from '../common/Modal';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
-import { FaClock, FaPlay, FaStop, FaCheckCircle, FaTimesCircle, FaHistory, FaBook, FaTrophy, FaAward, FaCalendarAlt, FaChartBar } from 'react-icons/fa';
+import { FaClock, FaPlay, FaStop, FaCheckCircle, FaTimesCircle, FaHistory, FaBook, FaTrophy, FaAward, FaCalendarAlt, FaChartBar, FaEye, FaFilePdf } from 'react-icons/fa';
+
+// Add jsPDF for PDF generation
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+// Add html2canvas import
+import html2canvas from 'html2canvas';
+import { getTestDetails } from '../../services/testService';
 
 const WorkerTest = () => {
     const { user } = useAuth();
@@ -35,6 +42,12 @@ const WorkerTest = () => {
     const timerRef = useRef(null);
     const totalTimerRef = useRef(null);
     const testCompletedNaturally = useRef(false); // New ref to track natural test completion
+    
+    // New state for test review functionality
+    const [showTestReview, setShowTestReview] = useState(false);
+    const [testReviewData, setTestReviewData] = useState(null);
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [testReviewPage, setTestReviewPage] = useState(1); // For pagination in test review
 
     useEffect(() => {
         fetchAvailableTests();
@@ -522,6 +535,596 @@ const WorkerTest = () => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const fetchTestDetails = async (testId) => {
+        try {
+            setReviewLoading(true);
+            const data = await getTestDetails(testId);
+            setTestReviewData(data);
+            setTestReviewPage(1); // Reset to first page when opening
+            setShowTestReview(true);
+        } catch (error) {
+            console.error('Error fetching test details:', error);
+            alert('Error fetching test details. Please try again.');
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
+    const generatePDF = async (testData) => {
+        try {
+            // Show loading indicator
+            setReviewLoading(true);
+            
+            // Create a new jsPDF instance with custom margins
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            // Add header section (only on first page)
+            doc.setFillColor(255, 255, 255); // Background: #ffffff
+            doc.rect(0, 0, 210, 45, 'F'); // Full width header
+            
+            // Add title
+            doc.setFontSize(18);
+            doc.setTextColor(31, 41, 55); // text-gray-800
+            doc.setFont(undefined, 'bold');
+            doc.text('Test Review', 15, 15);
+            
+            // Add test name and date
+            doc.setFontSize(14);
+            doc.setTextColor(31, 41, 55); // text-gray-800
+            doc.text(testData.testName, 15, 25);
+            doc.setFontSize(12);
+            doc.setTextColor(107, 114, 128); // text-gray-600
+            doc.setFont(undefined, 'normal');
+            doc.text(`Completed on: ${new Date(testData.dateCompleted).toLocaleDateString()}`, 15, 32);
+            
+            // Add score information
+            doc.setFontSize(16);
+            doc.setTextColor(37, 99, 235); // text-blue-600
+            doc.setFont(undefined, 'bold');
+            doc.text(`Score: ${testData.score}`, 15, 42);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(55, 65, 81); // text-gray-700
+            doc.text(`${testData.percentage}% Performance`, 45, 42);
+            
+            // Add questions with proper multi-page support
+            let startY = 55;
+            
+            // Check if all answers are correct for the "Excellent" badge
+            const allCorrect = testData.questions.every(q => q.isCorrect);
+            
+            // Add "Excellent" badge if all correct
+            if (allCorrect) {
+                doc.setFillColor(220, 252, 231); // bg-green-100
+                doc.setTextColor(22, 101, 52); // text-green-800
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.roundedRect(150, 35, 45, 8, 4, 4, 'F'); // Rounded rectangle
+                doc.text('Excellent! All answers correct!', 152, 40);
+                startY += 10; // Adjust start position
+            }
+            
+            // Add each question with exact styling from UI
+            testData.questions.forEach((question, index) => {
+                const questionNumber = index + 1;
+                
+                // Calculate the height needed for this question block
+                const questionText = `Q${questionNumber}. ${question.questionText}`;
+                const questionTextLines = doc.splitTextToSize(questionText, 180);
+                const questionHeight = questionTextLines.length * 7; // 14px bold question text
+                
+                // Calculate options height
+                let optionsHeight = 0;
+                question.options.forEach(() => {
+                    optionsHeight += 15; // 13px options + spacing
+                });
+                
+                // Calculate total height for this question block
+                const totalQuestionHeight = questionHeight + optionsHeight + 30; // + padding and summary
+                
+                // Check if we need a new page
+                if (startY + totalQuestionHeight > 277) { // A4 page height is ~297mm, leaving 20mm bottom margin
+                    doc.addPage();
+                    startY = 20; // 20mm top margin
+                }
+                
+                // Add question container with shadow and rounded corners
+                doc.setDrawColor(229, 231, 235); // border-gray-200
+                doc.setLineWidth(0.2);
+                doc.setFillColor(255, 255, 255); // white background
+                doc.roundedRect(15, startY, 180, totalQuestionHeight, 8, 8, 'FD'); // 8px rounded corners
+                
+                // Add question text (14px bold)
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55); // text-gray-800
+                doc.setFont(undefined, 'bold');
+                doc.text(questionTextLines, 22, startY + 12);
+                
+                // Add options with exact styling from UI (13px)
+                let optionStartY = startY + questionHeight + 18;
+                
+                question.options.forEach((option, optIndex) => {
+                    const optionLabel = String.fromCharCode(65 + optIndex);
+                    let optionText = `${optionLabel}. ${option}`;
+                    
+                    // Set colors based on answer status
+                    if (question.userAnswer === option && !question.isCorrect) {
+                        // Red background for incorrect user answer
+                        doc.setFillColor(254, 226, 226); // light red background
+                        doc.setTextColor(220, 38, 38); // red text (#dc3545)
+                    } else if (question.correctAnswer === option) {
+                        // Green background for correct answer
+                        doc.setFillColor(220, 252, 231); // light green background
+                        doc.setTextColor(40, 167, 69); // green text (#28a745)
+                    } else {
+                        // White background for other options
+                        doc.setFillColor(255, 255, 255); // white background
+                        doc.setTextColor(31, 41, 55); // text-gray-800
+                    }
+                    
+                    // Draw option background with rounded corners and padding
+                    doc.roundedRect(22, optionStartY - 8, 166, 13, 4, 4, 'FD'); // 12px 16px padding
+                    
+                    // Add option text (13px)
+                    doc.setFontSize(13);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(optionText, 26, optionStartY);
+                    
+                    // Add indicators for user answer and correct answer
+                    if (question.userAnswer === option && !question.isCorrect) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text('❌ Your Answer', 160, optionStartY);
+                    } else if (question.correctAnswer === option) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text('✅ Correct Answer', 150, optionStartY);
+                    }
+                    
+                    optionStartY += 15; // Move to next option position (13px + 2px spacing)
+                });
+                
+                // Add answer summary section
+                let summaryStartY = optionStartY + 2;
+                
+                // Draw summary background with rounded corners
+                doc.setFillColor(255, 255, 255); // white background
+                doc.roundedRect(22, summaryStartY - 8, 166, 20, 4, 4, 'FD'); // 12px 16px padding
+                
+                // Add user answer text (12px italic)
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'italic');
+                
+                if (question.userAnswer) {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.text('Your Answer:', 26, summaryStartY);
+                    
+                    if (question.isCorrect) {
+                        doc.setTextColor(40, 167, 69); // green text (#28a745)
+                        doc.setFont(undefined, 'italic bold');
+                        doc.text(`${question.userAnswer} ✅`, 50, summaryStartY);
+                    } else {
+                        doc.setTextColor(220, 38, 38); // red text (#dc3545)
+                        doc.setFont(undefined, 'italic bold');
+                        doc.text(`${question.userAnswer} ❌`, 50, summaryStartY);
+                    }
+                } else {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.text('Your Answer:', 26, summaryStartY);
+                    doc.setTextColor(107, 114, 128); // text-gray-600
+                    doc.text('Not answered', 50, summaryStartY);
+                }
+                
+                // Add correct answer if user was incorrect (12px italic)
+                if (!question.isCorrect && question.correctAnswer) {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.setFont(undefined, 'italic');
+                    doc.text('Correct Answer:', 26, summaryStartY + 7);
+                    doc.setTextColor(40, 167, 69); // green text (#28a745)
+                    doc.setFont(undefined, 'italic bold');
+                    doc.text(`${question.correctAnswer} ✅`, 55, summaryStartY + 7);
+                }
+                
+                // Update startY for next question (18px margin-bottom)
+                startY += totalQuestionHeight + 18;
+            });
+            
+            // Save the PDF
+            const fileName = `${testData.testName.replace(/\s+/g, '_')}_Result_${user.name}.pdf`;
+            doc.save(fileName);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
+    const generatePDFDirectly = async (testId) => {
+        try {
+            setReviewLoading(true);
+            const data = await getTestDetails(testId);
+            await generatePDFFromData(data);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+    
+    // New function to generate PDF from test data without showing modal
+    const generatePDFFromData = async (testData) => {
+        try {
+            // Create a new jsPDF instance
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            // Add header section (only on first page)
+            doc.setFillColor(255, 255, 255); // Background: #ffffff
+            doc.rect(0, 0, 210, 45, 'F'); // Full width header
+            
+            // Add title
+            doc.setFontSize(18);
+            doc.setTextColor(31, 41, 55); // text-gray-800
+            doc.setFont(undefined, 'bold');
+            doc.text('Test Review', 15, 15);
+            
+            // Add test name and date
+            doc.setFontSize(14);
+            doc.setTextColor(31, 41, 55); // text-gray-800
+            doc.text(testData.testName, 15, 25);
+            doc.setFontSize(12);
+            doc.setTextColor(107, 114, 128); // text-gray-600
+            doc.setFont(undefined, 'normal');
+            doc.text(`Completed on: ${new Date(testData.dateCompleted).toLocaleDateString()}`, 15, 32);
+            
+            // Add score information
+            doc.setFontSize(16);
+            doc.setTextColor(37, 99, 235); // text-blue-600
+            doc.setFont(undefined, 'bold');
+            doc.text(`Score: ${testData.score}`, 15, 42);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(55, 65, 81); // text-gray-700
+            doc.text(`${testData.percentage}% Performance`, 45, 42);
+            
+            // Add questions with proper multi-page support
+            let startY = 55;
+            
+            // Check if all answers are correct for the "Excellent" badge
+            const allCorrect = testData.questions.every(q => q.isCorrect);
+            
+            // Add "Excellent" badge if all correct
+            if (allCorrect) {
+                doc.setFillColor(220, 252, 231); // bg-green-100
+                doc.setTextColor(22, 101, 52); // text-green-800
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.roundedRect(150, 35, 45, 8, 4, 4, 'F'); // Rounded rectangle
+                doc.text('Excellent! All answers correct!', 152, 40);
+                startY += 10; // Adjust start position
+            }
+            
+            // Add each question with exact styling from UI
+            testData.questions.forEach((question, index) => {
+                const questionNumber = index + 1;
+                
+                // Calculate the height needed for this question block
+                const questionText = `Q${questionNumber}. ${question.questionText}`;
+                const questionTextLines = doc.splitTextToSize(questionText, 180);
+                const questionHeight = questionTextLines.length * 7; // 14px bold question text
+                
+                // Calculate options height
+                let optionsHeight = 0;
+                question.options.forEach(() => {
+                    optionsHeight += 15; // 13px options + spacing
+                });
+                
+                // Calculate total height for this question block
+                const totalQuestionHeight = questionHeight + optionsHeight + 30; // + padding and summary
+                
+                // Check if we need a new page
+                if (startY + totalQuestionHeight > 277) { // A4 page height is ~297mm, leaving 20mm bottom margin
+                    doc.addPage();
+                    startY = 20; // 20mm top margin
+                }
+                
+                // Add question container with shadow and rounded corners
+                doc.setDrawColor(229, 231, 235); // border-gray-200
+                doc.setLineWidth(0.2);
+                doc.setFillColor(255, 255, 255); // white background
+                doc.roundedRect(15, startY, 180, totalQuestionHeight, 8, 8, 'FD'); // 8px rounded corners
+                
+                // Add question text (14px bold)
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55); // text-gray-800
+                doc.setFont(undefined, 'bold');
+                doc.text(questionTextLines, 22, startY + 12);
+                
+                // Add options with exact styling from UI (13px)
+                let optionStartY = startY + questionHeight + 18;
+                
+                question.options.forEach((option, optIndex) => {
+                    const optionLabel = String.fromCharCode(65 + optIndex);
+                    let optionText = `${optionLabel}. ${option}`;
+                    
+                    // Set colors based on answer status
+                    if (question.userAnswer === option && !question.isCorrect) {
+                        // Red background for incorrect user answer
+                        doc.setFillColor(254, 226, 226); // light red background
+                        doc.setTextColor(220, 38, 38); // red text (#dc3545)
+                    } else if (question.correctAnswer === option) {
+                        // Green background for correct answer
+                        doc.setFillColor(220, 252, 231); // light green background
+                        doc.setTextColor(40, 167, 69); // green text (#28a745)
+                    } else {
+                        // White background for other options
+                        doc.setFillColor(255, 255, 255); // white background
+                        doc.setTextColor(31, 41, 55); // text-gray-800
+                    }
+                    
+                    // Draw option background with rounded corners and padding
+                    doc.roundedRect(22, optionStartY - 8, 166, 13, 4, 4, 'FD'); // 12px 16px padding
+                    
+                    // Add option text (13px)
+                    doc.setFontSize(13);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(optionText, 26, optionStartY);
+                    
+                    // Add indicators for user answer and correct answer
+                    if (question.userAnswer === option && !question.isCorrect) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text('❌ Your Answer', 160, optionStartY);
+                    } else if (question.correctAnswer === option) {
+                        doc.setFont(undefined, 'bold');
+                        doc.text('✅ Correct Answer', 150, optionStartY);
+                    }
+                    
+                    optionStartY += 15; // Move to next option position (13px + 2px spacing)
+                });
+                
+                // Add answer summary section
+                let summaryStartY = optionStartY + 2;
+                
+                // Draw summary background with rounded corners
+                doc.setFillColor(255, 255, 255); // white background
+                doc.roundedRect(22, summaryStartY - 8, 166, 20, 4, 4, 'FD'); // 12px 16px padding
+                
+                // Add user answer text (12px italic)
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'italic');
+                
+                if (question.userAnswer) {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.text('Your Answer:', 26, summaryStartY);
+                    
+                    if (question.isCorrect) {
+                        doc.setTextColor(40, 167, 69); // green text (#28a745)
+                        doc.setFont(undefined, 'italic bold');
+                        doc.text(`${question.userAnswer} ✅`, 50, summaryStartY);
+                    } else {
+                        doc.setTextColor(220, 38, 38); // red text (#dc3545)
+                        doc.setFont(undefined, 'italic bold');
+                        doc.text(`${question.userAnswer} ❌`, 50, summaryStartY);
+                    }
+                } else {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.text('Your Answer:', 26, summaryStartY);
+                    doc.setTextColor(107, 114, 128); // text-gray-600
+                    doc.text('Not answered', 50, summaryStartY);
+                }
+                
+                // Add correct answer if user was incorrect (12px italic)
+                if (!question.isCorrect && question.correctAnswer) {
+                    doc.setTextColor(31, 41, 55); // text-gray-800
+                    doc.setFont(undefined, 'italic');
+                    doc.text('Correct Answer:', 26, summaryStartY + 7);
+                    doc.setTextColor(40, 167, 69); // green text (#28a745)
+                    doc.setFont(undefined, 'italic bold');
+                    doc.text(`${question.correctAnswer} ✅`, 55, summaryStartY + 7);
+                }
+                
+                // Update startY for next question (18px margin-bottom)
+                startY += totalQuestionHeight + 18;
+            });
+            
+            // Save the PDF
+            const fileName = `${testData.testName.replace(/\s+/g, '_')}_Result_${user.name}.pdf`;
+            doc.save(fileName);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+        }
+    };
+    
+    // Test Review Modal - Move this before other conditional renders
+    if (reviewLoading) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading test details...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    if (showTestReview && testReviewData) {
+        const allCorrect = testReviewData.questions.every(q => q.isCorrect);
+        
+        // Pagination
+        const questionsPerPage = 10;
+        const indexOfLastQuestion = testReviewPage * questionsPerPage;
+        const indexOfFirstQuestion = indexOfLastQuestion - questionsPerPage;
+        const currentQuestions = testReviewData.questions.slice(indexOfFirstQuestion, indexOfLastQuestion);
+        const totalPages = Math.ceil(testReviewData.questions.length / questionsPerPage);
+        
+        // Handle page change
+        const paginate = (pageNumber) => setTestReviewPage(pageNumber);
+        
+        return (
+            <div className="min-h-screen bg-gray-100 py-8">
+                <div className="max-w-4xl mx-auto">
+                    {/* Add ID for html2canvas to capture */}
+                    <div className="bg-white p-6 rounded-lg shadow-lg" id="testReviewSection">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                            <h1 className="text-2xl font-bold text-gray-800">Test Review</h1>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="primary"
+                                    onClick={() => generatePDF(testReviewData)}
+                                    className="flex items-center"
+                                    disabled={reviewLoading}
+                                >
+                                    <FaFilePdf className="mr-2" />
+                                    Download PDF
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowTestReview(false);
+                                        setTestReviewData(null); // Reset the data when closing
+                                        setTestReviewPage(1); // Reset to first page when closing
+                                    }}
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+                        
+                        {/* Test Header */}
+                        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-800">{testReviewData.testName}</h2>
+                                    <p className="text-gray-600">Completed on {new Date(testReviewData.dateCompleted).toLocaleDateString()}</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-3xl font-bold text-blue-600">{testReviewData.score}</div>
+                                    <div className="text-lg font-semibold text-gray-700">{testReviewData.percentage}% Performance</div>
+                                    {allCorrect && (
+                                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
+                                            Excellent! All answers correct!
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Questions with Pagination */}
+                        <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                            {currentQuestions.map((question, index) => {
+                                const questionNumber = indexOfFirstQuestion + index + 1;
+                                return (
+                                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                        <div className="mb-3">
+                                            <h3 className="text-lg font-medium text-gray-800">
+                                                Q{questionNumber}. {question.questionText}
+                                            </h3>
+                                        </div>
+                                        
+                                        {/* Options */}
+                                        <div className="ml-4 space-y-2 mb-4">
+                                            {question.options.map((option, optIndex) => {
+                                                const optionLabel = String.fromCharCode(65 + optIndex);
+                                                let optionStyle = "p-2 rounded";
+                                                
+                                                if (question.userAnswer === option && !question.isCorrect) {
+                                                    optionStyle += " bg-red-100 border border-red-300";
+                                                } else if (question.correctAnswer === option) {
+                                                    optionStyle += " bg-green-100 border border-green-300";
+                                                } else {
+                                                    optionStyle += " bg-gray-50";
+                                                }
+                                                
+                                                return (
+                                                    <div key={optIndex} className={optionStyle}>
+                                                        <span className="font-medium mr-2">{optionLabel}.</span>
+                                                        {option}
+                                                        {question.userAnswer === option && !question.isCorrect && (
+                                                            <span className="ml-2 text-red-600 font-bold">❌ Your Answer</span>
+                                                        )}
+                                                        {question.correctAnswer === option && (
+                                                            <span className="ml-2 text-green-600 font-bold">✅ Correct Answer</span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        {/* Answer Summary */}
+                                        <div className="bg-gray-50 p-3 rounded">
+                                            {question.userAnswer ? (
+                                                <div className="flex items-center">
+                                                    <span className="font-medium mr-2">Your Answer:</span>
+                                                    <span className={question.isCorrect ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                                                        {question.userAnswer} {question.isCorrect ? '✅' : '❌'}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center">
+                                                    <span className="font-medium mr-2">Your Answer:</span>
+                                                    <span className="text-gray-500">Not answered</span>
+                                                </div>
+                                            )}
+                                            
+                                            {!question.isCorrect && question.correctAnswer && (
+                                                <div className="flex items-center mt-1">
+                                                    <span className="font-medium mr-2">Correct Answer:</span>
+                                                    <span className="text-green-600 font-medium">
+                                                        {question.correctAnswer} ✅
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center mt-6">
+                                <nav className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => paginate(testReviewPage - 1)}
+                                        disabled={testReviewPage === 1}
+                                        className={`px-3 py-1 rounded-md ${testReviewPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                    >
+                                        Previous
+                                    </button>
+                                    
+                                    {[...Array(totalPages)].map((_, index) => {
+                                        const pageNumber = index + 1;
+                                        return (
+                                            <button
+                                                key={pageNumber}
+                                                onClick={() => paginate(pageNumber)}
+                                                className={`px-3 py-1 rounded-md ${
+                                                    testReviewPage === pageNumber 
+                                                        ? 'bg-blue-500 text-white' 
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                {pageNumber}
+                                            </button>
+                                        );
+                                    })}
+                                    
+                                    <button
+                                        onClick={() => paginate(testReviewPage + 1)}
+                                        disabled={testReviewPage === totalPages}
+                                        className={`px-3 py-1 rounded-md ${testReviewPage === totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                                    >
+                                        Next
+                                    </button>
+                                </nav>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (step === 'dashboard') {
         return (
             <div className="space-y-6">
@@ -678,55 +1281,83 @@ const WorkerTest = () => {
                             </div>
 
                             {filteredTestHistory.length > 0 ? (
-                                <div className="space-y-4">
-                                    {filteredTestHistory.map((test, index) => {
-                                        const percentage = test.totalQuestions > 0 
-                                            ? Math.round((test.score / test.totalQuestions) * 100) 
-                                            : 0;
-                                        const getScoreColor = () => {
-                                            if (percentage >= 80) return 'text-green-600 bg-green-100';
-                                            if (percentage >= 60) return 'text-yellow-600 bg-yellow-100';
-                                            return 'text-red-600 bg-red-100';
-                                        };
-                                        return (
-                                            <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center mb-2">
-                                                            <h3 className="text-lg font-semibold text-gray-800 mr-3">
-                                                                {test.topic}
-                                                            </h3>
-                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreColor()}`}>
-                                                                {percentage}% Score
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Test Name
+                                                </th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Date
+                                                </th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Score
+                                                </th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Status
+                                                </th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {filteredTestHistory.map((test, index) => {
+                                                const percentage = test.totalQuestions > 0 
+                                                    ? Math.round((test.score / test.totalQuestions) * 100) 
+                                                    : 0;
+                                                const getStatusColor = () => {
+                                                    if (percentage >= 80) return 'text-green-600 bg-green-100';
+                                                    if (percentage >= 60) return 'text-yellow-600 bg-yellow-100';
+                                                    return 'text-red-600 bg-red-100';
+                                                };
+                                                return (
+                                                    <tr key={index} className="hover:bg-gray-50">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                            {test.topic}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            {new Date(test.createdAt).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            <span className="font-medium">{test.score}/{test.totalQuestions}</span>
+                                                            <span className="ml-2">({percentage}%)</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
+                                                                Completed
                                                             </span>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                                                            <div className="flex items-center">
-                                                                <FaCalendarAlt className="mr-2 text-blue-500" />
-                                                                <span>Completed on {new Date(test.createdAt).toLocaleDateString()}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                            <div className="flex space-x-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => fetchTestDetails(test._id)}
+                                                                    disabled={reviewLoading}
+                                                                    className="flex items-center"
+                                                                >
+                                                                    <FaEye className="mr-1" />
+                                                                    View
+                                                                </Button>
+                                                                <Button
+                                                                    variant="primary"
+                                                                    size="sm"
+                                                                    onClick={() => generatePDFDirectly(test._id)}
+                                                                    disabled={reviewLoading}
+                                                                    className="flex items-center"
+                                                                >
+                                                                    <FaFilePdf className="mr-1" />
+                                                                    PDF
+                                                                </Button>
                                                             </div>
-                                                            <div className="flex items-center">
-                                                                <FaBook className="mr-2 text-green-500" />
-                                                                <span>{test.totalQuestions} Questions</span>
-                                                            </div>
-                                                            <div className="flex items-center">
-                                                                <FaTrophy className="mr-2 text-purple-500" />
-                                                                <span>Score: {test.score}/{test.totalQuestions}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="ml-4 text-right">
-                                                        <div className={`text-3xl font-bold ${percentage >= 70 ? 'text-green-600' : percentage >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                                            {percentage}%
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            Performance
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
@@ -794,87 +1425,89 @@ const WorkerTest = () => {
 
                     {/* Question */}
                     <div className="bg-gray-800 p-8 rounded-lg mb-8">
-                        <h2 className="text-xl font-semibold mb-6">{currentQuestion.questionText}</h2>
-                        
-                        {/* Get the correct answer index only once */}
-                        {(() => {
-                            // Define correctAnswerIndex in a higher scope to be used throughout the component
-                            const correctAnswerIndex = typeof currentQuestion.correctOption === 'number' 
-                                ? currentQuestion.correctOption 
-                                : (typeof currentQuestion.correctAnswer === 'number' ? currentQuestion.correctAnswer : 0);
-                            
-                            // Store it in a variable for debugging (for developers only)
-                            // window.currentCorrectAnswerIndex = correctAnswerIndex;
-                            
-                            return (
-                                <>
-                                    <div className="space-y-4">
-                                        {currentQuestion.options.map((option, index) => {
-                                            // Determine styling based on the selected answer and feedback state
-                                            let buttonStyle = 'border-gray-600 bg-gray-700 hover:border-blue-500 hover:bg-gray-600';
-                                            let iconMarkup = null;
-                                            
-                                            // When showing feedback after answer selection
-                                            if (showFeedback) {
-                                                // Highlight the correct answer in green regardless of what was selected
-                                                if (index === correctAnswerIndex) {
-                                                    buttonStyle = 'border-green-500 bg-green-700 text-green-100';
-                                                    iconMarkup = <span className="float-right text-green-400 font-bold">✓ CORRECT</span>;
+                        {currentQuestion.questionFormat === 'upsc' ? (
+                            // UPSC/GK Style Question Format
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold mb-4 whitespace-pre-line">
+                                    {currentQuestion.questionText}
+                                </h2>
+                                <div className="space-y-2 mt-4">
+                                    {currentQuestion.options.map((option, index) => {
+                                        // Determine styling based on the selected answer
+                                        let divStyle = 'p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
+                                        
+                                        // When an answer is selected
+                                        if (answers[currentQuestionIndex] === index) {
+                                            divStyle = 'p-3 bg-blue-900 rounded-lg border-2 border-blue-500';
+                                        }
+                                        
+                                        return (
+                                            <div 
+                                                key={index} 
+                                                className={divStyle}
+                                                onClick={() => handleAnswerSelect(index)}
+                                            >
+                                                <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
+                                                {option}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            // Standard MCQ Format
+                            <>
+                                <h2 className="text-xl font-semibold mb-6">{currentQuestion.questionText}</h2>
+                                {/* Define correctAnswerIndex in a higher scope */}
+                                {(() => {
+                                    const correctAnswerIndex = typeof currentQuestion.correctOption === 'number' 
+                                        ? currentQuestion.correctOption 
+                                        : (typeof currentQuestion.correctAnswer === 'number' ? currentQuestion.correctAnswer : 0);
+                                    
+                                    return (
+                                        <div className="space-y-4">
+                                            {currentQuestion.options.map((option, index) => {
+                                                // Determine styling based on the selected answer and feedback state
+                                                let buttonStyle = 'border-gray-600 bg-gray-700 hover:border-blue-500 hover:bg-gray-600';
+                                                let iconMarkup = null;
+                                                
+                                                // When showing feedback after answer selection
+                                                if (showFeedback) {
+                                                    // Highlight the correct answer in green regardless of what was selected
+                                                    if (index === correctAnswerIndex) {
+                                                        buttonStyle = 'border-green-500 bg-green-700 text-green-100';
+                                                        iconMarkup = <span className="float-right text-green-400 font-bold">✓ CORRECT</span>;
+                                                    }
+                                                    
+                                                    // If this is the selected answer and it's wrong
+                                                    if (selectedAnswerIndex === index && index !== correctAnswerIndex) {
+                                                        buttonStyle = 'border-orange-500 bg-orange-900 text-orange-100';
+                                                        iconMarkup = <span className="float-right text-orange-400 font-bold">✗ WRONG</span>;
+                                                    }
+                                                } 
+                                                // When not showing feedback but an answer is selected
+                                                else if (answers[currentQuestionIndex] === index) {
+                                                    buttonStyle = 'border-blue-500 bg-blue-900 text-blue-100 transform scale-105';
                                                 }
                                                 
-                                                // If this is the selected answer and it's wrong
-                                                if (selectedAnswerIndex === index && index !== correctAnswerIndex) {
-                                                    buttonStyle = 'border-orange-500 bg-orange-900 text-orange-100';
-                                                    iconMarkup = <span className="float-right text-orange-400 font-bold">✗ WRONG</span>;
-                                                }
-                                            } 
-                                            // When not showing feedback but an answer is selected
-                                            else if (answers[currentQuestionIndex] === index) {
-                                                buttonStyle = 'border-blue-500 bg-blue-900 text-blue-100 transform scale-105';
-                                            }
-                                            
-                                            return (
-                                                <button
-                                                    key={index}
-                                                    className={`w-full p-4 text-left rounded-lg border-2 transition-all duration-300 hover:scale-105 ${buttonStyle}`}
-                                                    onClick={() => handleAnswerSelect(index)}
-                                                    disabled={selectedAnswerIndex !== null || answers[currentQuestionIndex] !== null}
-                                                >
-                                                    <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
-                                                    {option}
-                                                    {iconMarkup}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    
-                                    {/* Feedback status */}
-                                    <div className="flex justify-between items-center mt-6">
-                                        <div className="text-sm">
-                                            {showFeedback ? (
-                                                selectedAnswerIndex === correctAnswerIndex ? (
-                                                    <span className="text-green-400 font-medium">✓ Correct answer! Moving to next question in 2 seconds...</span>
-                                                ) : (
-                                                    <span className="text-orange-400 font-medium">
-                                                        ✗ Incorrect. The correct answer is <span className="text-green-400 font-bold">
-                                                            {String.fromCharCode(65 + correctAnswerIndex)}. 
-                                                            {currentQuestion.options[correctAnswerIndex]}
-                                                        </span>. Moving to next question...
-                                                    </span>
-                                                )
-                                            ) : answers[currentQuestionIndex] !== null ? (
-                                                <span className="text-blue-400">Answer selected</span>
-                                            ) : (
-                                                <span className="text-gray-400">Click an answer to continue</span>
-                                            )}
+                                                return (
+                                                    <button
+                                                        key={index}
+                                                        className={`w-full p-4 text-left rounded-lg border-2 transition-all duration-300 hover:scale-105 ${buttonStyle}`}
+                                                        onClick={() => handleAnswerSelect(index)}
+                                                        disabled={selectedAnswerIndex !== null || answers[currentQuestionIndex] !== null}
+                                                    >
+                                                        <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
+                                                        {option}
+                                                        {iconMarkup}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                        <div className="text-sm text-gray-500">
-                                            Auto-advance enabled
-                                        </div>
-                                    </div>
-                                </>
-                            );
-                        })()}
+                                    );
+                                })()}
+                            </>
+                        )}
                     </div>
 
                 </div>

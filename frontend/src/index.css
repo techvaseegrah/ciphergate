@@ -34,27 +34,27 @@ h3 {
 /* Custom component classes */
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition duration-200;
+    @apply px-4 py-2 rounded-full font-medium transition duration-200;
   }
   
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-hover;
+    @apply bg-theme-red text-white hover:bg-white hover:text-theme-red border-2 border-theme-red;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-white hover:bg-blue-600;
+    @apply bg-secondary text-white hover:bg-white hover:text-secondary border-2 border-secondary;
   }
   
   .btn-danger {
-    @apply bg-danger text-white hover:bg-red-500;
+    @apply bg-danger text-white hover:bg-white hover:text-danger border-2 border-danger;
   }
   
   .btn-outline {
-    @apply border border-gray-300 bg-white hover:bg-gray-100;
+    @apply border-2 border-theme-red bg-white text-theme-red hover:bg-theme-red hover:text-white;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 mb-4 w-full;
+    @apply bg-white rounded-2xl shadow-md p-6 mb-4 w-full border border-gray-200;
   }
   
   .form-group {
@@ -62,7 +62,7 @@ h3 {
   }
   
   .form-input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-theme-red;
   }
   
   .form-label {
@@ -91,7 +91,7 @@ h3 {
 }
 
 .sidebar-icon:hover {
-  color: #171986; /* Vibrant purple on hover */
+  color: #ED1C24; /* Red color on hover */
   transform: scale(1.1); /* Optional: slight scale effect */
 }
 
@@ -132,6 +132,386 @@ h3 {
   animation: gradientShift 8s ease infinite;
 }
 
+/* Custom animation for CipherGate text */
+@keyframes colorShift {
+  0% {
+    color: #ED1C24; /* Red */
+  }
+  50% {
+    color: #800000; /* Dark red */
+  }
+  100% {
+    color: #000000; /* Black */
+  }
+}
+
+@keyframes smoothRunningTransition {
+  0% {
+    background: linear-gradient(90deg, #ED1C24 50%, #000000 50%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  1% {
+    background: linear-gradient(90deg, #ED1C24 51%, #000000 51%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  2% {
+    background: linear-gradient(90deg, #ED1C24 52%, #000000 52%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  3% {
+    background: linear-gradient(90deg, #ED1C24 53%, #000000 53%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  4% {
+    background: linear-gradient(90deg, #ED1C24 54%, #000000 54%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  5% {
+    background: linear-gradient(90deg, #ED1C24 55%, #000000 55%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  6% {
+    background: linear-gradient(90deg, #ED1C24 56%, #800000 56%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  7% {
+    background: linear-gradient(90deg, #ED1C24 57%, #800000 57%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  8% {
+    background: linear-gradient(90deg, #ED1C24 58%, #800000 58%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  9% {
+    background: linear-gradient(90deg, #ED1C24 59%, #800000 59%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  10% {
+    background: linear-gradient(90deg, #ED1C24 60%, #800000 60%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  11% {
+    background: linear-gradient(90deg, #800000 61%, #800000 61%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  12% {
+    background: linear-gradient(90deg, #800000 62%, #800000 62%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  13% {
+    background: linear-gradient(90deg, #800000 63%, #800000 63%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  14% {
+    background: linear-gradient(90deg, #800000 64%, #800000 64%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  15% {
+    background: linear-gradient(90deg, #800000 65%, #800000 65%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  16% {
+    background: linear-gradient(90deg, #800000 66%, #000000 66%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  17% {
+    background: linear-gradient(90deg, #800000 67%, #000000 67%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  18% {
+    background: linear-gradient(90deg, #800000 68%, #000000 68%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  19% {
+    background: linear-gradient(90deg, #800000 69%, #000000 69%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  20% {
+    background: linear-gradient(90deg, #800000 70%, #000000 70%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  21% {
+    background: linear-gradient(90deg, #000000 71%, #000000 71%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  22% {
+    background: linear-gradient(90deg, #000000 72%, #000000 72%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  23% {
+    background: linear-gradient(90deg, #000000 73%, #000000 73%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  24% {
+    background: linear-gradient(90deg, #000000 74%, #000000 74%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  25% {
+    background: linear-gradient(90deg, #000000 75%, #000000 75%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  26% {
+    background: linear-gradient(90deg, #000000 74%, #800000 74%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  27% {
+    background: linear-gradient(90deg, #000000 73%, #800000 73%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  28% {
+    background: linear-gradient(90deg, #000000 72%, #800000 72%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  29% {
+    background: linear-gradient(90deg, #000000 71%, #800000 71%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  30% {
+    background: linear-gradient(90deg, #000000 70%, #800000 70%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  31% {
+    background: linear-gradient(90deg, #800000 69%, #800000 69%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  32% {
+    background: linear-gradient(90deg, #800000 68%, #800000 68%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  33% {
+    background: linear-gradient(90deg, #800000 67%, #800000 67%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  34% {
+    background: linear-gradient(90deg, #800000 66%, #800000 66%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  35% {
+    background: linear-gradient(90deg, #800000 65%, #800000 65%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  36% {
+    background: linear-gradient(90deg, #800000 64%, #ED1C24 64%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  37% {
+    background: linear-gradient(90deg, #800000 63%, #ED1C24 63%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  38% {
+    background: linear-gradient(90deg, #800000 62%, #ED1C24 62%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  39% {
+    background: linear-gradient(90deg, #800000 61%, #ED1C24 61%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  40% {
+    background: linear-gradient(90deg, #800000 60%, #ED1C24 60%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  41% {
+    background: linear-gradient(90deg, #ED1C24 59%, #ED1C24 59%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  42% {
+    background: linear-gradient(90deg, #ED1C24 58%, #ED1C24 58%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  43% {
+    background: linear-gradient(90deg, #ED1C24 57%, #ED1C24 57%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  44% {
+    background: linear-gradient(90deg, #ED1C24 56%, #ED1C24 56%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  45% {
+    background: linear-gradient(90deg, #ED1C24 55%, #ED1C24 55%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  46% {
+    background: linear-gradient(90deg, #ED1C24 54%, #000000 54%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  47% {
+    background: linear-gradient(90deg, #ED1C24 53%, #000000 53%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  48% {
+    background: linear-gradient(90deg, #ED1C24 52%, #000000 52%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  49% {
+    background: linear-gradient(90deg, #ED1C24 51%, #000000 51%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+  50%, 100% {
+    background: linear-gradient(90deg, #ED1C24 50%, #000000 50%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+
+/* New animation for CipherGate text - smooth letter-by-letter appearance */
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+/* Color transition animation that flows from left to right and back */
+@keyframes colorFlow {
+  0% {
+    background: linear-gradient(90deg, #ED1C24 0%, #800000 50%, #000000 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-size: 200% 100%;
+    background-position: 0% 0%;
+  }
+  100% {
+    background: linear-gradient(90deg, #ED1C24 0%, #800000 50%, #000000 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-size: 200% 100%;
+    background-position: 100% 0%;
+  }
+}
+
+.ciphergate-animated {
+  animation: colorFlow 3s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, #ED1C24 0%, #800000 50%, #000000 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+}
+
+/* Continuous red to white color transition for sidebar toggle arrows */
+@keyframes redToWhiteTransition {
+  0% {
+    color: #ED1C24; /* Red */
+  }
+  25% {
+    color: #FF6666; /* Light red */
+  }
+  50% {
+    color: #FFFFFF; /* White */
+  }
+  75% {
+    color: #FF6666; /* Light red */
+  }
+  100% {
+    color: #ED1C24; /* Red */
+  }
+}
+
+.sidebar-toggle-animated {
+  animation: redToWhiteTransition 2s linear infinite;
+}
+
 /* Additional responsive utilities */
 @layer utilities {
   .truncate {
@@ -140,5 +520,13 @@ h3 {
   
   .min-w-0 {
     min-width: 0;
+  }
+  
+  .break-words {
+    word-break: break-word;
+  }
+  
+  .whitespace-normal {
+    white-space: normal;
   }
 }

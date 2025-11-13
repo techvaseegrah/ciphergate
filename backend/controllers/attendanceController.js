@@ -324,6 +324,63 @@ const getAttendance = async (req, res) => {
     }
 };
 
+// @desc    Retrieve attendance records for a specific subdomain with pagination
+// @route   POST /api/attendance/paginated
+// @access  Private
+const getPaginatedAttendance = async (req, res) => {
+    try {
+        const { subdomain, page = 1, limit = 2 } = req.body;
+
+        if (!subdomain || subdomain == 'main') {
+            res.status(401);
+            throw new Error('Company name is missing, login again');
+        }
+
+        // Calculate skip value for pagination
+        const skip = (page - 1) * limit;
+
+        // Get all unique dates for the subdomain
+        const allDates = await Attendance.distinct('date', { subdomain });
+
+        // Sort dates manually (newest first)
+        const sortedDates = allDates.sort((a, b) => new Date(b) - new Date(a));
+
+        // Get the dates for the current page
+        const datesForPage = sortedDates.slice(skip, skip + limit);
+
+        // If no dates for this page, return empty result
+        if (datesForPage.length === 0) {
+            return res.status(200).json({ 
+                message: 'Attendance data retrieved successfully', 
+                attendance: [],
+                hasMore: false,
+                currentPage: page,
+                totalPages: Math.ceil(sortedDates.length / limit)
+            });
+        }
+
+        // Get all attendance records for the dates on this page
+        const attendanceData = await Attendance.find({ 
+            subdomain, 
+            date: { $in: datesForPage } 
+        }).sort({ date: -1, createdAt: -1 });
+
+        // Check if there are more records available
+        const hasMore = skip + limit < sortedDates.length;
+
+        res.status(200).json({ 
+            message: 'Attendance data retrieved successfully', 
+            attendance: attendanceData,
+            hasMore: hasMore,
+            currentPage: page,
+            totalPages: Math.ceil(sortedDates.length / limit)
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
 // @desc    Retrieve attendance records for a specific worker by RFID and subdomain
 // @route   POST /api/attendance/worker
 // @access  Private
@@ -528,6 +585,7 @@ module.exports = {
     putAttendance,
     putRfidAttendance,
     getAttendance,
+    getPaginatedAttendance, // Add this new function
     getWorkerAttendance,
     getWorkerLastAttendance,
     recognizeFaceAndMarkAttendance

@@ -44,7 +44,15 @@ export const login = async (credentials, userType) => {
 
     return userData;
   } catch (error) {
-    throw error;
+    // Provide more specific error messages based on the error response
+    if (error.response?.status === 401) {
+      if (userType === 'worker') {
+        throw new Error('Invalid employee credentials. Please check your username and password.');
+      } else {
+        throw new Error('Invalid admin credentials. Please check your username and password.');
+      }
+    }
+    throw error.response?.data || new Error('Login failed. Please try again.');
   }
 };
 

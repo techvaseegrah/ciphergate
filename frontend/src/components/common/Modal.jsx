@@ -61,16 +61,19 @@ const Modal = ({
   
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={handleOutsideClick}
     >
+      {/* Backdrop with blur effect */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+      
       <div
         ref={modalRef}
-        className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} animate-fadeIn`}
+        className={`bg-white/90 backdrop-blur-lg rounded-lg shadow-xl w-full ${sizeClasses[size]} animate-fadeIn`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 bg-white/80 backdrop-blur-sm">
           <h3 className="text-xl font-medium text-gray-900">{title}</h3>
           {showCloseButton && (
             <button
@@ -90,7 +93,7 @@ const Modal = ({
         
         {/* Modal Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t flex justify-end space-x-2">
+          <div className="px-6 py-4 border-t border-gray-200/50 bg-white/80 backdrop-blur-sm flex justify-end space-x-2">
             {footer}
           </div>
         )}

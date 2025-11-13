@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#4CAF50',
-        'primary-hover': '#45a049',
+        primary: '#ED1C24', // Changed to red as requested
+        'primary-hover': '#c8141d', // Darker red for hover
         secondary: '#2196F3',
         danger: '#f44336',
         success: '#4CAF50',
@@ -13,6 +13,10 @@ export default {
         info: '#2196F3',
         light: '#f4f4f4',
         dark: '#333',
+        // Custom theme colors
+        'theme-red': '#ED1C24',
+        'theme-white': '#FFFFFF',
+        'theme-black': '#000000'
       },
       keyframes: {
         float: {

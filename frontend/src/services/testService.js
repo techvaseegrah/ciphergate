@@ -49,6 +49,11 @@ export const getIndividualScores = async (workerId) => {
     return response.data;
 };
 
+export const getTestDetails = async (testId) => {
+    const response = await api.get(`/test/${testId}/details`);
+    return response.data;
+};
+
 // Learning Topic Services
 export const submitTopic = async (data) => {
     const response = await api.post('/test/topics', data);

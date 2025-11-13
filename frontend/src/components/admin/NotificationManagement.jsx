@@ -148,10 +148,12 @@ const NotificationManagement = () => {
             <p className='text-center'>No notifications found.</p>
           ) : (
             filteredNotifications.map((notification) => (
-              <Card key={notification._id} className="shadow-sm border">
-                <div className='flex justify-between items-center w-[100%]'>
-                  <p className="text-lg">{notification.messageData}</p>
-                  <p className="text-sm text-gray-500">
+              <Card key={notification._id} className="shadow-sm border w-full">
+                <div className='flex flex-col w-full gap-2'>
+                  <p className="text-lg whitespace-normal break-words w-full">
+                    {notification.messageData}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
                     {new Date(notification.createdAt).toLocaleString()}
                   </p>
                 </div>

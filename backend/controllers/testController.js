@@ -379,10 +379,88 @@ const getIndividualScores = async (req, res) => {
     }
 };
 
+// @desc    Get test details for review
+// @route   GET /api/test/:testId/details
+// @access  Private/Worker
+const getTestDetails = async (req, res) => {
+    try {
+        const { testId } = req.params;
+        const userId = req.user._id;
+
+        // Find the test attempt and populate questions
+        const testAttempt = await TestAttempt.findById(testId)
+            .populate({
+                path: 'questions',
+                select: 'questionText options correctAnswer questionFormat'
+            });
+
+        if (!testAttempt) {
+            return res.status(404).json({ message: 'Test not found' });
+        }
+
+        // Check if the user is authorized to view this test
+        if (testAttempt.worker.toString() !== userId.toString()) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        // Format the questions with user answers and correct answers
+        const questionsWithAnswers = testAttempt.questions.map((question, index) => {
+            const answerRecord = testAttempt.answers.find(
+                ans => ans.questionId.toString() === question._id.toString()
+            );
+            
+            // Get the correct answer text from options array
+            let correctAnswerText = '';
+            if (question.correctAnswer !== undefined && question.correctAnswer !== null) {
+                // Convert correctAnswer to number for array indexing
+                const correctAnswerIndex = parseInt(question.correctAnswer);
+                if (!isNaN(correctAnswerIndex) && correctAnswerIndex >= 0 && correctAnswerIndex < question.options.length) {
+                    correctAnswerText = question.options[correctAnswerIndex] || '';
+                }
+            }
+            
+            // Get the user's answer text from options array
+            let userAnswerText = '';
+            if (answerRecord && answerRecord.selectedOption !== undefined && answerRecord.selectedOption !== null && answerRecord.selectedOption !== -1) {
+                // Convert selectedOption to number for array indexing
+                const selectedOptionIndex = parseInt(answerRecord.selectedOption);
+                if (!isNaN(selectedOptionIndex) && selectedOptionIndex >= 0 && selectedOptionIndex < question.options.length) {
+                    userAnswerText = question.options[selectedOptionIndex] || '';
+                }
+            }
+            
+            return {
+                questionText: question.questionText,
+                options: question.options,
+                correctAnswer: correctAnswerText,
+                userAnswer: userAnswerText,
+                isCorrect: answerRecord ? answerRecord.isCorrect : false
+            };
+        });
+
+        const percentage = testAttempt.totalQuestions > 0 
+            ? Math.round((testAttempt.score / testAttempt.totalQuestions) * 100) 
+            : 0;
+
+        res.status(200).json({
+            testId: testAttempt._id,
+            testName: testAttempt.topic,
+            score: `${testAttempt.score}/${testAttempt.totalQuestions}`,
+            percentage: percentage,
+            dateCompleted: testAttempt.createdAt,
+            questions: questionsWithAnswers
+        });
+    } catch (error) {
+        console.error("Error in getTestDetails:", error);
+        res.status(500).json({ message: 'Server error fetching test details.' });
+    }
+};
+
 module.exports = {
     submitTest,
     submitQuickTest,
     getScoreboard,
     getGlobalScoreboard,
-    getIndividualScores
+    getIndividualScores,
+    getTestDetails
 };

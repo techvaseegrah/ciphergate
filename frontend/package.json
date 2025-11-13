@@ -24,6 +24,7 @@
     "face-api.js": "^0.22.2",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.6.2",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "jsqr": "^1.4.0",

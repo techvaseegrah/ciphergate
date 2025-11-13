@@ -8,14 +8,14 @@ const Button = ({
     fullWidth = false,
     className = ''
   }) => {
-    const baseClasses = 'rounded-md font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+    const baseClasses = 'rounded-full font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
     
     const variantClasses = {
-      primary: 'bg-primary text-white hover:bg-primary-hover focus:ring-primary',
-      secondary: 'bg-secondary text-white hover:bg-blue-600 focus:ring-blue-500',
-      danger: 'bg-danger text-white hover:bg-red-500 focus:ring-red-500',
-      success: 'bg-success text-white hover:bg-green-600 focus:ring-green-500',
-      outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary'
+      primary: 'bg-theme-red text-white hover:bg-white hover:text-theme-red border-2 border-theme-red focus:ring-theme-red',
+      secondary: 'bg-secondary text-white hover:bg-white hover:text-secondary border-2 border-secondary focus:ring-secondary',
+      danger: 'bg-danger text-white hover:bg-white hover:text-danger border-2 border-danger focus:ring-danger',
+      success: 'bg-success text-white hover:bg-white hover:text-success border-2 border-success focus:ring-success',
+      outline: 'border-2 border-theme-red bg-white text-theme-red hover:bg-theme-red hover:text-white focus:ring-theme-red'
     };
     
     const sizeClasses = {

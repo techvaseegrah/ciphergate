@@ -10,7 +10,7 @@ const DailyTopic = require('../models/DailyTopic');
 const validator = require('validator');
 const jobManager = require('../utils/jobManager');
 const { processQuestionGeneration } = require('../utils/questionProcessor');
-const { generateMCQQuestions } = require('../utils/openai');
+const { generateMCQQuestions, generateUPSCQuestions } = require('../utils/openai');
 
 // Simple logging utility
 const log = {
@@ -38,7 +38,7 @@ const RETRY_DELAY = 1500;
 
 // Input validation middleware
 const validateQuestionGeneration = (req, res, next) => {
-    const { workerIds, numQuestions, topic, commonTopics, individualTopics, topicMode } = req.body;
+    const { workerIds, numQuestions, topic, commonTopics, individualTopics, topicMode, questionFormat } = req.body;
 
     if (!workerIds || !Array.isArray(workerIds) || workerIds.length === 0) {
         return res.status(400).json({ message: 'At least one employee must be selected' });
@@ -116,6 +116,13 @@ const validateQuestionGeneration = (req, res, next) => {
         }
     }
     
+    // Validate question format
+    if (questionFormat && !['mcq', 'upsc'].includes(questionFormat)) {
+        return res.status(400).json({
+            message: 'Invalid question format. Must be either "mcq" or "upsc".'
+        });
+    }
+
     next();
 };
 
@@ -219,7 +226,7 @@ const getQuestionsForTest = async (req, res) => {
         let questions;
         if (!testAttempt) {
             // Get all questions from the same generation batch (same creation time)
-            // For mixed topics: get all questions from the latest batch
+            // For mixed topics: get all questions created around the same time (within 1 minute)
             // For single topic: get questions with the specific topic
             if (isMixed) {
                 // For mixed topics, get all questions created around the same time (within 1 minute)
@@ -272,7 +279,8 @@ const getQuestionsForTest = async (req, res) => {
             questionText: q.questionText,
             options: q.options,
             correctOption: q.correctAnswer,
-            timeDuration: q.timeDuration
+            timeDuration: q.timeDuration,
+            questionFormat: q.questionFormat // Add question format to response
         }));
 
         res.json({
@@ -386,17 +394,28 @@ const createQuickTest = async (req, res) => {
         
         // Save questions to database
         const questionsToSave = questions.map(q => {
-            const correctOptionIndex = q.options.findIndex(
-                opt => String(opt).trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase()
+            // Clean options by removing internal letters like (a), (b), (c), (d)
+            const cleanedOptions = q.options.map(option => {
+                // Remove patterns like "(a) ", "(b) ", etc. from the beginning of options
+                return option.replace(/^\([a-d]\)\s*/i, '').trim();
+            });
+            
+            // Also clean the correctAnswer
+            const cleanedCorrectAnswer = q.correctAnswer.replace(/^\([a-d]\)\s*/i, '').trim();
+            
+            const correctOptionIndex = cleanedOptions.findIndex(
+                opt => String(opt).trim().toLowerCase() === String(cleanedCorrectAnswer).trim().toLowerCase()
             );
+            
             return {
                 topic: topic,
                 questionText: q.questionText,
-                options: q.options,
-                correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * q.options.length),
+                options: cleanedOptions,
+                correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * cleanedOptions.length),
                 difficulty: q.difficulty || difficulty,
                 timeDuration: parseInt(timeDuration),
-                totalTestDuration: parseInt(totalTestDuration)
+                totalTestDuration: parseInt(totalTestDuration),
+                questionFormat: 'mcq' // Default to MCQ for quick tests
             };
         });
 
@@ -423,7 +442,8 @@ const createQuickTest = async (req, res) => {
             questionText: q.questionText,
             options: q.options,
             correctOption: q.correctAnswer,
-            timeDuration: q.timeDuration
+            timeDuration: q.timeDuration,
+            questionFormat: q.questionFormat // Add question format to response
         }));
 
         res.status(201).json({
@@ -441,6 +461,29 @@ const createQuickTest = async (req, res) => {
     } catch (error) {
         log.error('Error in createQuickTest:', error);
         res.status(500).json({ message: 'Server error creating quick test' });
+    }
+};
+
+// Add the missing generateWithRetry function
+const generateWithRetry = async (topic, numQuestions, difficulty = 'Medium') => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            // For quick tests, we'll use MCQ format by default
+            const result = await generateMCQQuestions([topic], numQuestions, difficulty);
+            return result[topic] || [];
+        } catch (error) {
+            console.error(`[QuickTest] Generation attempt ${attempt} failed:`, error.message);
+            
+            if (attempt === MAX_RETRIES) {
+                throw new Error(`Failed to generate questions after ${MAX_RETRIES} attempts: ${error.message}`);
+            }
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
+        }
     }
 };
 

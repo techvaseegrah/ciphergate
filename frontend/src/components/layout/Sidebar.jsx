@@ -1,8 +1,10 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { FiLogOut } from "react-icons/fi";
 import appContext from '../../context/AppContext';
+import ShatteredLogo from '../common/ShatteredLogo';
+import { motion } from 'framer-motion';
 
 const Sidebar = ({
   links,
@@ -12,9 +14,36 @@ const Sidebar = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedDropdowns, setExpandedDropdowns] = useState({});
+  const [showFullLogo, setShowFullLogo] = useState(false);
+  const [triggerLogoAnimation, setTriggerLogoAnimation] = useState(false);
   const location = useLocation();
 
   const { subdomain } = useContext(appContext);
+
+  // Trigger logo animation when component mounts
+  useEffect(() => {
+    // Show shattered logo for 2 seconds
+    const logoTimer = setTimeout(() => {
+      setShowFullLogo(true);
+    }, 2000);
+    
+    return () => clearTimeout(logoTimer);
+  }, []);
+
+  // Trigger logo animation when sidebar opens
+  useEffect(() => {
+    if (isOpen) {
+      setTriggerLogoAnimation(prev => !prev);
+      setShowFullLogo(false);
+      
+      // Reset showFullLogo after animation completes
+      const resetTimer = setTimeout(() => {
+        setShowFullLogo(true);
+      }, 2000);
+      
+      return () => clearTimeout(resetTimer);
+    }
+  }, [isOpen]);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
@@ -41,18 +70,18 @@ const Sidebar = ({
       {!isOpen && (
         <button
           type="button"
-          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-pulse"
+          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-full text-black bg-white/90 backdrop-blur-lg hover:bg-theme-red hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-pulse"
           onClick={toggleSidebar}
         >
-        <span className="sr-only">Open sidebar</span>
-          <FaChevronRight className="h-6 w-6" />
-        </button>
+      <span className="sr-only">Open sidebar</span>
+          <FaChevronRight className="h-6 w-6 sidebar-toggle-animated" />
+        </button>
       )}
 
-      {/* Sidebar Backdrop */}
+      {/* Sidebar Backdrop with blur effect */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden"
           onClick={closeSidebar}
         ></div>
       )}
@@ -61,46 +90,74 @@ const Sidebar = ({
       {isOpen && (
         <button
           type="button"
-          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-bounce"
+          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-full text-black bg-white/90 backdrop-blur-lg hover:bg-theme-red hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-bounce"
           onClick={toggleSidebar}
         >
           <span className="sr-only">Close sidebar</span>
-          <FaChevronLeft className="h-6 w-6" />
+          <FaChevronLeft className="h-6 w-6 sidebar-toggle-animated" />
         </button>
       )}
 
-      {/* Sidebar - Improved responsive classes */}
+      {/* Sidebar with Apple-style blur effect */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-800 transition-transform duration-300 ease-in-out transform overflow-y-auto md:overflow-y-scroll ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white/90 backdrop-blur-lg transition-transform duration-300 ease-in-out transform overflow-y-auto md:overflow-y-scroll rounded-r-2xl ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
-        {/* Logo - no close button in header */}
-        <div className="flex items-center justify-between h-16 px-4 bg-gray-900">
-          <div className="flex items-center">
-            <span className="text-xl font-semibold text-white truncate">{logoText}</span>
+        {/* Logo section with smooth transition */}
+        <div className="flex flex-col items-center justify-center h-20 px-2 bg-white/80 backdrop-blur-sm border-b border-gray-200 rounded-tr-2xl">
+          <div className="flex items-center justify-center">
+            <div className="w-12 h-12 flex items-center justify-center">
+              <ShatteredLogo 
+                triggerAnimation={triggerLogoAnimation}
+                src="/logo.png" 
+                alt="Logo" 
+                className="w-full h-full" 
+                onComplete={() => console.log('Shattering animation complete')}
+              />
+            </div>
+            
+            {/* Animated text that appears after logo reassembly */}
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ 
+                opacity: showFullLogo ? 1 : 0, 
+                width: showFullLogo ? 'auto' : 0 
+              }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="ml-3 overflow-hidden"
+            >
+              <motion.h1 
+                className="text-lg font-bold text-black whitespace-nowrap"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: showFullLogo ? 1 : 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
+                {logoText}
+              </motion.h1>
+            </motion.div>
           </div>
         </div>
 
         {/* User profile */}
         {user && (
-          <div className="px-4 py-5 border-b border-gray-700">
+          <div className="px-4 py-3 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between">
               <div className='flex items-center min-w-0'>
                 <div className="flex-shrink-0">
                   <img
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover"
                     src={user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}`}
                     alt={user.name || user.username}
                   />
                 </div>
-                <div className="ml-3 min-w-0">
-                  <p className="text-base font-medium text-white truncate">{user.name || user.username}</p>
-                  <p className="text-sm font-medium text-gray-400 truncate">{user.department || user.role} - {subdomain}</p>
+                <div className="ml-2 min-w-0">
+                  <p className="text-sm font-medium text-black truncate">{user.name || user.username}</p>
+                  <p className="text-xs font-medium text-gray-600 truncate">{user.department || user.role} - {subdomain}</p>
                 </div>
               </div>
-              <div className="ml-3">
+              <div className="ml-2">
                 {onLogout && <button 
-                  className="font-medium text-white m-2 p-2 text-xl"
+                  className="font-medium text-black p-1 text-lg hover:text-theme-red transition-colors duration-200"
                   onClick={onLogout}
                 >
                   <FiLogOut />
@@ -110,14 +167,14 @@ const Sidebar = ({
           </div>
         )}
 
-        {/* Navigation Links */}
-        <nav className="mt-5 px-2 space-y-1">
+        {/* Navigation Links - Updated with new theme and hover effects */}
+        <nav className="mt-3 px-2 space-y-1">
           {links.map((link, index) => {
             // Handle header items
             if (link.isHeader) {
               return (
                 <div key={`header-${index}`} className="pt-4 pb-2">
-                  <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
                     {link.label}
                   </h3>
                 </div>
@@ -135,24 +192,22 @@ const Sidebar = ({
                   <button
                     onClick={() => toggleDropdown(dropdownKey)}
                     className={`
-                      group flex items-center w-full px-2 py-2 text-base font-medium rounded-md 
-                      hover:bg-gray-700 hover:text-white 
+                      group flex items-center w-full px-2 py-2 text-base font-medium rounded-full 
                       transition-all duration-300 
                       ${hasActiveChild 
-                        ? 'bg-gray-900 text-white' 
-                        : 'text-gray-300'
+                        ? 'bg-theme-red text-white' 
+                        : 'text-black hover:bg-gray-100'
                       }
-                      hover:pl-4
                     `}
                   >
                     {link.icon && (
-                      <span className="mr-3 h-6 w-6 flex items-center justify-center flex-shrink-0">
+                      <span className="mr-3 h-8 w-8 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
                         {link.icon}
                       </span>
                     )}
                     <span className="flex-1 text-left truncate">{link.label}</span>
                     {link.badge && (
-                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
+                      <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                         {link.badge}
                       </span>
                     )}
@@ -172,25 +227,23 @@ const Sidebar = ({
                           key={child.to}
                           to={child.to}
                           className={`
-                            group flex items-center px-2 py-2 text-sm font-medium rounded-md 
-                            hover:bg-gray-700 hover:text-white 
+                            group flex items-center px-2 py-2 text-sm font-medium rounded-full 
                             transition-all duration-300 
                             ${location.pathname === child.to 
-                              ? 'bg-gray-700 text-white border-l-2 border-blue-500' 
-                              : 'text-gray-400'
+                              ? 'bg-theme-red text-white border-l-2 border-white' 
+                              : 'text-black hover:bg-gray-100'
                             }
-                            hover:pl-4
                           `}
                           onClick={closeSidebar}
                         >
                           {child.icon && (
-                            <span className="mr-3 h-5 w-5 flex items-center justify-center flex-shrink-0">
+                            <span className="mr-3 h-6 w-6 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
                               {child.icon}
                             </span>
                           )}
                           <span className="flex-1 text-left truncate">{child.label}</span>
                           {child.badge && (
-                            <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
+                            <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                               {child.badge}
                             </span>
                           )}
@@ -208,25 +261,23 @@ const Sidebar = ({
                 key={link.to}
                 to={link.to}
                 className={`
-                  group flex items-center px-2 py-2 text-base font-medium rounded-md 
-                  hover:bg-gray-700 hover:text-white 
+                  group flex items-center px-2 py-2 text-base font-medium rounded-full 
                   transition-all duration-300 
                   ${location.pathname === link.to 
-                    ? 'bg-gray-900 text-white' 
-                    : 'text-gray-300'
+                    ? 'bg-theme-red text-white' 
+                    : 'text-black hover:bg-gray-100'
                   }
-                  hover:pl-4 // Slide effect
                 `}
                 onClick={closeSidebar}
               >
                 {link.icon && (
-                  <span className="mr-3 h-6 w-6 flex items-center justify-center flex-shrink-0">
+                  <span className="mr-3 h-8 w-8 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
                     {link.icon}
                   </span>
                 )}
                 <span className="flex-1 text-left truncate">{link.label}</span>
                 {link.badge && (
-                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
+                  <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
                     {link.badge}
                   </span>
                 )}
@@ -234,23 +285,6 @@ const Sidebar = ({
             );
           })}
         </nav>
-
-        {/* Logout button */}
-        {/* {onLogout && (
-          <div className="absolute bottom-0 w-full px-2 py-4 border-t border-gray-700">
-            <button
-              type="button"
-              className="group flex items-center px-2 py-2 w-full text-base font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white"
-            >
-              <span className="mr-3 h-6 w-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </span>
-              Logout
-            </button>
-          </div>
-        )} */}
       </div>
     </>
   );

@@ -171,6 +171,23 @@ export const getWorkerLastAttendance = async (rfid, subdomain) => {
     }
 };
 
+export const getPaginatedAttendance = async (attendanceData) => {
+    const token = getAuthToken();
+
+    try {
+        const response = await api.post('/attendance/paginated', attendanceData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to fetch paginated attendance:', error);
+        throw error.response?.data || new Error('Failed to fetch paginated attendance');
+    }
+};
+
 export default {
     putAttendance,
     putRfidAttendance,

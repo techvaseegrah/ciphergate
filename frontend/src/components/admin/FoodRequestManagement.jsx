@@ -382,7 +382,7 @@ const FoodRequestManagement = () => {
               <button
                 key={meal}
                 onClick={() => setActiveMealFilter(meal)}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
                   activeMealFilter === meal
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'

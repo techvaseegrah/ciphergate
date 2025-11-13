@@ -15,8 +15,13 @@ const customStyles = {
     marginRight: '-50%', transform: 'translate(-50%, -50%)',
     width: '90%', maxWidth: '450px',
     padding: '0', border: 'none', borderRadius: '8px',
+    backdropFilter: 'blur(12px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
-  overlay: { backgroundColor: 'rgba(0, 0, 0, 0.75)' }
+  overlay: { 
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backdropFilter: 'blur(4px)',
+  }
 };
 
 Modal.setAppElement('#root');

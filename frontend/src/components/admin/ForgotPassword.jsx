@@ -27,16 +27,16 @@ const ForgotPassword = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1020] to-[#1a1a2e] text-white overflow-hidden relative">
+        <div className="min-h-screen flex items-center justify-center bg-theme-red text-white overflow-hidden relative">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-[85%] max-w-md z-10 bg-[#121630]/80 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-[#2a3260] mx-auto"
+                className="w-[85%] max-w-md z-10 bg-white backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-theme-red mx-auto"
             >
                 <div className="mb-8 text-center">
                     <motion.h1
-                        className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600"
+                        className="text-2xl sm:text-3xl font-bold text-theme-red"
                         initial={{ y: -20 }}
                         animate={{ y: 0 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
@@ -52,14 +52,14 @@ const ForgotPassword = () => {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.3 }}
                     >
-                        <label htmlFor="subdomain" className="text-gray-300 flex items-center text-sm font-medium mb-2">
+                        <label htmlFor="subdomain" className="text-black flex items-center text-sm font-medium mb-2">
                             Company Name
                         </label>
                         <input
                             type="text"
                             id="subdomain"
                             name="subdomain"
-                            className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                            className="w-full px-4 py-3 bg-gray-100 border border-theme-red rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
                             value={subdomain}
                             onChange={(e) => setSubdomain(e.target.value)}
                             required
@@ -80,7 +80,7 @@ const ForgotPassword = () => {
                             delay: 0.5,
                             stiffness: 120
                         }}
-                        className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 font-medium"
+                        className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-70 font-medium"
                     >
                         {isLoading ? (
                             <span className="flex items-center justify-center">
@@ -92,14 +92,14 @@ const ForgotPassword = () => {
                 </form>
 
                 <motion.p
-                    className="mt-6 text-center text-gray-400 text-sm"
+                    className="mt-6 text-center text-black"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5, delay: 0.6 }}
                 >
                     <Link
                         to="/admin/login"
-                        className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                        className="text-theme-red hover:text-black font-medium transition-colors"
                     >
                         Back to Login
                     </Link>

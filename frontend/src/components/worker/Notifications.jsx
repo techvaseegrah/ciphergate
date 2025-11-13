@@ -54,14 +54,14 @@ const Notifications = () => {
             <p className='px-6 py-4 text-center text-sm text-gray-500'>No notifications found.</p>
           ) : (
             filteredNotifications.map((notification) => (
-              <Card key={notification._id} className="shadow-sm border">
-                <div className="flex items-center w-full justify-end">
-                  <p className="text-sm text-gray-500">
+              <Card key={notification._id} className="shadow-sm border w-full">
+                <div className="flex flex-col w-full gap-2">
+                  <p className="text-lg whitespace-normal break-words w-full">
+                    {notification.messageData}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
                     {new Date(notification.createdAt).toLocaleString()}
                   </p>
-                </div>
-                <div className="flex justify-between items-center w-full">
-                  <p className="text-lg">{notification.messageData}</p>
                 </div>
               </Card>
             ))

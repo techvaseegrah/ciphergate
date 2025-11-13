@@ -148,13 +148,13 @@ const Dashboard = () => {
 
       {/* Improved responsive grid for salary cards */}
       <div
-        className="mb-6 rounded-lg p-4 md:p-6 shadow-lg bg-gradient-to-r from-black to-black"
+        className="mb-6 rounded-lg p-4 md:p-6 shadow-lg bg-black"
       >
         <motion.h2
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 120, damping: 20, duration:0.5 }}
-          className="text-xl font-bold mb-5 text-gradient-animate"
+          className="text-xl font-bold mb-5 text-red-600"
         >
           Welcome, {user?.username}!
         </motion.h2>
@@ -164,7 +164,7 @@ const Dashboard = () => {
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 120, damping: 20, duration: 0.5 }}
-            className="text-xl font-bold text-gradient-animate-green"
+            className="text-xl font-bold text-red-600"
           >
             {user?.subdomain}
           </motion.span>
@@ -172,12 +172,12 @@ const Dashboard = () => {
         {/* Responsive grid that works well on all screen sizes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Base Salary with Icon */}
-          <div className="bg-black p-4 rounded-lg flex items-center space-x-4 min-w-0">
-          <div className="bg-yellow-500/20 p-3 rounded-full flex-shrink-0">
-                        <FaMoneyBillAlt className="h-6 w-6 text-blue-300" />
+          <div className="bg-white p-4 rounded-lg flex items-center space-x-4 min-w-0 border border-gray-200">
+          <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
+                        <FaMoneyBillAlt className="h-6 w-6 text-red-600" />
             </div>
             <div className="min-w-0">
-             <p className="text-sm text-blue-200 truncate">Base Monthly Salary</p>
+             <p className="text-sm text-gray-600 truncate">Base Monthly Salary</p>
              {baseSalary > 0 ? (
                 <CountUp
                   start={0}
@@ -185,20 +185,20 @@ const Dashboard = () => {
                   duration={1}
                   prefix="₹"
                   decimals={2}
-                  className="text-2xl font-bold text-white truncate"
+                  className="text-2xl font-bold text-black truncate"
                 />
               ) : (
-                <p className="text-2xl font-bold text-white truncate">N/A</p>
+                <p className="text-2xl font-bold text-black truncate">N/A</p>
               )}
             </div>
           </div>
           {/* Final Monthly Salary with Icon */}
-          <div className="bg-black p-4 rounded-lg flex items-center space-x-4 min-w-0">
-          <div className="bg-green-500/20 p-3 rounded-full flex-shrink-0">
-                      <FaMoneyBillAlt className="h-6 w-6 text-yellow-300" />
+          <div className="bg-white p-4 rounded-lg flex items-center space-x-4 min-w-0 border border-gray-200">
+          <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
+                      <FaMoneyBillAlt className="h-6 w-6 text-red-600" />
             </div>
             <div className="min-w-0">
-            <p className="text-sm text-blue-200 truncate">Final Monthly Salary</p>
+            <p className="text-sm text-gray-600 truncate">Final Monthly Salary</p>
              {finalSalary > 0 ? (
                 <div
                   title={
@@ -213,41 +213,41 @@ const Dashboard = () => {
                     duration={1}
                     prefix="₹"
                     decimals={2}
-                    className="text-2xl font-bold text-white truncate"
+                    className="text-2xl font-bold text-black truncate"
                   />
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-white truncate">N/A</p>
+                <p className="text-2xl font-bold text-black truncate">N/A</p>
               )}
             </div>
           </div>
           {/* Face Attendance Card - Changed to button that opens popup */}
           <button 
             onClick={() => setShowFaceAttendance(true)}
-            className="bg-black p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-800 transition-colors min-w-0"
+            className="bg-white p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-50 transition-colors min-w-0 border border-gray-200"
           >
-            <div className="bg-pink-500/20 p-3 rounded-full flex-shrink-0">
-              <FaCamera className="h-6 w-6 text-blue-300" />
+            <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
+              <FaCamera className="h-6 w-6 text-red-600" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-blue-200 truncate">Face Attendance</p>
-              <p className="text-lg font-bold text-white truncate">Mark Attendance</p>
+              <p className="text-sm text-gray-600 truncate">Face Attendance</p>
+              <p className="text-lg font-bold text-black truncate">Mark Attendance</p>
             </div>
           </button>
           
           {/* RFID Attendance Card - Changed to button that opens popup */}
           <button 
             onClick={() => setShowRFIDAttendance(true)}
-            className="bg-black p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-800 transition-colors min-w-0"
+            className="bg-white p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-50 transition-colors min-w-0 border border-gray-200"
           >
-            <div className="bg-blue-500/20 p-3 rounded-full flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-blue-200 truncate">RFID Attendance</p>
-              <p className="text-lg font-bold text-white truncate">Mark Attendance</p>
+              <p className="text-sm text-gray-600 truncate">RFID Attendance</p>
+              <p className="text-lg font-bold text-black truncate">Mark Attendance</p>
             </div>
           </button>
         </div>
@@ -295,9 +295,14 @@ const Dashboard = () => {
               }
               className="mb-6"
             >
-              <p className="truncate">
-                {notifications[0]?.messageData || "No notifications found."}
-              </p>
+              <div className="w-full">
+                <p className="whitespace-normal break-words">
+                  {notifications[0]?.messageData || "No notifications found."}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {new Date(notifications[0]?.createdAt).toLocaleString()}
+                </p>
+              </div>
           </Card>
         )
       }
@@ -305,7 +310,7 @@ const Dashboard = () => {
       <Card className="mb-6">
         <h2 className="text-xl font-bold mb-4 flex items-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <span className="truncate">Submit Custom Task</span>
         </h2>

@@ -108,18 +108,18 @@ const AdminLogin = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1020] to-[#1a1a2e] text-white overflow-hidden relative">
+        <div className="min-h-screen flex items-center justify-center bg-white text-black overflow-hidden relative">
             {/* ... (particles and gradient wave remain the same) ... */}
             
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-[85%] max-w-md z-10 bg-[#121630]/80 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-[#2a3260] mx-auto"
+                className="w-[85%] max-w-md z-10 bg-white backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-gray-200 mx-auto"
             >
                 <div className="mb-8 text-center">
                     <motion.h1
-                        className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600"
+                        className="text-2xl sm:text-3xl font-bold text-theme-red"
                         initial={{ y: -20 }}
                         animate={{ y: 0 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
@@ -127,7 +127,7 @@ const AdminLogin = () => {
                         {isForgotPasswordFlow ? 'Forgot Password' : 'Admin Login'}
                     </motion.h1>
                     <motion.div
-                        className="h-1 bg-blue-500 rounded-full w-0 mx-auto mt-2"
+                        className="h-1 bg-theme-red rounded-full w-0 mx-auto mt-2"
                         initial={{ width: 0 }}
                         animate={{ width: isForgotPasswordFlow ? '90px' : '50px' }}
                         transition={{ duration: 0.5, delay: 0.4 }}
@@ -145,8 +145,8 @@ const AdminLogin = () => {
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ duration: 0.5, delay: 0.3 }}
                         >
-                          <label htmlFor="username" className="text-gray-300 flex items-center text-sm font-medium mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                          <label htmlFor="username" className="text-black flex items-center text-sm font-medium mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-theme-red" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
                             Username
@@ -155,7 +155,7 @@ const AdminLogin = () => {
                             type="text"
                             id="username"
                             name="username"
-                            className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                            className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
                             value={credentials.username}
                             onChange={handleChange}
                             placeholder="Enter your username"
@@ -169,8 +169,8 @@ const AdminLogin = () => {
                           animate={{ x: 0, opacity: 1 }}
                           transition={{ duration: 0.5, delay: 0.4 }}
                         >
-                          <label htmlFor="password" className="text-gray-300 flex items-center text-sm font-medium mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                          <label htmlFor="password" className="text-black flex items-center text-sm font-medium mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-theme-red" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
                             Password
@@ -180,7 +180,7 @@ const AdminLogin = () => {
                               type={showPassword ? 'text' : 'password'}
                               id="password"
                               name="password"
-                              className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white pr-10"
+                              className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black pr-10"
                               value={credentials.password}
                               onChange={handleChange}
                               placeholder="Enter your password"
@@ -188,7 +188,7 @@ const AdminLogin = () => {
                             />
                             <button
                               type="button"
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none"
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-theme-red focus:outline-none"
                               onClick={() => setShowPassword(!showPassword)}
                               aria-label={showPassword ? "Hide password" : "Show password"}
                             >
@@ -220,7 +220,7 @@ const AdminLogin = () => {
                             delay: 0.5,
                             stiffness: 120 
                           }}
-                          className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 font-medium"
+                          className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-70 font-medium"
                         >
                           {isLoading ? <Spinner size="sm" /> : 'Sign In'}
                         </motion.button>
@@ -234,14 +234,14 @@ const AdminLogin = () => {
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
                         >
-                            <label htmlFor="subdomain" className="text-gray-300 flex items-center text-sm font-medium mb-2">
+                            <label htmlFor="subdomain" className="text-black flex items-center text-sm font-medium mb-2">
                                 Company Name
                             </label>
                             <input
                                 type="text"
                                 id="subdomain"
                                 name="subdomain"
-                                className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                                className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
                                 value={subdomainForReset}
                                 onChange={(e) => setSubdomainForReset(e.target.value)}
                                 required
@@ -253,7 +253,7 @@ const AdminLogin = () => {
                             disabled={isLoading}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 font-medium"
+                            className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-70 font-medium"
                         >
                             {isLoading ? <Spinner size="sm" /> : 'Send OTP'}
                         </motion.button>
@@ -267,14 +267,14 @@ const AdminLogin = () => {
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
                         >
-                            <label htmlFor="otp" className="text-gray-300 flex items-center text-sm font-medium mb-2">
+                            <label htmlFor="otp" className="text-black flex items-center text-sm font-medium mb-2">
                                 OTP
                             </label>
                             <input
                                 type="text"
                                 id="otp"
                                 name="otp"
-                                className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                                className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black"
                                 value={otp}
                                 onChange={(e) => setOtp(e.target.value)}
                                 required
@@ -288,14 +288,14 @@ const AdminLogin = () => {
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.4 }}
                         >
-                            <label htmlFor="newPassword" className="text-gray-300 flex items-center text-sm font-medium mb-2">
+                            <label htmlFor="newPassword" className="text-black flex items-center text-sm font-medium mb-2">
                                 New Password
                             </label>
                             <input
                                 type="password"
                                 id="newPassword"
                                 name="newPassword"
-                                className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white pr-10"
+                                className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black pr-10"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 required
@@ -310,14 +310,14 @@ const AdminLogin = () => {
                             animate={{ x: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.5 }}
                         >
-                            <label htmlFor="confirmNewPassword" className="text-gray-300 flex items-center text-sm font-medium mb-2">
+                            <label htmlFor="confirmNewPassword" className="text-black flex items-center text-sm font-medium mb-2">
                                 Confirm New Password
                             </label>
                             <input
                                 type="password"
                                 id="confirmNewPassword"
                                 name="confirmNewPassword"
-                                className="w-full px-4 py-3 bg-[#1d2451]/50 border border-[#2a3260] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white pr-10"
+                                className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-red focus:border-transparent text-black pr-10"
                                 value={confirmNewPassword}
                                 onChange={(e) => setConfirmNewPassword(e.target.value)}
                                 required
@@ -330,7 +330,7 @@ const AdminLogin = () => {
                             disabled={isLoading}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-70 font-medium"
+                            className="w-full py-3 bg-theme-red text-white rounded-lg hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-70 font-medium"
                         >
                             {isLoading ? <Spinner size="sm" /> : 'Reset Password'}
                         </motion.button>
@@ -341,13 +341,13 @@ const AdminLogin = () => {
                 <div className="flex justify-between items-center mt-6">
                     <button
                         onClick={() => setIsForgotPasswordFlow(prev => !prev)}
-                        className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                        className="text-theme-red hover:text-black text-sm font-medium transition-colors"
                     >
                         {isForgotPasswordFlow ? 'Back to Login' : 'Forgot password?'}
                     </button>
                     <Link
                         to="/admin/register"
-                        className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                        className="text-theme-red hover:text-black text-sm font-medium transition-colors"
                     >
                         Create Account
                     </Link>

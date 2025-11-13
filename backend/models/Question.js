@@ -10,6 +10,7 @@ const questionSchema = new mongoose.Schema({
     difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' },
     timeDuration: { type: Number, default: 15 },
     totalTestDuration: { type: Number, default: 600 },
+    questionFormat: { type: String, enum: ['mcq', 'upsc'], default: 'mcq' }, // Add question format field
 }, { timestamps: true });
 
 module.exports = mongoose.model('Question', questionSchema);

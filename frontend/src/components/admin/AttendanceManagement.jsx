@@ -1,12 +1,12 @@
-import React, { Fragment, useRef, useState, useEffect, useContext } from 'react';
-import { FaDownload, FaPlus, FaExclamationTriangle, FaCamera } from 'react-icons/fa';
+import React, { Fragment, useRef, useState, useEffect, useContext, useCallback } from 'react';
+import { FaDownload, FaPlus, FaExclamationTriangle, FaCamera, FaChevronDown } from 'react-icons/fa';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import Webcam from "react-webcam";
 import jsQR from "jsqr";
 import appContext from '../../context/AppContext';
 import { toast } from 'react-toastify';
-import { putAttendance, getAttendance } from '../../services/attendanceService';
+import { putAttendance, getAttendance, getPaginatedAttendance } from '../../services/attendanceService';
 import Table from '../common/Table';
 import Spinner from '../common/Spinner';
 import { Link } from 'react-router-dom';
@@ -18,23 +18,22 @@ const AttendanceManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFaceAttendanceOpen, setIsFaceAttendanceOpen] = useState(false);
     const [attendanceData, setAttendanceData] = useState([]);
-    const [displayedAttendance, setDisplayedAttendance] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchName, setSearchName] = useState('');
     const [filterDepartment, setFilterDepartment] = useState('');
     const [filterDate, setFilterDate] = useState('');
     const [filterRfid, setFilterRfid] = useState('');
-    const [hasMoreData, setHasMoreData] = useState(false);
-    const [allAttendanceLoaded, setAllAttendanceLoaded] = useState(false);
     const webcamRef = useRef(null);
     const inputRef = useRef(null);
     const [isPunching, setIsPunching] = useState(false);
     
+    // New state variables for pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    
     const { subdomain } = useContext(appContext);
     const [confirmAction, setConfirmAction] = useState(null);
-
-    // Records per page for pagination
-    const RECORDS_PER_PAGE = 50;
 
     const uniqueRfids = React.useMemo(() => {
         const rfids = attendanceData.map(record => record.rfid).filter(rfid => rfid && rfid.trim() !== '');
@@ -43,6 +42,77 @@ const AttendanceManagement = () => {
         console.log("Unique RFIDs:", unique);
         return unique;
     }, [attendanceData]);
+
+    const fetchAttendanceData = async (page = 1, append = false) => {
+        if (!subdomain || subdomain === 'main') return;
+        
+        try {
+            if (append) {
+                setIsFetchingMore(true);
+            } else {
+                setIsLoading(true);
+            }
+            
+            const data = await getPaginatedAttendance({ subdomain, page, limit: 2 });
+            const rawData = Array.isArray(data.attendance) ? data.attendance : [];
+            
+            if (append) {
+                // Append new data to existing data
+                setAttendanceData(prevData => [...prevData, ...rawData]);
+            } else {
+                // Replace existing data
+                setAttendanceData(rawData);
+            }
+            
+            setHasMore(data.hasMore);
+            setCurrentPage(page);
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to fetch attendance data.");
+        } finally {
+            setIsLoading(false);
+            setIsFetchingMore(false);
+        }
+    };
+
+    // Load initial data
+    useEffect(() => {
+        if (subdomain && subdomain !== 'main') {
+            fetchAttendanceData(1, false);
+        }
+    }, [subdomain]);
+
+    // Function to load more data
+    const loadMoreAttendance = () => {
+        if (hasMore && !isFetchingMore) {
+            fetchAttendanceData(currentPage + 1, true);
+        }
+    };
+
+    // Function to refresh the latest attendance records (for real-time updates)
+    const refreshLatestAttendance = useCallback(async () => {
+        if (!subdomain || subdomain === 'main') return;
+        
+        try {
+            const data = await getPaginatedAttendance({ subdomain, page: 1, limit: 2 });
+            const rawData = Array.isArray(data.attendance) ? data.attendance : [];
+            
+            // Update only the first page of data to show latest records at the top
+            setAttendanceData(prevData => {
+                // Get existing data that's not part of the first page
+                const existingOtherPages = prevData.filter(record => {
+                    // This is a simplified approach - in a real implementation, you might want to track
+                    // which records belong to which date groups
+                    return !rawData.some(newRecord => newRecord._id === record._id);
+                });
+                
+                // Combine new first page with existing other pages
+                return [...rawData, ...existingOtherPages];
+            });
+        } catch (error) {
+            console.error("Failed to refresh latest attendance:", error);
+        }
+    }, [subdomain]);
 
     const handleSubmit = e => {
         e.preventDefault();
@@ -100,6 +170,7 @@ const AttendanceManagement = () => {
       
       const handleCancel = () => setConfirmAction(null);
       
+      // Modified handleConfirm to trigger real-time update
       const handleConfirm = () => {
         setIsPunching(true);
         console.log("Sending attendance request with RFID:", worker.rfid, "and subdomain:", subdomain);
@@ -131,25 +202,23 @@ const AttendanceManagement = () => {
           .then(res => {
             console.log("Attendance response:", res);
             toast.success(res.message || 'Attendance marked successfully!');
-            // Set a small delay before refreshing data to ensure backend processing is complete
+            // Refresh the latest attendance data to show the new record
             setTimeout(() => {
-              setConfirmAction(null);
-              fetchAttendanceData();
+              refreshLatestAttendance();
             }, 500);
           })
           .catch(err => {
             console.error("Attendance error:", err);
             toast.error(err.message || 'Failed to mark attendance.');
-            setConfirmAction(null);
           })
           .finally(() => {
             setIsPunching(false);
+            setConfirmAction(null);
             // Always clear the worker RFID after attempting to punch
             setWorker({ rfid: '' });
           });
       };
 
-    
     useEffect(() => {
         const interval = setInterval(() => {
             scanQRCode();
@@ -194,83 +263,8 @@ const AttendanceManagement = () => {
         }
     };
 
-    const fetchAttendanceData = async () => {
-        setIsLoading(true);
-        try {
-            const data = await getAttendance({ subdomain });
-            console.log("Raw attendance data:", data.attendance);
-            const rawData = Array.isArray(data.attendance) ? data.attendance : [];
-            setAttendanceData(rawData);
-            
-            // Sort data by date (newest first)
-            const sortedData = [...rawData].sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            // Show first 50 records initially
-            const initialRecords = sortedData.slice(0, RECORDS_PER_PAGE);
-            setDisplayedAttendance(initialRecords);
-            
-            // Check if there's more data to load
-            setHasMoreData(sortedData.length > initialRecords.length);
-            setAllAttendanceLoaded(initialRecords.length === sortedData.length);
-            
-            // Log the punch count for a specific RFID for debugging
-            if (worker.rfid) {
-                const recs = rawData.filter(r => r.rfid === worker.rfid);
-                if (recs.length) {
-                    // Get today's date in the same format as stored in the database
-                    const today = new Date();
-                    const todayFormatted = today.toLocaleDateString('en-CA', { 
-                      timeZone: 'Asia/Kolkata',
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit'
-                    });
-                    
-                    // Filter records for today only
-                    const todayRecs = recs.filter(r => r.date === todayFormatted);
-                    const todayPunchCount = todayRecs.length;
-                    
-                    console.log(`Today's punch count for RFID ${worker.rfid}: ${todayPunchCount}`);
-                    console.log(`Next punch should be: ${(todayPunchCount % 2 === 0) ? 'IN' : 'OUT'}`);
-                }
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to fetch attendance data.");
-        } finally {
-            setIsLoading(false);
-            // Always clear the worker RFID after data refresh attempt
-            setWorker({ rfid: '' });
-        }
-    };
-
-    // Function to load more attendance records
-    const loadMoreAttendance = () => {
-        const currentDisplayedCount = displayedAttendance.length;
-        const sortedData = [...attendanceData].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const allDataCount = sortedData.length;
-        
-        // Load next 50 records or all remaining records
-        const nextBatchSize = Math.min(RECORDS_PER_PAGE, allDataCount - currentDisplayedCount);
-        const nextBatchStartIndex = currentDisplayedCount;
-        const nextBatchEndIndex = nextBatchStartIndex + nextBatchSize;
-        
-        const nextBatch = sortedData.slice(nextBatchStartIndex, nextBatchEndIndex);
-        setDisplayedAttendance(prev => [...prev, ...nextBatch]);
-        
-        // Update hasMoreData flag
-        setHasMoreData(allDataCount > nextBatchEndIndex);
-        setAllAttendanceLoaded(nextBatchEndIndex >= allDataCount);
-    };
-
-    useEffect(() => {
-        if (subdomain && subdomain !== 'main') {
-            fetchAttendanceData();
-        }
-    }, [subdomain]);
-
     // Replace the existing filteredAttendance variable with:
-    const filteredAttendance = displayedAttendance.filter(record => {
+    const filteredAttendance = attendanceData.filter(record => {
         const matchesName = !searchName || record?.name?.toLowerCase().includes(searchName.toLowerCase());
         const matchesDepartment = !filterDepartment || record?.departmentName?.toLowerCase().includes(filterDepartment.toLowerCase());
         const matchesDate = !filterDate || (record.date && record.date.startsWith(filterDate));
@@ -496,10 +490,10 @@ const AttendanceManagement = () => {
             header: 'In Time',
             accessor: 'inTimes',
             render: (record) => (
-                <div>
+                <div className="text-center">
                     {record.inTimes.map((inPunch, index) => ( // Changed 'time' to 'inPunch' for clarity
                         // Access 'inPunch.time' instead of just 'inPunch'
-                        <div key={index} className="text-green-600">{inPunch.time}</div>
+                        <div key={index} className="text-green-600 text-center">{inPunch.time}</div>
                     ))}
                 </div>
             )
@@ -508,13 +502,13 @@ const AttendanceManagement = () => {
             header: 'Out Time',
             accessor: 'outTimes',
             render: (record) => (
-                <div>
+                <div className="text-center">
                     {record.outTimes.map((outPunch, index) => (
                         <div
                             key={index}
                             // Apply gray color if isMissed is true, otherwise red
                             // Keep 'text-red-500' if not missed for consistency, as per original.
-                            className={`flex items-center ${outPunch.isMissed ? 'text-gray-500' : 'text-red-500'}`}
+                            className={`flex items-center justify-center ${outPunch.isMissed ? 'text-gray-500' : 'text-red-500'}`}
                         >
                             {/* MODIFIED LINE: Conditionally render the time */}
                             {outPunch.time !== '-' ? outPunch.time : ''} 
@@ -637,15 +631,27 @@ const AttendanceManagement = () => {
                             data={processedAttendance}
                             noDataMessage="No attendance records found."
                         />
-                        {hasMoreData && (
-                            <div className="flex justify-center mt-4">
-                                <Button
-                                    variant="primary"
+                        
+                        {/* Load More Button */}
+                        {hasMore && (
+                            <div className="flex justify-center mt-6">
+                                <button
                                     onClick={loadMoreAttendance}
-                                    disabled={allAttendanceLoaded}
+                                    disabled={isFetchingMore}
+                                    className="flex items-center px-4 py-2 bg-theme-red text-white rounded-full hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-50"
                                 >
-                                    Load More
-                                </Button>
+                                    {isFetchingMore ? (
+                                        <>
+                                            <Spinner size="sm" variant="light" className="mr-2" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Load More
+                                            <FaChevronDown className="ml-2" />
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         )}
                     </>
@@ -670,10 +676,10 @@ const AttendanceManagement = () => {
                             confirmAction === 'Punch In'
                                 ? 'text-green-600'
                                 : 'text-red-600'
-                            }
-                        >
-                            {confirmAction}
-                        </span>
+                        }
+                    >
+                        {confirmAction}
+                    </span>
                         ?
                         </h2>
                         <div className="flex justify-center space-x-4">
@@ -710,33 +716,32 @@ const AttendanceManagement = () => {
                         <Button type="submit" variant="primary" className="w-full">
                             Submit
                         </Button>
-                        </form>
-                    )}
-                <Webcam
-                    ref={webcamRef}
-                    style={{ width: '100%', maxWidth: 400, margin: '0 auto', border: '1px solid #ddd' }}
-                    videoConstraints={{ facingMode: 'environment' }}
-                />
-                {qrText && (
-                    <div style={{ marginTop: 20 }}>
-                    <h1 className="text-lg text-center">RFID: {qrText}</h1>
-                    </div>
+                    </form>
                 )}
-                </Modal>
+            <Webcam
+                ref={webcamRef}
+                style={{ width: '100%', maxWidth: 400, margin: '0 auto', border: '1px solid #ddd' }}
+                videoConstraints={{ facingMode: 'environment' }}
+            />
+            {qrText && (
+                <div style={{ marginTop: 20 }}>
+                <h1 className="text-lg text-center">RFID: {qrText}</h1>
+                </div>
+            )}
+            </Modal>
 
-                {/* Face Attendance Modal */}
-                <FaceAttendance
-                    subdomain={subdomain}
-                    isOpen={isFaceAttendanceOpen}
-                    onClose={() => {
-                        setIsFaceAttendanceOpen(false);
-                        // Refresh attendance data when face attendance is closed
-                        fetchAttendanceData();
-                    }}
-                />
-            </div>
-        </Fragment>
-    );
+            {/* Face Attendance Modal */}
+            <FaceAttendance
+                subdomain={subdomain}
+                isOpen={isFaceAttendanceOpen}
+                onClose={() => {
+                    setIsFaceAttendanceOpen(false);
+                }}
+                onAttendanceMarked={refreshLatestAttendance} // Add this callback
+            />
+        </div>
+    </Fragment>
+);
 };
 
 export default AttendanceManagement;

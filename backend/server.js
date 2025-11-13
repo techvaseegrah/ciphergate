@@ -100,8 +100,8 @@ const startServer = async () => {
 
     // Test App routes
     app.use('/api/test/questions', testQuestionRoutes);
-    app.use('/api/test', testRoutes);
     app.use('/api/test/topics', learningTopicRoutes);
+    app.use('/api/test', testRoutes);
     app.use('/api/daily-topics', dailyTopicRoutes);
 
     // Job routes

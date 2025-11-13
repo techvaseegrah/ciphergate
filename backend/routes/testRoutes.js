@@ -5,7 +5,8 @@ const {
     submitQuickTest,
     getScoreboard,
     getGlobalScoreboard,
-    getIndividualScores
+    getIndividualScores,
+    getTestDetails
 } = require('../controllers/testController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
@@ -19,5 +20,8 @@ router.post('/quick-test/submit/:quickTestId', submitQuickTest); // Public route
 router.get('/scores', protect, getScoreboard);
 router.get('/global-scores', protect, adminOnly, getGlobalScoreboard);
 router.get('/scores/:workerId', protect, getIndividualScores);
+
+// Test details route
+router.get('/:testId/details', protect, getTestDetails);
 
 module.exports = router;
