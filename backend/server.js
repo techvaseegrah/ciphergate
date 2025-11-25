@@ -23,6 +23,7 @@ const startServer = async () => {
         const allowedOrigins = [
           'http://localhost:3000',
           'https://tvtasks.netlify.app',
+          'https://techvaseegrah.ciphergate.in/',
         ];
         const regex = /^http:\/\/.*\.localhost:3000$/; // Allow subdomains of localhost:3000
 
@@ -68,6 +69,7 @@ const startServer = async () => {
     const settingsRoutes = require('./routes/settingsRoutes');
     const holidayRoutes = require('./routes/holidayRoutes');
     const fineRoutes = require('./routes/fineRoutes'); // ADD THIS
+    const invoiceRoutes = require('./routes/invoiceRoutes');
 
     // Test App routes
     const testQuestionRoutes = require('./routes/testQuestionRoutes');
@@ -97,6 +99,7 @@ const startServer = async () => {
     app.use('/api/settings', settingsRoutes);
     app.use('/api/holidays', holidayRoutes);
     app.use('/api/fines', fineRoutes); // ADD THIS
+    app.use('/api/invoices', invoiceRoutes);
 
     // Test App routes
     app.use('/api/test/questions', testQuestionRoutes);

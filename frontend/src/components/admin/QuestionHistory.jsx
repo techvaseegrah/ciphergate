@@ -23,15 +23,21 @@ const QuestionHistory = () => {
         date: ''
     });
     const [expandedQuestions, setExpandedQuestions] = useState(new Set());
-    const [showFilters, setShowFilters] = useState(false);
+    const [showFilters, setShowFilters] = useState(true);
 
     useEffect(() => {
         fetchWorkers();
-        fetchQuestions();
+
     }, []);
 
     useEffect(() => {
-        fetchQuestions();
+        // Only fetch questions if at least one filter is applied
+        if (filters.workerId || filters.topic || filters.date) {
+            fetchQuestions();
+        } else {
+            // If no filters, clear questions
+            setQuestions([]);
+        }
     }, [filters]);
 
     const fetchWorkers = async () => {
@@ -542,7 +548,7 @@ const QuestionHistory = () => {
                     </div>
                 </div>
 
-                {/* Collapsible Filters */}
+                {/* Collapsible Filters - Show by default */}
                 {showFilters && (
                     <div className="p-6 border-b border-gray-200 bg-gray-50">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -555,7 +561,7 @@ const QuestionHistory = () => {
                                     value={filters.workerId}
                                     onChange={(e) => handleFilterChange('workerId', e.target.value)}
                                 >
-                                    <option value="">All Workers</option>
+                                    <option value="">Select Worker</option>
                                     {workers.map(worker => (
                                         <option key={worker._id} value={worker._id}>
                                             {worker.name}
@@ -599,35 +605,37 @@ const QuestionHistory = () => {
                     </div>
                 )}
 
-                {/* Stats */}
-                <div className="p-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">{questions.length}</div>
-                            <div className="text-sm text-gray-600">Total Questions</div>
-                        </div>
-                        <div className="bg-green-50 p-4 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">
-                                {new Set(questions.map(q => q.worker?._id)).size}
+                {/* Stats - Only show if there are questions */}
+                {questions.length > 0 && (
+                    <div className="p-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                                <div className="text-2xl font-bold text-blue-600">{questions.length}</div>
+                                <div className="text-sm text-gray-600">Total Questions</div>
                             </div>
-                            <div className="text-sm text-gray-600">Unique Workers</div>
-                        </div>
-                        <div className="bg-purple-50 p-4 rounded-lg">
-                            <div className="text-2xl font-bold text-purple-600">
-                                {new Set(questions.map(q => q.topic)).size}
+                            <div className="bg-green-50 p-4 rounded-lg">
+                                <div className="text-2xl font-bold text-green-600">
+                                    {new Set(questions.map(q => q.worker?._id)).size}
+                                </div>
+                                <div className="text-sm text-gray-600">Unique Workers</div>
                             </div>
-                            <div className="text-sm text-gray-600">Unique Topics</div>
-                        </div>
-                        <div className="bg-orange-50 p-4 rounded-lg">
-                            <div className="text-2xl font-bold text-orange-600">
-                                {questions.filter(q => 
-                                    new Date(q.createdAt).toDateString() === new Date().toDateString()
-                                ).length}
+                            <div className="bg-purple-50 p-4 rounded-lg">
+                                <div className="text-2xl font-bold text-purple-600">
+                                    {new Set(questions.map(q => q.topic)).size}
+                                </div>
+                                <div className="text-sm text-gray-600">Unique Topics</div>
                             </div>
-                            <div className="text-sm text-gray-600">Today's Questions</div>
+                            <div className="bg-orange-50 p-4 rounded-lg">
+                                <div className="text-2xl font-bold text-orange-600">
+                                    {questions.filter(q => 
+                                        new Date(q.createdAt).toDateString() === new Date().toDateString()
+                                    ).length}
+                                </div>
+                                <div className="text-sm text-gray-600">Today's Questions</div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Table */}
                 <div className="p-6">
@@ -640,7 +648,7 @@ const QuestionHistory = () => {
                             <Table
                                 columns={columns}
                                 data={questions}
-                                emptyMessage="No questions found. Generate some questions first."
+                                emptyMessage="Select a worker to view their question history."
                                 striped={true}
                                 hover={true}
                             />

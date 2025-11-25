@@ -48,7 +48,6 @@ import Settings from './components/admin/Settings';
 import ForgotPassword from './components/admin/ForgotPassword';
 import ResetPassword from './components/admin/ResetPassword';
 import HolidayManagement from './components/admin/HolidayManagement';
-import TestSidebarAnimation from './pages/Admin/TestSidebarAnimation';
 
 function App() {
   // Initialize subdomain with the actual value from localStorage immediately
@@ -147,7 +146,6 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Test Animation Route */}
-          <Route path="/test-sidebar-animation" element={<TestSidebarAnimation />} />
 
           {/* Protected Admin routes with Layout */}
           <Route element={<PrivateRoute allowedRoles={['admin']} />}>

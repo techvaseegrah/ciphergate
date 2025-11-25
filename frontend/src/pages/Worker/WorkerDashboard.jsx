@@ -11,6 +11,7 @@ import WorkerTest from '../../components/worker/WorkerTest';
 import DailyTopics from '../../components/worker/DailyTopics';
 import FaceAttendancePage from '../../components/worker/FaceAttendancePage'; // Import FaceAttendancePage
 import RFIDAttendance from '../../components/worker/RFIDAttendance'; // Import RFIDAttendance
+import WorkerInvoiceManagement from '../../components/worker/WorkerInvoiceManagement'; // Import Invoice Management
 
 const WorkerDashboard = () => {
   return (
@@ -27,6 +28,7 @@ const WorkerDashboard = () => {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/face-attendance" element={<FaceAttendancePage />} /> {/* Add FaceAttendance route */}
         <Route path="/rfid-attendance" element={<RFIDAttendance />} /> {/* Add RFIDAttendance route */}
+        <Route path="/invoices" element={<WorkerInvoiceManagement />} /> {/* Add Invoice Management route */}
         
         {/* Redirect to dashboard for unknown routes */}
         <Route path="*" element={<Navigate to="/worker" replace />} />

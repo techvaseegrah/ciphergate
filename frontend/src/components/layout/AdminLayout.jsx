@@ -29,7 +29,7 @@ import Sidebar from './Sidebar';
 import QuestionGenerationTracker from '../admin/QuestionGenerationTracker';
 import appContext from '../../context/AppContext';
 import { IoMdSettings } from 'react-icons/io';
-import TestLogo from '../../pages/Admin/TestLogo';
+
 import { Suspense } from 'react';
 
 // Import management components
@@ -49,6 +49,7 @@ import GoWhatsIntegration from '../admin/GoWhatsIntegration';
 import HolidayManagement from '../admin/HolidayManagement';
 import Settings from '../admin/Settings';
 import WorkerAttendance from '../admin/WorkerAttendance';
+import InvoiceManagement from '../admin/InvoiceManagement'; // Add Invoice Management
 import AdminDashboard from '../../pages/Admin/AdminDashboard'; // Add this import
 
 // Lazy load test management components
@@ -121,6 +122,7 @@ const AdminLayout = () => {
     holidays: '#00E5FF', // Cyan A400
     notifications: '#FFD600', // Yellow A400
     comments: '#64FFDA', // Teal A400
+    invoices: '#FFAB00', // Orange A700
     test: '#7C4DFF', // Deep Purple A400
     history: '#FF4081', // Pink A400
     scores: '#18FFFF', // Cyan A400
@@ -143,6 +145,11 @@ const AdminLayout = () => {
       to: '/admin/salary',
       icon: <FaDollarSign style={{ color: iconColors.salary }} />,
       label: 'Salary'
+    },
+    {
+      to: '/admin/invoices',
+      icon: <FaDollarSign style={{ color: iconColors.invoices }} />,
+      label: 'Invoices'
     },
     {
       to: '/admin/attendance',
@@ -239,16 +246,6 @@ const AdminLayout = () => {
       ]
     },
     {
-      to: '/admin/test-logo',
-      icon: <FaChartBar style={{ color: iconColors.scoreboard }} />,
-      label: 'Test Logo'
-    },
-    {
-      to: '/test-sidebar-animation',
-      icon: <FaRegCalendarCheck style={{ color: iconColors.attendance }} />,
-      label: 'Test Sidebar Animation'
-    },
-    {
       to: '/admin/settings',
       icon: <IoMdSettings style={{ color: iconColors.settings }}/>,
       label: 'Settings',
@@ -284,7 +281,7 @@ const AdminLayout = () => {
             <Route path="notifications" element={<NotificationManagement />} />
             <Route path="settings" element={<Settings />} />
             <Route path="gowhats" element={<GoWhatsIntegration />} />
-            <Route path="test-logo" element={<TestLogo />} />
+            <Route path="invoices" element={<InvoiceManagement />} />
             
             {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
             <Route path="test/generate-questions" element={

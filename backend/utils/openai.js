@@ -74,7 +74,7 @@ const generateSingleBatch = async (topics, numQuestionsPerTopic, difficulty = 'M
         console.log(`[DeepSeek] API Call ${attempt} - Generating ${numQuestionsPerTopic} questions for:`, topics);
         
         const response = await openai.chat.completions.create({
-            model: "deepseek-chat", // Changed from gpt-3.5-turbo to deepseek-chat
+            model: "deepseek-chat",
             messages: [
                 { 
                     role: "system", 
@@ -137,15 +137,9 @@ const generateUPSCSingleBatch = async (topics, numQuestionsPerTopic, difficulty 
     1.  **Your entire response must be a single, valid JSON object, starting with { and ending with }. Do not include any introductory text, explanations, or markdown formatting like \`\`\`json.**
     2.  Each topic must have exactly ${numQuestionsPerTopic} questions.
     3.  Each question needs: "questionText", "options" (an array of exactly 4 string choices), and "correctAnswer" (the exact text of the correct option).
-    4.  Questions must follow one of these two UPSC formats, chosen randomly:
+    4.  Questions must follow the Four-Statement Type format:
         
-        Format 1 - Two-Statement Type:
-        Consider the following statements:
-        I. [Statement 1]
-        II. [Statement 2]
-        Which of the above statement(s) is/are correct?
-        
-        Format 2 - Four-Statement Type:
+        Format: Four-Statement Type:
         With reference to [topic], consider the following:
         I. [Statement 1]
         II. [Statement 2]
@@ -154,7 +148,6 @@ const generateUPSCSingleBatch = async (topics, numQuestionsPerTopic, difficulty 
         Which of the above statements are correct?
         
     5.  Options must always have exactly 4 choices, formatted as:
-        ["I only", "II only", "Both I and II", "Neither I nor II"] OR
         ["I only", "II only", "Both I and II", "All of the above"]
         
     6.  Use factual, conceptual, or analytical statements - avoid simple definitions.
@@ -163,19 +156,7 @@ const generateUPSCSingleBatch = async (topics, numQuestionsPerTopic, difficulty 
     9.  The position of the correct answer within the "options" array MUST be randomized.
     10. All questions should be of "${selectedDifficulty}" difficulty.
     
-    Response format (provide one of these examples randomly):
-    {
-        "${topics[0]}": [
-            {
-                "questionText": "Consider the following statements:\\nI. [Statement 1]\\nII. [Statement 2]\\nWhich of the above statement(s) is/are correct?",
-                "options": ["I only", "II only", "Both I and II", "Neither I nor II"],
-                "correctAnswer": "I only"
-            }
-        ]
-    }
-    
-    OR
-    
+    Response format:
     {
         "${topics[0]}": [
             {
@@ -195,7 +176,7 @@ const generateUPSCSingleBatch = async (topics, numQuestionsPerTopic, difficulty 
             messages: [
                 { 
                     role: "system", 
-                    content: "You are a professional UPSC/GK question generator. You will only respond with a valid, complete JSON object based on the user's request. Generate questions in the exact UPSC/GK format specified."
+                    content: "You are a professional UPSC/GK question generator. You will only respond with a valid, complete JSON object based on the user's request. Generate questions in the exact Four-Statement UPSC/GK format specified."
                 },
                 { role: "user", content: prompt }
             ],

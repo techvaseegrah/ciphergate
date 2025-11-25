@@ -131,6 +131,11 @@ const WorkerLayout = ({ children }) => {
       icon: <FaComments style={{ color: '#1ABC9C' }} />,
       label: 'Comments',
       badge: newComments > 0 ? newComments : null
+    },
+    {
+      to: '/worker/invoices',
+      icon: <FaClipboardList style={{ color: '#3498DB' }} />,
+      label: 'Invoices'
     }
   ];
 
