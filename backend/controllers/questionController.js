@@ -38,7 +38,7 @@ const RETRY_DELAY = 1500;
 
 // Input validation middleware
 const validateQuestionGeneration = (req, res, next) => {
-    const { workerIds, numQuestions, topic, commonTopics, individualTopics, topicMode, questionFormat } = req.body;
+    const { workerIds, numQuestions, topic, commonTopics, individualTopics, topicMode, questionFormat, generationMode } = req.body;
 
     if (!workerIds || !Array.isArray(workerIds) || workerIds.length === 0) {
         return res.status(400).json({ message: 'At least one employee must be selected' });
@@ -122,6 +122,13 @@ const validateQuestionGeneration = (req, res, next) => {
             message: 'Invalid question format. Must be either "mcq" or "upsc".'
         });
     }
+    
+    // Validate generation mode
+    if (generationMode && !['standard', 'three-sets'].includes(generationMode)) {
+        return res.status(400).json({
+            message: 'Invalid generation mode. Must be either "standard" or "three-sets".'
+        });
+    }
 
     next();
 };
@@ -143,7 +150,11 @@ const generateAndStoreQuestions = [
 
         // Start the generation process in the background without awaiting it.
         // This frees up the server to handle other requests.
-        processQuestionGeneration(req.body, jobId).catch(err => {
+        // Use the appropriate processor based on generation mode
+        const { generationMode = 'standard' } = req.body;
+        const processorFunction = generationMode === 'three-sets' ? processThreeSetQuestionGeneration : processQuestionGeneration;
+        
+        processorFunction(req.body, jobId).catch(err => {
             console.error(`Job ${jobId} failed catastrophically:`, err);
             jobManager.failJob(jobId, err.message || 'An unexpected error occurred during processing.');
         });
@@ -188,7 +199,7 @@ const getQuestionsForTest = async (req, res) => {
 
         const latestQuestionEntry = await Question.findOne({ worker: workerId })
             .sort({ createdAt: -1 })
-            .select('topic timeDuration totalTestDuration createdAt isMixed allTopics')
+            .select('topic timeDuration totalTestDuration createdAt isMixed allTopics questionSet')
             .lean();
 
         if (!latestQuestionEntry) {
@@ -200,6 +211,7 @@ const getQuestionsForTest = async (req, res) => {
         const totalDuration = latestQuestionEntry.totalTestDuration || 600;
         const isMixed = latestQuestionEntry.isMixed || false;
         const allTopics = latestQuestionEntry.allTopics || [latestQuestionEntry.topic];
+        const questionSet = latestQuestionEntry.questionSet || null;
         
         // For mixed topics, use a combined topic identifier for test attempt
         // For single topic, use the original topic
@@ -228,7 +240,15 @@ const getQuestionsForTest = async (req, res) => {
             // Get all questions from the same generation batch (same creation time)
             // For mixed topics: get all questions created around the same time (within 1 minute)
             // For single topic: get questions with the specific topic
-            if (isMixed) {
+            // For three-set mode: get questions from the same set
+            if (questionSet) {
+                // For three-set mode, get questions from the same set
+                questions = await Question.find({ 
+                    worker: workerId,
+                    questionSet: questionSet
+                });
+                log.info(`Three-set test: Found ${questions.length} questions for worker ${workerId} in set ${questionSet}`);
+            } else if (isMixed) {
                 // For mixed topics, get all questions created around the same time (within 1 minute)
                 const timeThreshold = new Date(latestCreationTime.getTime() - 60000); // 1 minute before
                 questions = await Question.find({ 
@@ -280,7 +300,9 @@ const getQuestionsForTest = async (req, res) => {
             options: q.options,
             correctOption: q.correctAnswer,
             timeDuration: q.timeDuration,
-            questionFormat: q.questionFormat // Add question format to response
+            questionFormat: q.questionFormat, // Add question format to response
+            upscFormat: q.upscFormat, // Add UPSC format to response
+            questionSet: q.questionSet // Add question set to response
         }));
 
         res.json({
@@ -294,7 +316,8 @@ const getQuestionsForTest = async (req, res) => {
             status: testAttempt.status,
             latestTopic: isMixed ? allTopics.join(', ') : latestQuestionEntry.topic,
             isMixed: isMixed,
-            allTopics: allTopics
+            allTopics: allTopics,
+            questionSet: questionSet
         });
 
     } catch (error) {
@@ -409,13 +432,14 @@ const createQuickTest = async (req, res) => {
             
             return {
                 topic: topic,
-                questionText: q.questionText,
+                questionText: q.question,
                 options: cleanedOptions,
                 correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * cleanedOptions.length),
                 difficulty: q.difficulty || difficulty,
                 timeDuration: parseInt(timeDuration),
                 totalTestDuration: parseInt(totalTestDuration),
-                questionFormat: 'mcq' // Default to MCQ for quick tests
+                questionFormat: 'upsc', // Default to UPSC for quick tests
+                upscFormat: q.format || 'E' // Store the specific UPSC format
             };
         });
 
@@ -443,7 +467,8 @@ const createQuickTest = async (req, res) => {
             options: q.options,
             correctOption: q.correctAnswer,
             timeDuration: q.timeDuration,
-            questionFormat: q.questionFormat // Add question format to response
+            questionFormat: q.questionFormat, // Add question format to response
+            upscFormat: q.upscFormat // Add UPSC format to response
         }));
 
         res.status(201).json({

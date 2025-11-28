@@ -206,13 +206,14 @@ const processQuestionGeneration = async (jobData, jobId) => {
                     return {
                         worker: worker._id,
                         topic: combinedTopicString,
-                        questionText: q.questionText,
+                        questionText: q.question,
                         options: cleanedOptions,
                         correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * cleanedOptions.length),
                         difficulty: q.difficulty || difficulty,
                         timeDuration: parseInt(timeDuration),
                         totalTestDuration: parseInt(totalTestDuration),
-                        questionFormat: questionFormat // Store the question format
+                        questionFormat: questionFormat, // Store the question format
+                        upscFormat: q.format || 'E' // Store the specific UPSC format (A, B, C, D, or E)
                     };
                 }).filter(Boolean);
 
@@ -273,4 +274,192 @@ const processQuestionGeneration = async (jobData, jobId) => {
     return returnValue;
 };
 
-module.exports = { processQuestionGeneration };
+/**
+ * Process generation of three separate question sets for common mode
+ * @param {Object} jobData - Job data containing generation parameters
+ * @param {string} jobId - Unique job identifier
+ * @returns {Object} Processing results
+ */
+const processThreeSetQuestionGeneration = async (jobData, jobId) => {
+    const {
+        workerIds,
+        numQuestions,
+        difficulty,
+        timeDuration,
+        totalTestDuration,
+        topicMode,
+        topic: commonTopic,
+        commonTopics,
+        individualTopics,
+        questionFormat = 'upsc' // Default to UPSC format for three sets
+    } = jobData;
+
+    log.info('Starting three-set question generation job:', { numWorkers: workerIds.length, jobId, questionFormat });
+
+    const workers = await Worker.find({ _id: { $in: workerIds } });
+    const workerMap = new Map(workers.map(w => [w._id.toString(), w]));
+
+    let workersProcessed = 0;
+    let totalQuestionsGenerated = 0;
+
+    // For three-set generation, we generate one set per worker
+    // Worker 1 gets Set A, Worker 2 gets Set B, Worker 3 gets Set C, then repeat
+    const tasks = workerIds.map((workerId, index) => async () => {
+        const session = await mongoose.startSession();
+        let taskResult;
+
+        try {
+            await session.withTransaction(async () => {
+                const worker = workerMap.get(workerId);
+                if (!worker) {
+                    throw new Error('Worker not found in map');
+                }
+
+                let topicsToUse = [];
+                let rawTopics = [];
+
+                if (topicMode === 'common') {
+                    // For common mode, use commonTopics if available, otherwise fallback to topic
+                    const commonTopicsToUse = commonTopics || (commonTopic ? [commonTopic] : []);
+                    topicsToUse = commonTopicsToUse.length > 0 
+                        ? commonTopicsToUse.flatMap(t => typeof t === 'string' ? t.split(',').map(t => t.trim()).filter(Boolean) : [])
+                        : [];
+                    rawTopics = commonTopicsToUse;
+                } else {
+                    rawTopics = (individualTopics && individualTopics[workerId]) || [];
+                    
+                    if (rawTopics.length === 0) {
+                        const dbTopics = await LearningTopic.find({ worker: workerId }).select('topic').lean().session(session);
+                        rawTopics = dbTopics.map(t => t.topic);
+                    }
+                    
+                    for (const rawTopic of rawTopics) {
+                        if (typeof rawTopic === 'string' && rawTopic.includes(',')) {
+                            const splitTopics = rawTopic.split(',').map(t => t.trim()).filter(Boolean);
+                            topicsToUse.push(...splitTopics);
+                        } else if (rawTopic && typeof rawTopic === 'string') {
+                            topicsToUse.push(rawTopic.trim());
+                        }
+                    }
+                    
+                    topicsToUse = [...new Set(topicsToUse)].filter(Boolean);
+                }
+
+                if (topicsToUse.length === 0) {
+                    log.warn(`Skipping ${worker.name}: No topics found.`);
+                    taskResult = { workerId, workerName: worker.name, success: false, reason: 'No topics' };
+                    return;
+                }
+
+                const combinedTopicString = topicsToUse.join(', ');
+                const targetQuestions = parseInt(numQuestions);
+                
+                // Determine which set this worker should get (A, B, or C)
+                const setNames = ['setA', 'setB', 'setC'];
+                const setForWorker = setNames[index % 3];
+                
+                // Generate three sets of questions
+                let threeSets = null;
+                try {
+                    const result = await generateThreeUPSCSets(topicsToUse, targetQuestions, difficulty);
+                    threeSets = result;
+                } catch (error) {
+                    log.error(`Failed to generate three question sets:`, error.message);
+                    taskResult = { workerId, workerName: worker.name, success: false, reason: 'AI failed to generate question sets' };
+                    return;
+                }
+                
+                // Select the appropriate set for this worker
+                const selectedSet = threeSets[setForWorker] || [];
+                
+                if (selectedSet.length === 0) {
+                    taskResult = { workerId, workerName: worker.name, success: false, reason: 'No questions generated for set' };
+                    return;
+                }
+
+                const questionsToSave = selectedSet.map(q => {
+                    // Clean options by removing internal letters like (a), (b), (c), (d)
+                    const cleanedOptions = q.options.map(option => {
+                        // Remove patterns like "(a) ", "(b) ", etc. from the beginning of options
+                        return option.replace(/^\([a-d]\)\s*/i, '').trim();
+                    });
+                    
+                    // Also clean the correctAnswer
+                    const cleanedCorrectAnswer = q.correctAnswer.replace(/^\([a-d]\)\s*/i, '').trim();
+                    
+                    const correctOptionIndex = cleanedOptions.findIndex(
+                        (opt) => String(opt).trim().toLowerCase() === String(cleanedCorrectAnswer).trim().toLowerCase()
+                    );
+                    
+                    return {
+                        worker: worker._id,
+                        topic: combinedTopicString,
+                        questionText: q.question,
+                        options: cleanedOptions,
+                        correctAnswer: correctOptionIndex !== -1 ? correctOptionIndex : Math.floor(Math.random() * cleanedOptions.length),
+                        difficulty: q.difficulty || difficulty,
+                        timeDuration: parseInt(timeDuration),
+                        totalTestDuration: parseInt(totalTestDuration),
+                        questionFormat: questionFormat, // Store the question format
+                        upscFormat: q.format || 'E', // Store the specific UPSC format (A, B, C, D, or E)
+                        questionSet: setForWorker // Store which set this question belongs to
+                    };
+                }).filter(Boolean);
+
+                // SUPER OPTIMIZATION: Use bulk insert for better database performance
+                if (questionsToSave.length > 0) {
+                    await Question.insertMany(questionsToSave, { 
+                        session,
+                        ordered: false // Allow parallel insertion
+                    });
+                }
+
+                taskResult = { 
+                    workerId, 
+                    workerName: worker.name, 
+                    success: true, 
+                    questionsGenerated: questionsToSave.length,
+                    targetQuestions: targetQuestions,
+                    topics: combinedTopicString,
+                    questionSet: setForWorker
+                };
+                
+                // Track total questions for progress reporting
+                totalQuestionsGenerated += questionsToSave.length;
+            });
+        } catch (error) {
+            const workerName = workerMap.get(workerId)?.name || 'Unknown';
+            log.error(`Transaction failed for worker ${workerName}:`, error.message);
+            taskResult = { workerId, workerName, success: false, reason: error.message };
+        } finally {
+            await session.endSession();
+        }
+        
+        workersProcessed++;
+        // Include total questions generated in progress update
+        jobManager.updateJobProgress(jobId, Math.round((workersProcessed / workerIds.length) * 100), {
+            workersProcessed,
+            totalWorkers: workerIds.length,
+            totalQuestionsGenerated
+        });
+        return taskResult;
+    });
+
+    // Execute worker tasks with higher concurrency
+    const results = await runWithConcurrency(tasks, CONCURRENT_WORKERS);
+
+    const successfulWorkers = results.filter(r => r && r.success);
+    const failedWorkers = results.filter(r => r && !r.success);
+
+    const returnValue = {
+        success: true,
+        results: successfulWorkers,
+        failedWorkers,
+        totalQuestionsGenerated
+    };
+
+    jobManager.completeJob(jobId, returnValue);
+    return returnValue;
+};
+
+module.exports = { processQuestionGeneration, processThreeSetQuestionGeneration };

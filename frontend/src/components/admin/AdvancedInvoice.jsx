@@ -50,12 +50,21 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
     terms: true,
     dueDate: true,
     bankDetails: true,
-    customerGst: true
+    customerGst: true,
+    invoiceNo: true,        // ADD THIS
+    invoiceDate: true,
+    consignerDetails: true  // Add this new field for From address
     // consignerDetails removed, it's now tied to gstEnabled
   });
 
   // State for company seal (logo upload removed)
   const [sealPreview, setSealPreview] = useState(null);
+  
+  // Set default seal image on component mount
+  useEffect(() => {
+    // Set default stamp.png as seal preview
+    setSealPreview('/stamp.png');
+  }, []);
 
   const invoiceRef = useRef();
 
@@ -318,7 +327,7 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       // Create a new jsPDF instance with A4 size
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // Set up margins (in mm)
+      // Set up margins (in mm) - 20-25px uniform margins on all sides
       const marginLeft = 20;
       const marginTop = 20;
       const marginRight = 20;
@@ -328,25 +337,44 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       const contentWidth = pageWidth - marginLeft - marginRight;
       
       // Add company logo
-      const logoImg = new Image();
-      logoImg.src = '/Invoicelogo.png';
-      
-      // Wait for image to load
-      await new Promise((resolve, reject) => {
-        logoImg.onload = resolve;
-        logoImg.onerror = reject;
-      });
-      
-      // Add logo to the top left
-      const logoWidth = 40;
-      const logoHeight = 20;
-      pdf.addImage(logoImg, 'PNG', marginLeft, marginTop, logoWidth, logoHeight);
-      
-      // Add the divider line that appears below the company logo in the UI
-      // 15% width in green color (#8cc63f) and 85% width in light gray color with 2px height
-      const dividerYPosition = marginTop + logoHeight + 2; // Position below the logo
-      const greenLineWidth = (pageWidth - marginLeft - marginRight) * 0.15;
-      const grayLineWidth = (pageWidth - marginLeft - marginRight) * 0.85;
+      // Load logo correctly from public folder using fetch → blob → base64
+// Load logo correctly in browser using fetch + base64 conversion
+
+// --- FIXED LOGO LOADING BLOCK (Replace your old block with this) ---
+
+// Correct logo path from public folder
+const logoPath = `${window.location.origin}/Invoicelogo.png`;
+
+// Convert image → blob → base64 → usable by jsPDF
+const logoData = await fetch(logoPath)
+  .then(res => res.blob())
+  .then(blob => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  }));
+
+// Get logo dimensions safely
+const logoProps = pdf.getImageProperties(logoData);
+const fixedLogoWidth = 50; // mm
+const fixedLogoHeight = (logoProps.height / logoProps.width) * fixedLogoWidth;
+
+// Add PERFECT logo (correct color, DPI, clarity)
+pdf.addImage(
+  logoData,
+  "PNG",
+  marginLeft,
+  marginTop,
+  fixedLogoWidth,
+  fixedLogoHeight
+);
+
+      // Add divider line under company logo
+      // 15% width in green color (#8cc63f) and 85% width in light gray color
+      const dividerYPosition = marginTop + fixedLogoHeight + 2; // Position below the logo
+      const totalWidth = pageWidth - marginLeft - marginRight;
+      const greenLineWidth = totalWidth * 0.15;
+      const grayLineWidth = totalWidth * 0.85;
       
       // Draw green line (15%)
       pdf.setFillColor(140, 198, 63); // #8cc63f
@@ -355,7 +383,7 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       // Draw gray line (85%)
       pdf.setFillColor(209, 213, 219); // bg-gray-200 equivalent
       pdf.rect(marginLeft + greenLineWidth, dividerYPosition + 0.5, grayLineWidth, 0.2, 'F');
-      
+
       // Add header content
       pdf.setFontSize(10);
       pdf.setTextColor(51, 51, 51);
@@ -389,23 +417,27 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setFontSize(10); // Reduced font size
       let rightColX = pageWidth - marginRight - 60; // As per specification
       pdf.setFont(undefined, 'bold');
-      pdf.text('Invoice No :', rightColX, yPosition);
-      pdf.text('Invoice Date :', rightColX, yPosition + 5);
+      pdf.text('Invoice No :', rightColX, yPosition - 7);
+      pdf.text('Invoice Date :', rightColX,  (yPosition - 7) + 5);
       pdf.setFont(undefined, 'normal');
       // Adjust positioning to ensure values stay within margins
       const invoiceValueX = pageWidth - marginRight - 5; // Position values within right margin
-      pdf.text(invoiceData.invoiceNo, invoiceValueX, yPosition, { align: 'right' });
-      pdf.text(invoiceData.invoiceDate, invoiceValueX, yPosition + 5, { align: 'right' });
-      
+      pdf.text(invoiceData.invoiceNo, invoiceValueX, yPosition - 7, { align: 'right' });
+pdf.text(invoiceData.invoiceDate, invoiceValueX, (yPosition - 7) + 5, { align: 'right' });
+
       // Sales person
-      if (includeFields.salesPerson && invoiceData.salesPerson) {
-        yPosition += 10;
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Sales person :', rightColX, yPosition);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(invoiceData.salesPerson, invoiceValueX, yPosition, { align: 'right' });
-      }
-      
+    if (includeFields.salesPerson && invoiceData.salesPerson) {
+  yPosition += 10;
+
+  const salesY = yPosition - 7; // ← Move UP by 5px
+
+  pdf.setFont(undefined, 'bold');
+  pdf.text('Sales person :', rightColX, salesY);
+
+  pdf.setFont(undefined, 'normal');
+  pdf.text(invoiceData.salesPerson, invoiceValueX, salesY, { align: 'right' });
+}
+
       yPosition += 15;
       
       // Reset font size for the rest of the document
@@ -415,7 +447,8 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       if (includeFields.customerContact && invoiceData.customerContact) {
         // Calculate positions for side-by-side layout
         const leftColumnX = marginLeft;
-        const rightColumnX = pageWidth / 2; // Start right column at middle of page
+        const rightColumnX = (pageWidth / 2) + 25;
+ // Start right column at middle of page
         const sectionWidth = (pageWidth - marginLeft - marginRight) / 2 - 10; // Width for each section
         
         // Customer contact/address (left side) - match JSX font sizes
@@ -429,37 +462,46 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
         const addressLines = pdf.splitTextToSize(invoiceData.customerContact, sectionWidth);
         pdf.text(addressLines, leftColumnX, yPosition + 5);
         
-        // From section (right side) if GST is enabled - match JSX font sizes
-        if (invoiceData.gstEnabled) {
+        // From section (right side) - show for both GST and non-GST invoices if checkbox is enabled
+        if (includeFields.consignerDetails) {
           pdf.setFont(undefined, 'bold');
           pdf.setFontSize(10); // Match text-xs font size for "From:" label
           pdf.text('From:', rightColumnX, yPosition);
           pdf.setFont(undefined, 'normal');
           pdf.setFontSize(10); // Match text-sm for "TECH VASEEGRAH"
           
-          // From section details
+          // From section details with proper line breaking
           const fromDetails = [
             'TECH VASEEGRAH',
             'No.11, VIJAYANAGAR,',
-            'REDDIPALAYAM ROAD, SRINIVASAPURAM,',
+            'REDDIPALAYAM ROAD,', 
+            'SRINIVASAPURAM,',
             'THANJAVUR - 613009',
-            'Mobile: 7667792779',
-            'GSTIN: 33KYGPS1983E1Z1'
+            'Mobile: 7667792779'
           ];
           
-          // Add each line of from details
+          // Add GSTIN only for GST invoices
+          if (invoiceData.gstEnabled) {
+            fromDetails.push('GSTIN: 33KYGPS1983E1Z1');
+          }
+          
+          // Split each line to ensure it fits within the section width
+          let currentY = yPosition + 5;
           fromDetails.forEach((line, index) => {
-            pdf.text(line, rightColumnX, yPosition + 5 + (index * 5));
+            const splitLines = pdf.splitTextToSize(line, sectionWidth);
+            pdf.text(splitLines, rightColumnX, currentY);
+            currentY += splitLines.length * 5; // Adjust Y position based on number of lines
           });
         }
         
         // Update yPosition based on the taller content
         const addressHeight = addressLines.length * 5;
-        const fromHeight = invoiceData.gstEnabled ? 6 * 5 : 0; // 6 lines for from details
+        const fromHeight = includeFields.consignerDetails ? 7 * 5 : 0; // 7 lines for from details
         yPosition += Math.max(addressHeight, fromHeight) + 10;
-      } else if (invoiceData.gstEnabled) {
+      } else if (includeFields.consignerDetails) {
         // Only From section (right aligned) - match JSX font sizes
-        const rightColumnX = pageWidth / 2;
+       const rightColumnX = (pageWidth / 2) + 35;
+        const sectionWidth = (pageWidth - marginLeft - marginRight) / 2 - 10; // Width for each section
         
         pdf.setFont(undefined, 'bold');
         pdf.setFontSize(10); // Match text-xs font size for "From:" label
@@ -467,22 +509,30 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
         pdf.setFont(undefined, 'normal');
         pdf.setFontSize(10); // Match text-sm for "TECH VASEEGRAH"
         
-        // From section details
+        // From section details with proper line breaking
         const fromDetails = [
           'TECH VASEEGRAH',
           'No.11, VIJAYANAGAR,',
-          'REDDIPALAYAM ROAD, SRINIVASAPURAM,',
+          'REDDIPALAYAM ROAD,', 
+          'SRINIVASAPURAM,',
           'THANJAVUR - 613009',
-          'Mobile: 7667792779',
-          'GSTIN: 33KYGPS1983E1Z1'
+          'Mobile: 7667792779'
         ];
         
-        // Add each line of from details
+        // Add GSTIN only for GST invoices
+        if (invoiceData.gstEnabled) {
+          fromDetails.push('GSTIN: 33KYGPS1983E1Z1');
+        }
+        
+        // Split each line to ensure it fits within the section width
+        let currentY = yPosition + 5;
         fromDetails.forEach((line, index) => {
-          pdf.text(line, rightColumnX, yPosition + 5 + (index * 5));
+          const splitLines = pdf.splitTextToSize(line, sectionWidth);
+          pdf.text(splitLines, rightColumnX, currentY);
+          currentY += splitLines.length * 5; // Adjust Y position based on number of lines
         });
         
-        yPosition += 6 * 5 + 10; // 6 lines + spacing
+        yPosition += fromDetails.length * 5 + 10; // Adjust based on number of lines
       }
       
       // Reset font size for the rest of the document
@@ -513,176 +563,249 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
         
         return row;
       });
+
       
-      // Add table with auto pagination
+      // Add table with auto pagination - improved for multi-page support
       autoTable(pdf, {
         head: [tableColumn],
         body: tableRows,
         startY: yPosition,
+        theme: "grid",       
         margin: { left: marginLeft, right: marginRight },
         styles: {
           fontSize: 10,
-          cellPadding: 3
+          cellPadding: 3,
+          overflow: 'linebreak'
         },
         headStyles: {
           fillColor: [0, 132, 61], // Green header
           textColor: [255, 255, 255], // White text
-          fontStyle: 'bold'
+          fontStyle: 'bold',
+          halign: 'center' // Center align all header cells
         },
         alternateRowStyles: {
           fillColor: [233, 247, 236] // Light green for alternate rows
         },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' }, // NO
-          1: { cellWidth: 'auto', halign: 'left' }, // DESCRIPTION
-          ...(invoiceData.gstEnabled ? {
-            2: { cellWidth: 25, halign: 'left' }, // HSN
-            3: { cellWidth: 25, halign: 'right' }  // GST
-          } : {}),
-          [invoiceData.gstEnabled ? 4 : 2]: { cellWidth: 20, halign: 'right' }, // QTY
-          [invoiceData.gstEnabled ? 5 : 3]: { cellWidth: 25, halign: 'right' }, // PRICE
-          [invoiceData.gstEnabled ? 6 : 4]: { cellWidth: 30, halign: 'right' }  // TOTAL
-        },
+       columnStyles: {
+  0: { cellWidth: 15, halign: 'center' }, // NO
+  1: { cellWidth: 'auto', halign: 'left' }, // DESCRIPTION
+
+  // HSN + GST columns (if GST enabled)
+  ...(invoiceData.gstEnabled ? {
+    2: { cellWidth: 25, halign: 'center' }, // HSN CENTER
+    3: { cellWidth: 25, halign: 'center' }  // GST (%) CENTER
+  } : {}),
+
+  // QTY column
+  [invoiceData.gstEnabled ? 4 : 2]: { 
+    cellWidth: 20, 
+    halign: 'center'  // CENTER QTY
+  },
+
+  // PRICE column
+  [invoiceData.gstEnabled ? 5 : 3]: { 
+    cellWidth: 25, 
+    halign: 'center'  // CENTER PRICE
+  },
+
+  // TOTAL column
+  [invoiceData.gstEnabled ? 6 : 4]: { 
+    cellWidth: 30, 
+    halign: 'center'  // CENTER TOTAL
+  }
+},
         didParseCell: function(data) {
           // Handle long descriptions by allowing text wrapping
           if (data.section === 'body' && data.column.index === 1) { // DESCRIPTION column
             data.cell.styles.cellWidth = 'auto';
           }
-        }
+        },
+        // Ensure rows are not split across pages
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+        // Repeat header on each page
+        showHead: 'everyPage'
       });
       
       // Get final Y position after table
       let finalY = pdf.lastAutoTable.finalY + 10;
       
+      // Check if there's enough space for the totals section
+      const requiredSpaceForTotals = 60; // Estimate space needed for totals, Total in Words, and Payment details
+      
+      // If not enough space, move to next page
+      if (finalY + requiredSpaceForTotals > pageHeight - marginBottom) {
+        pdf.addPage();
+        finalY = marginTop + 10; // Reset Y position to top of new page
+      }
+      
       // Add summary totals
-      const summaryStartY = finalY;
-      
-      // Calculate column positions for consistent alignment
-      const labelX = pageWidth - marginRight - 50;
-      const valueX = pageWidth - marginRight - 5; // Add extra padding to ensure values stay within margins
-      
-      // Subtotal with background styling to match web interface
-      pdf.setFont(undefined, 'normal');
-      // Draw background for subtotal row (white background, black text)
-      pdf.setFillColor(255, 255, 255); // White background
-      pdf.rect(labelX - 5, summaryStartY - 5, (valueX - labelX) + 10, 7, 'F');
-      pdf.text('Sub Total :', labelX, summaryStartY);
-      pdf.text(`₹${totals.subtotal.toFixed(2)}`, valueX, summaryStartY, { align: 'right' });
-      
-      let summaryY = summaryStartY + 7;
-      
-      // GST totals with background styling
-      if (invoiceData.gstEnabled) {
-        if (invoiceData.saleType === 'Intrastate') {
-          // Draw background for CGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('CGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.cgstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-          
-          // Draw background for SGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('SGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.sgstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-        } else if (invoiceData.saleType === 'Interstate') {
-          // Draw background for IGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('IGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.igstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-        }
-      }
-      
-      // Grand total with green background styling to match web interface
-      pdf.setFont(undefined, 'bold');
-      // Draw green background for grand total row
-      pdf.setFillColor(0, 132, 61); // #00843d green background
-      pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-      pdf.setTextColor(255, 255, 255); // White text
-      pdf.text('Grand Total :', labelX, summaryY);
-      pdf.text(`₹${totals.grandTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-      pdf.setTextColor(51, 51, 51); // Reset to default color
-      pdf.setFont(undefined, 'normal');
-      
-      summaryY += 10;
-      
-      // Total in words
-      pdf.setFont(undefined, 'bold');
-      pdf.text('Total In Words', marginLeft, summaryY);
-      pdf.setFont(undefined, 'normal');
-      
-      const totalInWordsLines = pdf.splitTextToSize(totals.totalInWords, contentWidth - 50);
-      pdf.text(totalInWordsLines, marginLeft, summaryY + 6);
-      
-      // Payment details
-      let paymentY = summaryY + totalInWordsLines.length * 6 + 15;
-      
-      if (includeFields.bankDetails) {
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Payment Method:', marginLeft, paymentY);
-        pdf.setFont(undefined, 'normal');
-        
-        paymentY += 7;
-        pdf.setFontSize(10);
-        if (invoiceData.bankName) {
-          pdf.text(`Bank Name: ${invoiceData.bankName}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.accountNumber) {
-          pdf.text(`Account Number: ${invoiceData.accountNumber}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.ifscCode) {
-          pdf.text(`IFSC Code: ${invoiceData.ifscCode}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.upiId) {
-          pdf.text(`UPI ID: ${invoiceData.upiId}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        pdf.setFontSize(10);
-      }
-      
-      // Add company seal with exact same size and proportions as in the UI (40mm wide, 20mm high)
-      if (sealPreview) {
-        try {
-          const sealImg = new Image();
-          sealImg.src = sealPreview;
-          // Position the seal on the right side
-          const sealWidth = 40;  // 40mm wide to match UI
-          const sealHeight = 35; // 35mm high to match UI
-          const sealX = pageWidth - marginRight - sealWidth;
-          const sealY = paymentY;
-          pdf.addImage(sealImg, 'PNG', sealX, sealY, sealWidth, sealHeight);
-          
-          // Add 'Company Seal' label below the seal, centered
-          pdf.setFontSize(10);
-          pdf.setFont(undefined, 'normal');
-          const sealLabel = 'Company Seal';
-          const labelWidth = pdf.getTextWidth(sealLabel);
-          const labelX = sealX + (sealWidth / 2) - (labelWidth / 2); // Center the label
-          pdf.text(sealLabel, labelX, sealY + sealHeight + 5);
-          
-          // Update paymentY to position after the seal
-          paymentY = sealY + sealHeight + 10;
-        } catch (error) {
-          console.error('Error adding seal to PDF:', error);
-        }
-      }
+
+
+const labelX = pageWidth - marginRight - 70;  // left part of totals
+const valueX = pageWidth - marginRight - 10;  // right aligned position
+
+pdf.setFont("helvetica", "normal");
+pdf.setFontSize(11);
+
+let y = finalY + 15;
+const lineH = 8;
+
+// helper function
+const printRow = (label, value, background = null, bold = false) => {
+
+  // background (for Grand Total)
+  if (background) {
+    pdf.setFillColor(...background);
+    // Fix the width to ensure it doesn't extend beyond margins
+    const maxWidth = pageWidth - marginRight - (labelX - 5);
+    const grandTotalWidth = Math.min((valueX - labelX) + 20, maxWidth);
+    pdf.rect(labelX - 5, y - 6, grandTotalWidth, lineH + 2, "F");
+    pdf.setTextColor(255,255,255);
+  } else {
+    pdf.setTextColor(51,51,51);
+  }
+
+  // LABEL (left)
+  pdf.setFont("helvetica", bold ? "bold" : "normal");
+  pdf.text(label, labelX, y);
+
+  // FORMAT VALUE PROPERLY (₹ + commas + /-)
+const formattedValue =
+    "Rs. " + Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 }) + " /-";
+
+  // MEASURE WIDTH → RIGHT ALIGN CLEAN
+  pdf.setFont("helvetica", bold ? "bold" : "normal");
+const textWidth = pdf.getTextWidth(formattedValue);
+
+// FORCE Helvetica so jsPDF cannot fall back to Courier
+pdf.setFont("helvetica", bold ? "bold" : "normal");
+pdf.setFontSize(11);
+if (pdf.setFontType) {
+  pdf.setFontType(bold ? "bold" : "normal");
+}
+
+pdf.text(formattedValue, valueX - textWidth, y);
+
+  // restore
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(51,51,51);
+
+  y += lineH;
+};
+
+
+// ROWS
+printRow("Sub Total :", totals.subtotal.toFixed(2));
+
+if (invoiceData.gstEnabled) {
+  if (invoiceData.saleType === "Intrastate") {
+    printRow("CGST Total :", totals.cgstTotal.toFixed(2));
+    printRow("SGST Total :", totals.sgstTotal.toFixed(2));
+  } else {
+    printRow("IGST Total :", totals.igstTotal.toFixed(2));
+  }
+}
+
+// GRAND TOTAL (green background)
+printRow("Grand Total :", totals.grandTotal.toFixed(2), [0,132,61], true);
+
+
+// TOTAL IN WORDS with green background
+pdf.setTextColor(51,51,51);
+pdf.setFont("helvetica", "bold");
+// Draw green background for "Total In Words" header within margins
+const totalInWordsHeaderWidth = pdf.getStringUnitWidth("Total In Words") * pdf.getFontSize() / pdf.internal.scaleFactor + 10;
+pdf.setFillColor(0, 132, 61); // Green color
+pdf.rect(marginLeft, y + 10 - 9, totalInWordsHeaderWidth, 10, 'F');
+pdf.setTextColor(255, 255, 255); // White text
+pdf.text("Total In Words", marginLeft + 5, y + 10);
+pdf.setTextColor(51,51,51); // Reset to default color
+
+pdf.setFont("helvetica", "normal");
+const words = pdf.splitTextToSize(totals.totalInWords, contentWidth - 50);
+pdf.text(words, marginLeft, y + 24); // Increased spacing below header
+
+y += 24 + words.length * 6; // Increased spacing below totals
+
+// Check if the entire "Total in Words", "Payment Method", and stamp block fits on the current page
+const estimatedBlockHeight = 10 + (words.length * 6) + 15 + 50; // Header + Total in Words + Payment Method + Stamp
+
+// If not enough space, move the entire block to the next page
+if (y + estimatedBlockHeight > pageHeight - marginBottom) {
+  pdf.addPage();
+  y = marginTop + 10; // Reset Y position to top of new page
+}
+
+// PAYMENT DETAILS (unchanged)
+// === PAYMENT METHOD (LEFT) + SEAL (RIGHT) PERFECT HORIZONTAL ALIGN ===
+
+// FIXED START POSITION
+let blockY = y + 10;
+
+// LEFT SIDE → Payment Method with green background
+pdf.setFont("helvetica", "bold");
+// Draw green background for "Payment Method:" header within margins
+const paymentMethodHeaderWidth = pdf.getStringUnitWidth("Payment Method:") * pdf.getFontSize() / pdf.internal.scaleFactor + 10;
+pdf.setFillColor(0, 132, 61); // Green color
+pdf.rect(marginLeft, blockY - 9, paymentMethodHeaderWidth, 10, 'F');
+pdf.setTextColor(255, 255, 255); // White text
+pdf.text("Payment Method:", marginLeft + 5, blockY);
+pdf.setTextColor(51,51,51); // Reset to default color
+
+let payDetailsY = blockY + 7;
+pdf.setFont("helvetica", "normal");
+pdf.setFontSize(10);
+
+if (invoiceData.bankName) {
+  pdf.text(`Bank Name: ${invoiceData.bankName}`, marginLeft, payDetailsY);
+  payDetailsY += 5;
+}
+if (invoiceData.accountNumber) {
+  pdf.text(`Account Number: ${invoiceData.accountNumber}`, marginLeft, payDetailsY);
+  payDetailsY += 5;
+}
+if (invoiceData.ifscCode) {
+  pdf.text(`IFSC Code: ${invoiceData.ifscCode}`, marginLeft, payDetailsY);
+  payDetailsY += 5;
+}
+if (invoiceData.upiId) {
+  pdf.text(`UPI ID: ${invoiceData.upiId}`, marginLeft, payDetailsY);
+  payDetailsY += 5;
+}
+
+// RIGHT SIDE → Seal aligned horizontally with Payment Method
+// Position the seal below the payment details
+let sealY = payDetailsY + 10; // Position below payment details
+try {
+  // Use either the uploaded seal or the default stamp.png
+  const sealToUse = sealPreview || '/stamp.png';
+  if (sealToUse) {
+    const sealWidth = 40;
+    const sealHeight = 35;
+
+    const sealX = pageWidth - marginRight - sealWidth;
+    pdf.addImage(sealToUse, "PNG", sealX, sealY, sealWidth, sealHeight);
+    
+    // Update sealY to position after the seal
+    sealY = sealY + sealHeight + 10;
+  }
+} catch (error) {
+  console.error('Error adding seal to PDF:', error);
+}
+
+// Update y position
+y = Math.max(payDetailsY, sealY);
       
       // Thank you message - centered
       pdf.setFont(undefined, 'bold');
       const thankYouText = 'Thank you for business with us!';
       const thankYouWidth = pdf.getTextWidth(thankYouText);
       const thankYouX = (pageWidth - thankYouWidth) / 2;
-      pdf.text(thankYouText, thankYouX, paymentY);
+      pdf.text(thankYouText, thankYouX, y);
       
       // Add divider lines below the thank you message
-      const dividerY = paymentY + 10;
+      const dividerY = y + 10;
       const dividerTotalWidth = pageWidth - marginLeft - marginRight;
       const thankYouGreenLineWidth = dividerTotalWidth * 0.15;
       const thankYouGrayLineWidth = dividerTotalWidth * 0.85;
@@ -700,11 +823,25 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       // Add a new page for Terms and Conditions
       pdf.addPage();
       
+      // Add divider lines at the top of the Terms and Conditions page (matching first page style)
+      const termsDividerYPosition = marginTop + 5; // Position below the top margin
+      const termsTotalWidth = pageWidth - marginLeft - marginRight;
+      const termsGreenLineWidth = termsTotalWidth * 0.15;
+      const termsGrayLineWidth = termsTotalWidth * 0.85;
+      
+      // Draw green line (15%) with increased thickness
+      pdf.setFillColor(140, 198, 63); // #8cc63f
+      pdf.rect(marginLeft, termsDividerYPosition, termsGreenLineWidth, 0.7, 'F');
+      
+      // Draw gray line (85%) with increased thickness
+      pdf.setFillColor(209, 213, 219); // bg-gray-200 equivalent
+      pdf.rect(marginLeft + termsGreenLineWidth, termsDividerYPosition, termsGrayLineWidth, 0.7, 'F');
+      
       // Add title for second page
-      pdf.setFontSize(16);
+      pdf.setFontSize(18);
       pdf.setTextColor(0, 132, 61); // Green color
       pdf.setFont(undefined, 'bold');
-      pdf.text('TERMS AND CONDITIONS', marginLeft, marginTop);
+      pdf.text('TERMS AND CONDITIONS', marginLeft, marginTop + 15);
       
       // Add content with proper formatting
       pdf.setFontSize(10);
@@ -784,38 +921,26 @@ customer data.
 While we strive for continuous service, scheduled maintenance and updates may
 temporarily interrupt app availability. We will provide advance notice when possible.`;
 
-      // Split terms into lines and add them to the PDF
+      // Split terms into lines and add them to the PDF with proper margins
       const lines = pdf.splitTextToSize(termsAndConditions, contentWidth);
       
-      // Check if content exceeds one page and needs continuation on third page
-      let yPositionTerms = marginTop + 15;
+      // Add content with proper pagination across multiple pages if needed
+      let yPositionTerms = marginTop + 30; // Start below the title
       const lineHeight = 5;
       const maxLinesPerPage = 45; // Approximate number of lines that fit on a page
-      let currentLineIndex = 0;
       
-      // Add content to second page
-      while (currentLineIndex < lines.length && currentLineIndex < maxLinesPerPage) {
-        pdf.text(lines[currentLineIndex], marginLeft, yPositionTerms);
-        yPositionTerms += lineHeight;
-        currentLineIndex++;
-      }
-      
-      // If there's more content, add a new page (third page)
-      if (currentLineIndex < lines.length) {
-        pdf.addPage();
-        
-        // Reset y position for third page
-        yPositionTerms = marginTop + 15;
-        pdf.setFontSize(10);
-        pdf.setTextColor(51, 51, 51); // Dark gray color
-        pdf.setFont(undefined, 'normal');
-        
-        // Add remaining content to third page
-        while (currentLineIndex < lines.length) {
-          pdf.text(lines[currentLineIndex], marginLeft, yPositionTerms);
-          yPositionTerms += lineHeight;
-          currentLineIndex++;
+      for (let i = 0; i < lines.length; i++) {
+        // Check if we need to add a new page
+        if ((i % maxLinesPerPage === 0) && i !== 0) {
+          pdf.addPage();
+          yPositionTerms = marginTop + 15; // Reset Y position for new page
+          pdf.setFontSize(10);
+          pdf.setTextColor(51, 51, 51); // Dark gray color
+          pdf.setFont(undefined, 'normal');
         }
+        
+        pdf.text(lines[i], marginLeft, yPositionTerms);
+        yPositionTerms += lineHeight;
       }
 
       // Save the PDF
@@ -1092,16 +1217,16 @@ temporarily interrupt app availability. We will provide advance notice when poss
                   `<div class="address-label">${invoiceData.gstEnabled ? 'Address' : 'Contact'} :</div>
                    <div class="address-text">${invoiceData.customerContact}</div>` : ''}
               </div>
-              ${invoiceData.gstEnabled ? 
+              ${includeFields.consignerDetails ? 
                 `<div class="from-section">
                   <div class="from-container">
                     <div class="from-title">From:</div>
-                    <div class="from-details bold">TECH VASEEGRAH</div>
+                    <div class="from-details">TECH VASEEGRAH</div>
                     <div class="from-details">No.11, VIJAYANAGAR,</div>
                     <div class="from-details">REDDIPALAYAM ROAD, SRINIVASAPURAM,</div>
                     <div class="from-details">THANJAVUR - 613009</div>
                     <div class="from-details">Mobile: 7667792779</div>
-                    <div class="from-details">GSTIN: 33KYGPS1983E1Z1</div>
+                    ${invoiceData.gstEnabled ? '<div class="from-details">GSTIN: 33KYGPS1983E1Z1</div>' : ''}
                   </div>
                 </div>` : ''}
             </div>
@@ -1363,6 +1488,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
                 <label className="text-sm font-bold text-gray-700 mr-2">GST</label>
                 {invoiceData.gstEnabled && (
                   <select
+                 
                     name="saleType"
                     value={invoiceData.saleType}
                     onChange={handleInputChange}
@@ -1422,21 +1548,28 @@ temporarily interrupt app availability. We will provide advance notice when poss
             </div>
             
             {/* Right Side: Company Details (From section) */}
-            {invoiceData.gstEnabled && (
-              <div className="w-1/2 pl-4">
-                <div className="flex justify-end">
-                  <div id="consignerDetails" className="p-2 bg-gray-50 rounded text-left">
-                    <h4 className="font-semibold text-xs mb-1 text-gray-600 uppercase">From:</h4>
-                    <p className="text-sm text-gray-800 font-bold">TECH VASEEGRAH</p>
-                    <p className="text-gray-700 text-xs">No.11, VIJAYANAGAR,</p>
-                    <p className="text-gray-700 text-xs">REDDIPALAYAM ROAD, SRINIVASAPURAM,</p>
-                    <p className="text-gray-700 text-xs">THANJAVUR - 613009</p>
-                    <p className="text-gray-700 text-xs">Mobile: 7667792779</p>
-                    <p className="text-gray-700 text-xs">GSTIN: 33KYGPS1983E1Z1</p>
-                  </div>
-                </div>
+            <div className="w-1/2 pl-4">
+              <div className="flex justify-end mb-2">
+                <input
+                  type="checkbox"
+                  checked={includeFields.consignerDetails}
+                  onChange={() => handleCheckboxChange('consignerDetails')}
+                  className="mr-2 h-4 w-4 text-green-600 rounded mt-1"
+                />
+                <label className="font-bold text-gray-700">From :</label>
               </div>
-            )}
+              <div className="p-2 bg-gray-50 rounded text-left">
+                <p className="text-sm text-gray-800 font-bold">TECH VASEEGRAH</p>
+                <p className="text-gray-700 text-xs">No.11, VIJAYANAGAR,</p>
+                <p className="text-gray-700 text-xs">REDDIPALAYAM ROAD,</p>
+                <p className="text-gray-700 text-xs">SRINIVASAPURAM,</p>
+                <p className="text-gray-700 text-xs">THANJAVUR - 613009</p>
+                <p className="text-gray-700 text-xs">Mobile: 7667792779</p>
+                {invoiceData.gstEnabled && (
+                  <p className="text-gray-700 text-xs">GSTIN: 33KYGPS1983E1Z1</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Items Table */}
@@ -1494,7 +1627,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
                             </td>
                             <td className="py-2 px-3 border-r border-gray-300">
                               <input
-                                type="number"
+                                type="text"
                                 min="0"
                                 step="0.01"
                                 value={item.gst}
@@ -1685,13 +1818,16 @@ temporarily interrupt app availability. We will provide advance notice when poss
 
             {/* Right Side: Seal */}
             <div className="text-center">
-              {sealPreview ? (
-                <img src={sealPreview} alt="Company Seal" className="h-20 mx-auto" />
-              ) : (
-                <div className="w-40 h-20 flex items-center justify-center">
-                  {/* Placeholder for seal image */}
-                </div>
-              )}
+              {/* Show either the uploaded seal or the default stamp.png */}
+              <img 
+                src={sealPreview || '/stamp.png'} 
+                alt="Company Seal" 
+                className="h-20 mx-auto" 
+                onError={(e) => {
+                  // If stamp.png doesn't exist, show placeholder
+                  e.target.src = '/placeholder-seal.png';
+                }}
+              />
               <div className="border-t border-gray-400 pt-2 mt-2">
                 <p className="text-gray-700 text-sm font-medium">Company Seal</p>
               </div>
@@ -1720,11 +1856,18 @@ temporarily interrupt app availability. We will provide advance notice when poss
               onChange={handleSealUpload}
               className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
             />
-            {sealPreview && (
-              <div className="mt-1">
-                <img src={sealPreview} alt="Seal Preview" className="h-16" />
-              </div>
-            )}
+            <div className="mt-1">
+              {/* Show either the uploaded seal or the default stamp.png */}
+              <img 
+                src={sealPreview || '/stamp.png'} 
+                alt="Seal Preview" 
+                className="h-16" 
+                onError={(e) => {
+                  // If stamp.png doesn't exist, show placeholder
+                  e.target.src = '/placeholder-seal.png';
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
