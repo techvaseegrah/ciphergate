@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from '../common/Card';
 import { deleteInvoice } from '../../services/invoiceService';
+import { toast } from 'react-toastify';
 
 const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -26,22 +30,48 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
     return subtotal + gstTotal;
   };
 
-  // Handle delete invoice
-  const handleDeleteInvoice = async (invoiceId) => {
+  // Handle delete invoice - show confirmation modal
+  const handleDeleteClick = (invoiceId) => {
+    setInvoiceToDelete(invoiceId);
+    setShowDeleteModal(true);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!invoiceToDelete) return;
+    
     try {
-      const response = await deleteInvoice(invoiceId);
+      const response = await deleteInvoice(invoiceToDelete);
       if (response.success) {
         // Call the onDeleteInvoice callback if provided
         if (onDeleteInvoice) {
-          onDeleteInvoice(invoiceId);
+          onDeleteInvoice(invoiceToDelete);
         }
+        toast.success('Invoice deleted successfully!');
       } else {
-        alert('Failed to delete invoice: ' + response.message);
+        toast.error('Failed to delete invoice: ' + response.message);
       }
     } catch (error) {
       console.error('Error deleting invoice:', error);
-      alert('Error deleting invoice: ' + (error.message || 'Unknown error'));
+      // More descriptive error messages
+      if (error.response && error.response.status === 404) {
+        toast.error('Invoice not found. It may have already been deleted.');
+      } else if (error.response && error.response.status === 403) {
+        toast.error('Access denied. You do not have permission to delete this invoice.');
+      } else {
+        toast.error('Error deleting invoice: ' + (error.message || 'Unknown error'));
+      }
+    } finally {
+      // Close modal and reset state
+      setShowDeleteModal(false);
+      setInvoiceToDelete(null);
     }
+  };
+
+  // Cancel delete
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setInvoiceToDelete(null);
   };
 
   return (
@@ -90,7 +120,7 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteInvoice(invoice._id)}
+                        onClick={() => handleDeleteClick(invoice._id)}
                         className="text-red-600 hover:text-red-900 font-medium text-sm"
                       >
                         Delete
@@ -101,6 +131,32 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Deletion</h3>
+            <p className="text-gray-500 mb-6">
+              Are you sure you want to delete this invoice? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

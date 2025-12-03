@@ -15,6 +15,14 @@ router.route('/')
 router.route('/all')
   .get(adminOnly, invoiceController.getAllInvoices);
 
+// Route to update admin last viewed timestamp
+router.route('/admin-viewed')
+  .put(adminOnly, invoiceController.updateAdminLastViewed);
+
+// Route to get new invoice count
+router.route('/new-count')
+  .get(adminOnly, invoiceController.getNewInvoiceCount);
+
 // Individual invoice routes (allow both admin and worker for their own invoices)
 router.route('/:id')
   .get(adminOrWorker, invoiceController.getInvoiceById)

@@ -46,6 +46,11 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['admin', 'worker'], 
     default: 'admin' 
   },
+  // Field to track when admin last viewed invoices
+  adminLastViewed: {
+    type: Date,
+    default: null
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

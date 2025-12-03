@@ -76,3 +76,23 @@ export const deleteInvoice = async (id) => {
     throw error.response?.data || { message: 'Error deleting invoice' };
   }
 };
+
+// Update admin last viewed timestamp
+export const updateAdminLastViewed = async () => {
+  try {
+    const response = await api.put('/invoices/admin-viewed');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error updating admin viewed status' };
+  }
+};
+
+// Get new invoice count
+export const getNewInvoiceCount = async () => {
+  try {
+    const response = await api.get('/invoices/new-count');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching new invoice count' };
+  }
+};

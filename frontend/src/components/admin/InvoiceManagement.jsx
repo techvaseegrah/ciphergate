@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import Card from '../common/Card';
 import AdvancedInvoice from './AdvancedInvoice';
 import InvoiceHistory from './InvoiceHistory';
 import UnifiedInvoiceHistory from './UnifiedInvoiceHistory';
-import { getInvoices, getAllInvoices, createInvoice, updateInvoice, deleteInvoice } from '../../services/invoiceService';
+import { getInvoices, getAllInvoices, createInvoice, updateInvoice, deleteInvoice, updateAdminLastViewed } from '../../services/invoiceService';
 import { useAuth } from '../../hooks/useAuth';
 
 const InvoiceManagement = () => {
@@ -17,6 +18,9 @@ const InvoiceManagement = () => {
   // Load invoices from backend on component mount
   useEffect(() => {
     fetchInvoices();
+    
+    // Update admin last viewed timestamp to reset notification count
+    updateAdminLastViewed();
   }, []);
 
   const fetchInvoices = async () => {
@@ -54,13 +58,13 @@ const InvoiceManagement = () => {
       if (response.success) {
         // Refresh invoices list
         await fetchInvoices();
-        alert('Invoice saved successfully!');
+        toast.success('Invoice saved successfully!');
       } else {
-        alert('Failed to save invoice: ' + response.message);
+        toast.error('Failed to save invoice: ' + response.message);
       }
     } catch (err) {
       console.error('Error saving invoice:', err);
-      alert('Error saving invoice: ' + (err.message || 'Unknown error'));
+      toast.error('Error saving invoice: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -75,13 +79,13 @@ const InvoiceManagement = () => {
       if (response.success) {
         // Refresh invoices list
         await fetchInvoices();
-        alert('Invoice deleted successfully!');
+        toast.success('Invoice deleted successfully!');
       } else {
-        alert('Failed to delete invoice: ' + response.message);
+        toast.error('Failed to delete invoice: ' + response.message);
       }
     } catch (err) {
       console.error('Error deleting invoice:', err);
-      alert('Error deleting invoice: ' + (err.message || 'Unknown error'));
+      toast.error('Error deleting invoice: ' + (err.message || 'Unknown error'));
     }
   };
 

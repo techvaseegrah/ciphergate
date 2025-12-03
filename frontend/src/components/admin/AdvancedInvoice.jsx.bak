@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import autoTable from 'jspdf-autotable';
-import { toast } from 'react-toastify';
 
-const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
+const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
   // Auto-generate invoice number and date
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-IN', {
@@ -45,7 +44,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
     ],
     bankName: initialData?.bankName || 'ICICI',
     accountNumber: initialData?.accountNumber || '612805036053',
-    ifscCode: initialData?.ifscCode || 'ICIC0006128',
+    ifscCode: initialData?.ifscCode || 'ICIC000612',
     upiId: initialData?.upiId || 'techvaseegrah.ibz@icici',
     gstEnabled: initialData?.gstEnabled || false,
     saleType: initialData?.saleType || 'Intrastate', // Intrastate or Interstate
@@ -62,6 +61,8 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
     dueDate: true,
     bankDetails: true,
     customerGst: true,
+    invoiceNo: true,        // ADD THIS
+    invoiceDate: true,
     consignerDetails: true  // Add this new field for From address
     // consignerDetails removed, it's now tied to gstEnabled
   });
@@ -112,7 +113,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
         ],
         bankName: initialData.bankName || 'ICICI',
         accountNumber: initialData.accountNumber || '612805036053',
-        ifscCode: initialData.ifscCode || 'ICIC0006128',
+        ifscCode: initialData.ifscCode || 'ICIC000612',
         upiId: initialData.upiId || 'techvaseegrah.ibz@icici',
         gstEnabled: initialData.gstEnabled || false,
         saleType: initialData.saleType || 'Intrastate',
@@ -232,6 +233,17 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
     }
   };
 
+  // Handle from section changes
+  const handleFromSectionChange = (field, value) => {
+    setInvoiceData(prev => ({
+      ...prev,
+      fromSection: {
+        ...prev.fromSection,
+        [field]: value
+      }
+    }));
+  };
+
   // Handle invoice type change
   const handleInvoiceTypeChange = (e) => {
     const value = e.target.value;
@@ -346,7 +358,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       // Create a new jsPDF instance with A4 size
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // Set up margins (in mm) - 20-25px uniform margins on all sides
+      // Set up margins (in mm) - increased margins to match second sample
       const marginLeft = 20;
       const marginTop = 20;
       const marginRight = 20;
@@ -356,35 +368,53 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       const contentWidth = pageWidth - marginLeft - marginRight;
       
       // Add company logo
-      const logoImg = new Image();
-      logoImg.src = '/Invoicelogo.png';
-      
-      // Wait for image to load
-      await new Promise((resolve, reject) => {
-        logoImg.onload = resolve;
-        logoImg.onerror = reject;
-      });
-      
-      // Add logo to the top left
-      const logoWidth = 40;
-      const logoHeight = 20;
-      pdf.addImage(logoImg, 'PNG', marginLeft, marginTop, logoWidth, logoHeight);
-      
-      // Enhance the divider line under company logo to make it more prominent
-      // 15% width in green color (#8cc63f) and 85% width in light gray color with better visibility
-      const dividerYPosition = marginTop + logoHeight + 2; // Position below the logo
+      // Load logo correctly from public folder using fetch → blob → base64
+// Load logo correctly in browser using fetch + base64 conversion
+
+// --- FIXED LOGO LOADING BLOCK (Replace your old block with this) ---
+
+// Correct logo path from public folder
+const logoPath = `${window.location.origin}/Invoicelogo.png`;
+
+// Convert image → blob → base64 → usable by jsPDF
+const logoData = await fetch(logoPath)
+  .then(res => res.blob())
+  .then(blob => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  }));
+
+// Get logo dimensions safely
+const logoProps = pdf.getImageProperties(logoData);
+const fixedLogoWidth = 50; // mm
+const fixedLogoHeight = (logoProps.height / logoProps.width) * fixedLogoWidth;
+
+// Add PERFECT logo (correct color, DPI, clarity)
+pdf.addImage(
+  logoData,
+  "PNG",
+  marginLeft,
+  marginTop,
+  fixedLogoWidth,
+  fixedLogoHeight
+);
+
+      // Add divider line under company logo
+      // 15% width in green color (#8cc63f) and 85% width in light gray color
+      const dividerYPosition = marginTop + fixedLogoHeight + 2; // Position below the logo
       const totalWidth = pageWidth - marginLeft - marginRight;
       const greenLineWidth = totalWidth * 0.15;
       const grayLineWidth = totalWidth * 0.85;
       
-      // Draw green line (15%) with increased thickness
+      // Draw green line (15%)
       pdf.setFillColor(140, 198, 63); // #8cc63f
-      pdf.rect(marginLeft, dividerYPosition, greenLineWidth, 0.7, 'F');
+      pdf.rect(marginLeft, dividerYPosition, greenLineWidth, 0.5, 'F');
       
-      // Draw gray line (85%) with increased thickness
+      // Draw gray line (85%)
       pdf.setFillColor(209, 213, 219); // bg-gray-200 equivalent
-      pdf.rect(marginLeft + greenLineWidth, dividerYPosition, grayLineWidth, 0.7, 'F');
-      
+      pdf.rect(marginLeft + greenLineWidth, dividerYPosition + 0.5, grayLineWidth, 0.2, 'F');
+
       // Add header content
       pdf.setFontSize(10);
       pdf.setTextColor(51, 51, 51);
@@ -403,132 +433,148 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setFont(undefined, 'normal');
       
       // Customer details and invoice info
-      let yPosition = marginTop + 30;
+      let yPosition = marginTop + 35; // Increased top margin for more space below logo
       
-      // Customer name
+      // First row: Invoice to (left) and Invoice No (right) on same line
+      pdf.setFontSize(10);
+      let rightColX = pageWidth - marginRight - 60; // As per specification
+      const invoiceValueX = pageWidth - marginRight - 5; // Position values within right margin
+      
       if (includeFields.customerName && invoiceData.customerName) {
         pdf.setFont(undefined, 'bold');
-        pdf.text('Invoice to :', marginLeft, yPosition);
+        const labelText = 'Invoice to:';
+        const labelWidth = pdf.getTextWidth(labelText);
+        pdf.text(labelText, marginLeft, yPosition);
         pdf.setFont(undefined, 'normal');
-        pdf.text(invoiceData.customerName, marginLeft + 25, yPosition);
-        yPosition += 7;
+        pdf.text(invoiceData.customerName, marginLeft + labelWidth + 1, yPosition);
       }
       
-      // Invoice number and date (right aligned) - smaller font and proper alignment
-      pdf.setFontSize(10); // Reduced font size
-      let rightColX = pageWidth - marginRight - 60; // As per specification
       pdf.setFont(undefined, 'bold');
-      pdf.text('Invoice No :', rightColX, yPosition);
-      pdf.text('Invoice Date :', rightColX, yPosition + 5);
+      const invoiceNoLabelText = 'Invoice No:';
+      const invoiceNoLabelWidth = pdf.getTextWidth(invoiceNoLabelText);
+      pdf.text(invoiceNoLabelText, rightColX, yPosition);
       pdf.setFont(undefined, 'normal');
-      // Adjust positioning to ensure values stay within margins
-      const invoiceValueX = pageWidth - marginRight - 5; // Position values within right margin
-      pdf.text(invoiceData.invoiceNo, invoiceValueX, yPosition, { align: 'right' });
-      pdf.text(invoiceData.invoiceDate, invoiceValueX, yPosition + 5, { align: 'right' });
+      pdf.text(invoiceData.invoiceNo, rightColX + invoiceNoLabelWidth + 1, yPosition);
       
-      // Sales person
+      // Second row: Invoice Date and Sales person on same line below
+      yPosition += 7; // Reduced vertical spacing
+      
+      pdf.setFont(undefined, 'bold');
+      const invoiceDateLabelText = 'Invoice Date:';
+      const invoiceDateLabelWidth = pdf.getTextWidth(invoiceDateLabelText);
+      pdf.text(invoiceDateLabelText, rightColX, yPosition);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(invoiceData.invoiceDate, rightColX + invoiceDateLabelWidth + 1, yPosition);
+      
       if (includeFields.salesPerson && invoiceData.salesPerson) {
-        yPosition += 10;
         pdf.setFont(undefined, 'bold');
-        pdf.text('Sales person :', rightColX, yPosition);
+        const salesPersonLabelText = 'Sales person:';
+        const salesPersonLabelWidth = pdf.getTextWidth(salesPersonLabelText);
+        pdf.text(salesPersonLabelText, marginLeft, yPosition);
         pdf.setFont(undefined, 'normal');
-        pdf.text(invoiceData.salesPerson, invoiceValueX, yPosition, { align: 'right' });
+        pdf.text(invoiceData.salesPerson, marginLeft + salesPersonLabelWidth + 1, yPosition);
       }
-      
-      yPosition += 15;
+
+      yPosition += 10; // Reduced bottom margin
       
       // Reset font size for the rest of the document
       pdf.setFontSize(10);
       
-      // Customer contact/address and From section side by side
+      // Customer contact/address and From section side by side (aligned top and bottom)
       if (includeFields.customerContact && invoiceData.customerContact) {
         // Calculate positions for side-by-side layout
         const leftColumnX = marginLeft;
-        const rightColumnX = pageWidth / 2; // Start right column at middle of page
-        const sectionWidth = (pageWidth - marginLeft - marginRight) / 2 - 10; // Width for each section
+        const rightColumnX = pageWidth - marginRight - 60; // Position right column to align with invoice details
+        const sectionWidth = 80; // Fixed width for from section
         
-        // Customer contact/address (left side) - smaller font
+        // Customer contact/address (left side) - match JSX font sizes
         pdf.setFont(undefined, 'bold');
-        pdf.setFontSize(10); // Smaller font size
-        pdf.text(`${invoiceData.gstEnabled ? 'Address' : 'Contact'} :`, leftColumnX, yPosition);
+        pdf.setFontSize(10); // Match default font size for "Address :" label
+        const addressLabelText = `${invoiceData.gstEnabled ? 'Address' : 'Contact'}:`;
+        const addressLabelWidth = pdf.getTextWidth(addressLabelText);
+        pdf.text(addressLabelText, leftColumnX, yPosition);
         pdf.setFont(undefined, 'normal');
-        pdf.setFontSize(10); // Even smaller for details
+        pdf.setFontSize(10); // Match text-sm for address details
         
         // Split address into lines
-        const addressLines = pdf.splitTextToSize(invoiceData.customerContact, sectionWidth);
-        pdf.text(addressLines, leftColumnX, yPosition + 5);
+        const addressLines = pdf.splitTextToSize(invoiceData.customerContact, (pageWidth - marginLeft - marginRight) / 2 - 15);
+        pdf.text(addressLines, leftColumnX + addressLabelWidth + 1, yPosition);
         
         // From section (right side) - show for both GST and non-GST invoices if checkbox is enabled
         if (includeFields.consignerDetails) {
           pdf.setFont(undefined, 'bold');
-          pdf.setFontSize(10); // Smaller font size
-          pdf.text('From:', rightColumnX, yPosition);
+          pdf.setFontSize(10); // Match text-xs font size for "From:" label
+          const fromLabelText = 'From:';
+          const fromLabelWidth = pdf.getTextWidth(fromLabelText);
+          pdf.text(fromLabelText, rightColumnX, yPosition);
           pdf.setFont(undefined, 'normal');
-          pdf.setFontSize(10); // Even smaller for details
+          pdf.setFontSize(10); // Match text-sm for "TECH VASEEGRAH"
           
           // From section details with proper line breaking
           const fromDetails = [
-            'TECH VASEEGRAH',
-            'No.11, VIJAYANAGAR,',
-            'REDDIPALAYAM ROAD,', 
-            'SRINIVASAPURAM,',
-            'THANJAVUR - 613009',
-            'Mobile: 7667792779'
+            invoiceData.fromSection.company,
+            invoiceData.fromSection.addressLine1,
+            invoiceData.fromSection.addressLine2, 
+            invoiceData.fromSection.addressLine3,
+            invoiceData.fromSection.cityZip,
+            invoiceData.fromSection.mobile
           ];
           
           // Add GSTIN only for GST invoices
           if (invoiceData.gstEnabled) {
-            fromDetails.push('GSTIN: 33KYGPS1983E1Z1');
+            fromDetails.push(invoiceData.fromSection.gstin);
           }
           
           // Split each line to ensure it fits within the section width
-          let currentY = yPosition + 5;
+          let currentY = yPosition;
           fromDetails.forEach((line, index) => {
             const splitLines = pdf.splitTextToSize(line, sectionWidth);
-            pdf.text(splitLines, rightColumnX, currentY);
-            currentY += splitLines.length * 5; // Adjust Y position based on number of lines
+            pdf.text(splitLines, rightColumnX + fromLabelWidth + 1, currentY);
+            currentY += splitLines.length * 4; // Adjust Y position based on number of lines
           });
         }
         
-        // Update yPosition based on the taller content
-        const addressHeight = addressLines.length * 5;
-        const fromHeight = includeFields.consignerDetails ? 7 * 5 : 0; // 7 lines for from details
-        yPosition += Math.max(addressHeight, fromHeight) + 10;
+        // Update yPosition based on the taller content (reduced padding)
+        const addressHeight = addressLines.length * 4;
+        const fromHeight = includeFields.consignerDetails ? 7 * 4 : 0; // 7 lines for from details
+        yPosition += Math.max(addressHeight, fromHeight) + 5; // Reduced vertical padding
       } else if (includeFields.consignerDetails) {
-        // Only From section (right aligned) - smaller font
-        const rightColumnX = pageWidth / 2;
-        const sectionWidth = (pageWidth - marginLeft - marginRight) / 2 - 10; // Width for each section
+        // Only From section (right aligned) - match JSX font sizes
+        const rightColumnX = pageWidth - marginRight - 60; // Position right column to align with invoice details
+        const sectionWidth = 80; // Fixed width for from section
         
         pdf.setFont(undefined, 'bold');
-        pdf.setFontSize(10); // Smaller font size
-        pdf.text('From:', rightColumnX, yPosition);
+        pdf.setFontSize(10); // Match text-xs font size for "From:" label
+        const fromLabelText = 'From:';
+        const fromLabelWidth = pdf.getTextWidth(fromLabelText);
+        pdf.text(fromLabelText, rightColumnX, yPosition);
         pdf.setFont(undefined, 'normal');
-        pdf.setFontSize(10); // Even smaller for details
+        pdf.setFontSize(10); // Match text-sm for "TECH VASEEGRAH"
         
         // From section details with proper line breaking
         const fromDetails = [
-          'TECH VASEEGRAH',
-          'No.11, VIJAYANAGAR,',
-          'REDDIPALAYAM ROAD,', 
-          'SRINIVASAPURAM,',
-          'THANJAVUR - 613009',
-          'Mobile: 7667792779'
+          invoiceData.fromSection.company,
+          invoiceData.fromSection.addressLine1,
+          invoiceData.fromSection.addressLine2, 
+          invoiceData.fromSection.addressLine3,
+          invoiceData.fromSection.cityZip,
+          invoiceData.fromSection.mobile
         ];
         
         // Add GSTIN only for GST invoices
         if (invoiceData.gstEnabled) {
-          fromDetails.push('GSTIN: 33KYGPS1983E1Z1');
+          fromDetails.push(invoiceData.fromSection.gstin);
         }
         
         // Split each line to ensure it fits within the section width
-        let currentY = yPosition + 5;
+        let currentY = yPosition;
         fromDetails.forEach((line, index) => {
           const splitLines = pdf.splitTextToSize(line, sectionWidth);
-          pdf.text(splitLines, rightColumnX, currentY);
-          currentY += splitLines.length * 5; // Adjust Y position based on number of lines
+          pdf.text(splitLines, rightColumnX + fromLabelWidth + 1, currentY);
+          currentY += splitLines.length * 4; // Adjust Y position based on number of lines
         });
         
-        yPosition += fromDetails.length * 5 + 10; // Adjust based on number of lines
+        yPosition += fromDetails.length * 4 + 5; // Reduced vertical padding
       }
       
       // Reset font size for the rest of the document
@@ -559,16 +605,18 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
         
         return row;
       });
+
       
       // Add table with auto pagination - improved for multi-page support
       autoTable(pdf, {
         head: [tableColumn],
         body: tableRows,
         startY: yPosition,
+        theme: "grid",       
         margin: { left: marginLeft, right: marginRight },
         styles: {
           fontSize: 10,
-          cellPadding: 3,
+          cellPadding: 2,
           overflow: 'linebreak'
         },
         headStyles: {
@@ -580,17 +628,34 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
         alternateRowStyles: {
           fillColor: [233, 247, 236] // Light green for alternate rows
         },
-        columnStyles: {
-          0: { cellWidth: 15, halign: 'center' }, // NO
-          1: { cellWidth: 'auto', halign: 'left' }, // DESCRIPTION
-          ...(invoiceData.gstEnabled ? {
-            2: { cellWidth: 25, halign: 'center' }, // HSN CENTER
-            3: { cellWidth: 25, halign: 'center' }  // GST (%) CENTER
-          } : {}),
-          [invoiceData.gstEnabled ? 4 : 2]: { cellWidth: 20, halign: 'center' }, // QTY CENTER
-          [invoiceData.gstEnabled ? 5 : 3]: { cellWidth: 25, halign: 'center' }, // PRICE CENTER
-          [invoiceData.gstEnabled ? 6 : 4]: { cellWidth: 30, halign: 'center' }  // TOTAL CENTER
-        },
+       columnStyles: {
+  0: { cellWidth: 15, halign: 'center' }, // NO
+  1: { cellWidth: 'auto', halign: 'left' }, // DESCRIPTION
+
+  // HSN + GST columns (if GST enabled)
+  ...(invoiceData.gstEnabled ? {
+    2: { cellWidth: 25, halign: 'center' }, // HSN CENTER
+    3: { cellWidth: 25, halign: 'center' }  // GST (%) CENTER
+  } : {}),
+
+  // QTY column
+  [invoiceData.gstEnabled ? 4 : 2]: { 
+    cellWidth: 20, 
+    halign: 'center'  // CENTER QTY
+  },
+
+  // PRICE column
+  [invoiceData.gstEnabled ? 5 : 3]: { 
+    cellWidth: 25, 
+    halign: 'center'  // CENTER PRICE
+  },
+
+  // TOTAL column
+  [invoiceData.gstEnabled ? 6 : 4]: { 
+    cellWidth: 30, 
+    halign: 'center'  // CENTER TOTAL
+  }
+},
         didParseCell: function(data) {
           // Handle long descriptions by allowing text wrapping
           if (data.section === 'body' && data.column.index === 1) { // DESCRIPTION column
@@ -605,10 +670,10 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       });
       
       // Get final Y position after table
-      let finalY = pdf.lastAutoTable.finalY + 10;
+      let finalY = pdf.lastAutoTable.finalY + 5;
       
       // Check if there's enough space for the totals section
-      const requiredSpaceForTotals = 60; // Estimate space needed for totals, Total in Words, and Payment details
+      const requiredSpaceForTotals = 50; // Estimate space needed for totals, Total in Words, and Payment details
       
       // If not enough space, move to next page
       if (finalY + requiredSpaceForTotals > pageHeight - marginBottom) {
@@ -617,144 +682,166 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       }
       
       // Add summary totals
-      const summaryStartY = finalY;
-      
-      // Calculate column positions for consistent alignment
-      const labelX = pageWidth - marginRight - 50;
-      const valueX = pageWidth - marginRight - 5; // Add extra padding to ensure values stay within margins
-      
-      // Subtotal with background styling to match web interface
-      pdf.setFont(undefined, 'normal');
-      // Draw background for subtotal row (white background, black text)
-      pdf.setFillColor(255, 255, 255); // White background
-      pdf.rect(labelX - 5, summaryStartY - 5, (valueX - labelX) + 10, 7, 'F');
-      pdf.text('Sub Total :', labelX, summaryStartY);
-      pdf.text(`₹${totals.subtotal.toFixed(2)}`, valueX, summaryStartY, { align: 'right' });
-      
-      let summaryY = summaryStartY + 7;
-      
-      // GST totals with background styling
-      if (invoiceData.gstEnabled) {
-        if (invoiceData.saleType === 'Intrastate') {
-          // Draw background for CGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('CGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.cgstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-          
-          // Draw background for SGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('SGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.sgstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-        } else if (invoiceData.saleType === 'Interstate') {
-          // Draw background for IGST row (white background, black text)
-          pdf.setFillColor(255, 255, 255); // White background
-          pdf.rect(labelX - 5, summaryY - 5, (valueX - labelX) + 10, 7, 'F');
-          pdf.text('IGST Total :', labelX, summaryY);
-          pdf.text(`₹${totals.igstTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-          summaryY += 7;
-        }
-      }
-      
-      // Grand total with green background styling to match web interface
-      pdf.setFont(undefined, 'bold');
-      // Draw green background for grand total row
-      pdf.setFillColor(0, 132, 61); // #00843d green background
-      // Fix the width to ensure it doesn't extend beyond margins
-      const maxWidth = pageWidth - marginRight - (labelX - 5);
-      const grandTotalWidth = Math.min((valueX - labelX) + 10, maxWidth);
-      pdf.rect(labelX - 5, summaryY - 5, grandTotalWidth, 7, 'F');
-      pdf.setTextColor(255, 255, 255); // White text
-      pdf.text('Grand Total :', labelX, summaryY);
-      pdf.text(`₹${totals.grandTotal.toFixed(2)}`, valueX, summaryY, { align: 'right' });
-      pdf.setTextColor(51, 51, 51); // Reset to default color
-      pdf.setFont(undefined, 'normal');
-      
-      summaryY += 15; // Increased spacing below totals
-      
-      // Ensure payment section stays in footer
-      // Calculate footer position (fixed at bottom of page)
-      const footerY = pageHeight - marginBottom - 35; // 35mm reserved for footer
-      
-      // Total in words with green background
-      pdf.setFont(undefined, 'bold');
-      // Draw green background for "Total In Words" header within margins
-      const totalInWordsHeaderWidth = pdf.getTextWidth('Total In Words') + 10;
-      pdf.setFillColor(0, 132, 61); // Green color
-      pdf.rect(marginLeft, footerY - 30, totalInWordsHeaderWidth, 10, 'F');
-      pdf.setTextColor(255, 255, 255); // White text
-      pdf.text('Total In Words', marginLeft + 5, footerY - 21);
-      pdf.setTextColor(51, 51, 51); // Reset to default color
-      pdf.setFont(undefined, 'normal');
-      
-      const totalInWordsLines = pdf.splitTextToSize(totals.totalInWords, contentWidth - 50);
-      pdf.text(totalInWordsLines, marginLeft, footerY - 10); // Position below header
-      
-      // Payment details
-      let paymentY = footerY;
-      
-      if (includeFields.bankDetails) {
-        pdf.setFont(undefined, 'bold');
-        // Draw green background for "Payment Method:" header within margins
-        const paymentMethodHeaderWidth = pdf.getTextWidth('Payment Method:') + 10;
-        pdf.setFillColor(0, 132, 61); // Green color
-        pdf.rect(marginLeft, paymentY - 9, paymentMethodHeaderWidth, 10, 'F');
-        pdf.setTextColor(255, 255, 255); // White text
-        pdf.text('Payment Method:', marginLeft + 5, paymentY);
-        pdf.setTextColor(51, 51, 51); // Reset to default color
-        pdf.setFont(undefined, 'normal');
-        
-        paymentY += 7;
-        pdf.setFontSize(10);
-        if (invoiceData.bankName) {
-          pdf.text(`Bank Name: ${invoiceData.bankName}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.accountNumber) {
-          pdf.text(`Account Number: ${invoiceData.accountNumber}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.ifscCode) {
-          pdf.text(`IFSC Code: ${invoiceData.ifscCode}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        if (invoiceData.upiId) {
-          pdf.text(`UPI ID: ${invoiceData.upiId}`, marginLeft + 10, paymentY);
-          paymentY += 5;
-        }
-        pdf.setFontSize(10);
-      }
-      
-      // Add company seal with exact same size and proportions as in the UI (40mm wide, 20mm high)
-      // Position the seal aligned with the payment details
-      // Use either the uploaded seal or the default stamp.png
-      const sealToUse = sealPreview || '/stamp.png';
-      if (sealToUse) {
-        try {
-          const sealImg = new Image();
-          sealImg.src = sealToUse;
-          // Position the seal on the right side
-          const sealWidth = 40;  // 40mm wide to match UI
-          const sealHeight = 20; // 20mm high to match UI
-          const sealX = pageWidth - marginRight - sealWidth;
-          pdf.addImage(sealImg, 'PNG', sealX, footerY - 25, sealWidth, sealHeight);
-        } catch (error) {
-          console.error('Error adding seal to PDF:', error);
-        }
-      }
+
+
+const labelX = pageWidth - marginRight - 70;  // left part of totals
+const valueX = pageWidth - marginRight - 10;  // right aligned position
+
+pdf.setFont("helvetica", "normal");
+pdf.setFontSize(11);
+
+let y = finalY + 10;
+const lineH = 7;
+
+// helper function
+const printRow = (label, value, background = null, bold = false) => {
+
+  // background (for Grand Total)
+  if (background) {
+    pdf.setFillColor(...background);
+    // Fix the width to ensure it doesn't extend beyond margins
+    const maxWidth = pageWidth - marginRight - (labelX - 5);
+    const grandTotalWidth = Math.min((valueX - labelX) + 20, maxWidth);
+    pdf.rect(labelX - 5, y - 5, grandTotalWidth, lineH + 2, "F");
+    pdf.setTextColor(255,255,255);
+  } else {
+    pdf.setTextColor(51,51,51);
+  }
+
+  // LABEL (left)
+  pdf.setFont("helvetica", bold ? "bold" : "normal");
+  pdf.text(label, labelX, y);
+
+  // FORMAT VALUE PROPERLY (₹ + commas + /-)
+const formattedValue =
+    "Rs. " + Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 }) + " /-";
+
+  // MEASURE WIDTH → RIGHT ALIGN CLEAN
+  pdf.setFont("helvetica", bold ? "bold" : "normal");
+const textWidth = pdf.getTextWidth(formattedValue);
+
+// FORCE Helvetica so jsPDF cannot fall back to Courier
+pdf.setFont("helvetica", bold ? "bold" : "normal");
+pdf.setFontSize(11);
+if (pdf.setFontType) {
+  pdf.setFontType(bold ? "bold" : "normal");
+}
+
+pdf.text(formattedValue, valueX - textWidth, y);
+
+  // restore
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(51,51,51);
+
+  y += lineH;
+};
+
+
+// ROWS
+printRow("Sub Total:", totals.subtotal.toFixed(2));
+
+if (invoiceData.gstEnabled) {
+  if (invoiceData.saleType === "Intrastate") {
+    printRow("CGST Total:", totals.cgstTotal.toFixed(2));
+    printRow("SGST Total:", totals.sgstTotal.toFixed(2));
+  } else {
+    printRow("IGST Total:", totals.igstTotal.toFixed(2));
+  }
+}
+
+// GRAND TOTAL (green background)
+printRow("Grand Total:", totals.grandTotal.toFixed(2), [0,132,61], true);
+
+
+// TOTAL IN WORDS with green background
+pdf.setTextColor(51,51,51);
+pdf.setFont("helvetica", "bold");
+// Draw green background for "Total In Words" header within margins
+const totalInWordsHeaderWidth = pdf.getStringUnitWidth("Total In Words") * pdf.getFontSize() / pdf.internal.scaleFactor + 10;
+pdf.setFillColor(0, 132, 61); // Green color
+pdf.rect(marginLeft, y + 8 - 9, totalInWordsHeaderWidth, 10, 'F');
+pdf.setTextColor(255, 255, 255); // White text
+pdf.text("Total In Words", marginLeft + 5, y + 8);
+pdf.setTextColor(51,51,51); // Reset to default color
+
+pdf.setFont("helvetica", "normal");
+const words = pdf.splitTextToSize(totals.totalInWords, contentWidth - 50);
+pdf.text(words, marginLeft, y + 18); // Increased spacing below header
+
+y += 18 + words.length * 5; // Increased spacing below totals
+
+// Check if the entire "Total in Words", "Payment Method", and stamp block fits on the current page
+const estimatedBlockHeight = 10 + (words.length * 5) + 15 + 50; // Header + Total in Words + Payment Method + Stamp
+
+// If not enough space, move the entire block to the next page
+if (y + estimatedBlockHeight > pageHeight - marginBottom) {
+  pdf.addPage();
+  y = marginTop + 10; // Reset Y position to top of new page
+}
+
+// PAYMENT DETAILS (MODIFIED)
+// === PAYMENT METHOD (LEFT) + SEAL (RIGHT) PERFECT HORIZONTAL ALIGN ===
+
+// FIXED START POSITION
+let blockY = y + 8;
+
+// Calculate positions for side-by-side layout
+const leftColumnX = marginLeft;
+const rightColumnX = pageWidth - marginRight - 45; // Position for seal
+const sectionWidth = (pageWidth - marginLeft - marginRight) / 2 - 15; // Width for each section
+
+// LEFT SIDE → Payment Method with green background
+pdf.setFont("helvetica", "bold");
+// Draw green background for "Payment Method:" header within margins
+const paymentMethodHeaderWidth = pdf.getStringUnitWidth("Payment Method:") * pdf.getFontSize() / pdf.internal.scaleFactor + 10;
+pdf.setFillColor(0, 132, 61); // Green color
+pdf.rect(leftColumnX, blockY - 9, paymentMethodHeaderWidth, 10, 'F');
+pdf.setTextColor(255, 255, 255); // White text
+pdf.text("Payment Method:", leftColumnX + 5, blockY);
+pdf.setTextColor(51,51,51); // Reset to default color
+
+let payDetailsY = blockY + 7;
+pdf.setFont("helvetica", "normal");
+pdf.setFontSize(10);
+
+// Display exact payment method text as specified
+pdf.text('Bank Name: Betsy Ullrich', leftColumnX, payDetailsY);
+payDetailsY += 5;
+pdf.text('Account Number: 615', leftColumnX, payDetailsY);
+payDetailsY += 5;
+pdf.text('IFSC Code: 59308-1894', leftColumnX, payDetailsY);
+payDetailsY += 5;
+pdf.text('UPI ID: Eum eos cumque vero a at.', leftColumnX, payDetailsY);
+payDetailsY += 5;
+
+// RIGHT SIDE → Seal aligned horizontally with Payment Method
+try {
+  // Use either the uploaded seal or the default stamp.png
+  const sealToUse = sealPreview || '/stamp.png';
+  if (sealToUse) {
+    // Adjust seal size to ensure it's not stretched and properly aligned
+    const sealWidth = 40;
+    const sealHeight = 35;
+
+    pdf.addImage(sealToUse, "PNG", rightColumnX, blockY, sealWidth, sealHeight);
+  }
+} catch (error) {
+  console.error('Error adding seal to PDF:', error);
+}
+
+// Update y position to the bottom of the taller element
+const sealBottomY = blockY + 35; // Seal height
+y = Math.max(payDetailsY, sealBottomY) + 20;
       
       // Thank you message - centered
       pdf.setFont(undefined, 'bold');
       const thankYouText = 'Thank you for business with us!';
       const thankYouWidth = pdf.getTextWidth(thankYouText);
       const thankYouX = (pageWidth - thankYouWidth) / 2;
-      pdf.text(thankYouText, thankYouX, footerY + 15);
+      pdf.text(thankYouText, thankYouX, y);
       
       // Add divider lines below the thank you message
-      const dividerY = footerY + 25;
+      const dividerY = y + 10;
       const dividerTotalWidth = pageWidth - marginLeft - marginRight;
       const thankYouGreenLineWidth = dividerTotalWidth * 0.15;
       const thankYouGrayLineWidth = dividerTotalWidth * 0.85;
@@ -792,7 +879,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setFont(undefined, 'bold');
       pdf.text('TERMS AND CONDITIONS', marginLeft, marginTop + 15);
       
-      // Add content with proper formatting and right margin
+      // Add content with proper formatting
       pdf.setFontSize(10);
       pdf.setTextColor(51, 51, 51); // Dark gray color
       pdf.setFont(undefined, 'normal');
@@ -834,7 +921,41 @@ business analytics, as explained in our Privacy Policy.
 7. SUPPORT HOURS
 We provide support for the app from 10:00 AM to 7:00 PM, Monday to Saturday (except
 public holidays). Any support requests outside these hours will be handled during the next
-support period.`;
+support period.
+
+
+
+
+8. MONTHLY SERVER FEES
+The app requires hosting, maintenance, and data backup services, which are billed
+monthly. Using the app means you agree to these recurring fees.
+
+9. RULES FOR USING THE APP
+You agree not to misuse the app, including:
+Breaking any laws or harming others' rights
+Disrupting how the app works or compromising data security
+Sharing harmful, illegal, or inappropriate content
+Attempting unauthorized access to customer data or system functions
+Using the app for purposes other than legitimate business management
+
+10. DATA SECURITY AND CUSTOMER INFORMATION
+You are responsible for maintaining the confidentiality of customer information
+accessed through the app. You agree to comply with applicable data protection laws
+and use customer data only for legitimate business purposes.
+
+11. LIMITATION OF LIABILITY Tech Vaseegrah and its developers are not responsible for
+any business losses, data loss, or damages from using or not being able to use the app,
+even if we're told such issues might happen. This includes losses related to missed
+operations, billing errors, or system downtime.
+
+12. INDEMNIFICATION
+You agree to protect Tech Vaseegrah, its developers, and their teams from any claims or
+damages caused by your misuse of the app, violation of these Terms, or mishandling of
+customer data.
+
+13. SERVICE INTERRUPTIONS
+While we strive for continuous service, scheduled maintenance and updates may
+temporarily interrupt app availability. We will provide advance notice when possible.`;
 
       // Split terms into lines and add them to the PDF with proper margins
       const lines = pdf.splitTextToSize(termsAndConditions, contentWidth);
@@ -862,7 +983,7 @@ support period.`;
       pdf.save(`invoice-${invoiceData.invoiceNo}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('An error occurred while generating the PDF. Please try again.');
+      alert('An error occurred while generating the PDF. Please try again.');
     }
   };
 
@@ -871,7 +992,7 @@ support period.`;
     // Validate that all items have descriptions before saving
     const hasEmptyDescriptions = invoiceData.items.some(item => !item.description || item.description.trim() === '');
     if (hasEmptyDescriptions) {
-      toast.error('Please fill in descriptions for all items before printing.');
+      alert('Please fill in descriptions for all items before printing.');
       return;
     }
     
@@ -880,78 +1001,7 @@ support period.`;
       onInvoiceSave({ ...invoiceData, _id: initialData?._id, createdAt: new Date().toISOString() });
     }
     
-    // Clone the invoice content for printing
-    const printElement = invoiceRef.current.cloneNode(true);
-    
-    // Hide checkboxes in the cloned element
-    const checkboxes = printElement.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      checkbox.style.display = 'none';
-    });
-    
-    // Find and hide the GST checkbox container specifically
-    // This targets the div containing the GST checkbox and label
-    const gstContainer = printElement.querySelector('div.flex.items-center.justify-end.mt-2');
-    if (gstContainer) {
-      gstContainer.style.display = 'none';
-    }
-    
-    // Process input fields - hide checkboxes and replace inputs with text
-    const inputFields = printElement.querySelectorAll('input, textarea');
-    inputFields.forEach(input => {
-      const fieldName = input.name;
-      const fieldValue = input.value;
-      
-      // Special handling for different field types
-      if (fieldName === 'customerName' && (!includeFields.customerName || !fieldValue)) {
-        input.style.display = 'none';
-      } else if (fieldName === 'customerContact' && (!includeFields.customerContact || !fieldValue)) {
-        input.style.display = 'none';
-      } else if (input.tagName === 'TEXTAREA' && fieldName === 'customerContact' && fieldValue) {
-        // Replace textarea with formatted text (preserving line breaks)
-        const div = document.createElement('div');
-        div.className = 'address-text';
-        div.style.lineHeight = '1.2'; // Match the line height of the "From" section
-        div.textContent = fieldValue;
-        input.parentNode.replaceChild(div, input);
-      } else if (input.type === 'text' || input.type === 'number') {
-        // Replace input with its value for display
-        if (fieldValue) {
-          const textNode = document.createTextNode(fieldValue);
-          input.parentNode.replaceChild(textNode, input);
-        } else {
-          // Hide empty input fields
-          input.style.display = 'none';
-        }
-      }
-    });
-    
-    // Hide dropdowns and replace with static text
-    const dropdowns = printElement.querySelectorAll('select');
-    dropdowns.forEach(dropdown => {
-        if (dropdown.name === 'invoiceType') {
-           const textNode = document.createTextNode(invoiceData.invoiceType);
-           // Preserve the exact color based on invoice type
-           const colorSpan = document.createElement('span');
-           colorSpan.textContent = invoiceData.invoiceType;
-           colorSpan.style.color = '#00843d'; // Green color for all invoice types
-           colorSpan.style.fontSize = '30px'; // Match text-3xl size
-           colorSpan.style.fontWeight = 'bold';
-           colorSpan.style.textTransform = 'uppercase';
-           dropdown.parentNode.replaceChild(colorSpan, dropdown);
-        } else if (dropdown.name === 'saleType') {
-           if (invoiceData.gstEnabled) {
-             const textNode = document.createTextNode(invoiceData.saleType);
-             dropdown.parentNode.replaceChild(textNode, dropdown);
-           } else {
-             dropdown.style.display = 'none';
-           }
-        }
-    });
-    
-    const printContent = printElement.innerHTML;
-    
-    // Create a new window for printing with exact styling and larger margins
+    // Create a new window for printing with exact styling to match PDF
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -1045,12 +1095,12 @@ support period.`;
             .address-label {
               font-weight: bold;
               margin-bottom: 2mm;
-              font-size: 12px;
+              font-size: 12px; /* Match default font size for "Address :" label */
             }
             .address-text {
               white-space: pre-line;
               line-height: 1.2;
-              font-size: 12px;
+              font-size: 12px; /* Match text-sm for address details */
             }
             .from-section {
               width: 50%;
@@ -1061,17 +1111,17 @@ support period.`;
               background-color: #f9fafb;
               padding: 2mm;
               text-align: left;
-              font-size: 12px;
+              font-size: 12px; /* Match text-sm for "TECH VASEEGRAH" */
             }
             .from-title {
               font-weight: 600;
-              font-size: 12px;
+              font-size: 12px; /* Match text-xs font size for "From:" label */
               margin-bottom: 1mm;
               color: #4b5563;
               text-transform: uppercase;
             }
             .from-details {
-              font-size: 12px;
+              font-size: 12px; /* Match text-xs for other From details */
               color: #374151;
             }
             table {
@@ -1099,79 +1149,63 @@ support period.`;
               border-bottom: 0.5mm solid #d1d5db;
               font-size: 12px;
             }
-            tr:nth-child(even) {
-              background-color: #e9f7ec;
+            td.right {
+              text-align: right;
             }
             .summary {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 6mm;
+              margin-top: 10mm;
+
             }
-            .total-words {
-              width: 50%;
-            }
-            .total-words-label {
+            .summary-label {
               font-weight: bold;
-              margin-bottom: 1mm;
-              font-size: 12px;
+              display: inline-block;
+              width: 35mm;
             }
-            .totals {
-              width: 33%;
+            .summary-value {
+              text-align: right;
             }
-            .totals-table {
-              width: 100%;
-            }
-            .totals-table td {
-              padding: 2mm 3mm;
-              border-bottom: 0.5mm solid #d1d5db;
-            }
-            .grand-total {
-              background-color: #00843d;
-              color: white;
+            .total-in-words {
+              margin-top: 10mm;
               font-weight: bold;
-            }
-            .payment-section {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 6mm;
             }
             .payment-method {
-              width: 50%;
+              margin-top: 15mm;
             }
-            .payment-label {
+            .payment-method-label {
               font-weight: bold;
-              margin-bottom: 2mm;
-              text-transform: uppercase;
-              font-size: 12px;
             }
-            .payment-details {
-              margin-left: 6mm;
-              font-size: 12px;
+            .payment-method-value {
+              margin-left: 10mm;
             }
-            .payment-details div {
-              margin-bottom: 1mm;
-            }
-            .seal-section {
-              width: 50%;
+            .seal {
+              margin-top: 15mm;
               text-align: center;
             }
             .seal-image {
+              width: 40mm;
               height: 35mm;
-              margin: 0 auto;
             }
             .seal-label {
-              border-top: 1mm solid #9ca3af;
-              padding-top: 2mm;
-              margin-top: 2mm;
-              font-weight: 500;
-              color: #374151;
+              margin-top: 5mm;
               font-size: 12px;
             }
             .thank-you {
+              margin-top: 15mm;
               text-align: center;
               font-weight: bold;
-              margin: 6mm 0;
-              font-size: 12px;
+            }
+            .thank-you-green {
+              width: 15%;
+              background-color: #8cc63f;
+              height: 0.5mm;
+            }
+            .thank-you-gray {
+              width: 85%;
+              background-color: #d1d5db;
+              height: 0.2mm;
+            }
+            .payment-details div {
+              margin-bottom: 1mm;
             }
             .bottom-divider {
               display: flex;
@@ -1223,12 +1257,12 @@ support period.`;
                 `<div class="from-section">
                   <div class="from-container">
                     <div class="from-title">From:</div>
-                    <div class="from-details">TECH VASEEGRAH</div>
-                    <div class="from-details">No.11, VIJAYANAGAR,</div>
-                    <div class="from-details">REDDIPALAYAM ROAD, SRINIVASAPURAM,</div>
-                    <div class="from-details">THANJAVUR - 613009</div>
-                    <div class="from-details">Mobile: 7667792779</div>
-                    ${invoiceData.gstEnabled ? '<div class="from-details">GSTIN: 33KYGPS1983E1Z1</div>' : ''}
+                    <div class="from-details">${invoiceData.fromSection.company}</div>
+                    <div class="from-details">${invoiceData.fromSection.addressLine1}</div>
+                    <div class="from-details">${invoiceData.fromSection.addressLine2} ${invoiceData.fromSection.addressLine3}</div>
+                    <div class="from-details">${invoiceData.fromSection.cityZip}</div>
+                    <div class="from-details">${invoiceData.fromSection.mobile}</div>
+                    ${invoiceData.gstEnabled ? '<div class="from-details">${invoiceData.fromSection.gstin}</div>' : ''}
                   </div>
                 </div>` : ''}
             </div>
@@ -1355,7 +1389,7 @@ support period.`;
               // Validate that all items have descriptions before saving
               const hasEmptyDescriptions = invoiceData.items.some(item => !item.description || item.description.trim() === '');
               if (hasEmptyDescriptions) {
-                toast.error('Please fill in descriptions for all items before saving.');
+                alert('Please fill in descriptions for all items before saving.');
                 return;
               }
               
@@ -1397,7 +1431,7 @@ support period.`;
           {/* Header */}
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-start">
-              {/* Fixed logo from public folder */}
+              {/* Fixed  from public folder */}
               <img src="/Invoicelogo.png" alt="Company Logo" className="h-15 object-contain" />
             </div>
             <div className="text-right">
@@ -1490,6 +1524,7 @@ support period.`;
                 <label className="text-sm font-bold text-gray-700 mr-2">GST</label>
                 {invoiceData.gstEnabled && (
                   <select
+                 
                     name="saleType"
                     value={invoiceData.saleType}
                     onChange={handleInputChange}
@@ -1534,510 +1569,240 @@ support period.`;
                   onChange={() => handleCheckboxChange('customerContact')}
                   className="mr-2 h-4 w-4 text-green-600 rounded mt-1"
                 />
-                <label className="font-bold text-gray-700 mr-2">
-                  {invoiceData.gstEnabled ? 'Address :' : 'Contact :'}
-                </label>
-              </div>
-              <div className="ml-6">
-                <textarea
-                  name="customerContact"
-                  value={invoiceData.customerContact}
-                  onChange={handleInputChange}
-                  placeholder={invoiceData.gstEnabled ? "Enter full address" : "Contact details"}
-                  className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal resize-none"
-                  rows="3"
-                />
+                <div className="flex-1">
+                  <label className="font-bold text-gray-700 mr-2">{invoiceData.gstEnabled ? 'Address :' : 'Contact :'}</label>
+                  <textarea
+                    name="customerContact"
+                    value={invoiceData.customerContact}
+                    onChange={handleInputChange}
+                    placeholder={invoiceData.gstEnabled ? "Enter full address" : "Customer Contact"}
+                    className="px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal w-full h-24 resize-none"
+                    rows="4"
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Right Side: From (Consigner Details) */}
+            
+            {/* Right Side: Company Details (From section) */}
             <div className="w-1/2 pl-4">
-              <div className="flex items-center justify-end mb-1">
+              <div className="flex justify-end mb-2">
                 <input
                   type="checkbox"
                   checked={includeFields.consignerDetails}
                   onChange={() => handleCheckboxChange('consignerDetails')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
+                  className="mr-2 h-4 w-4 text-green-600 rounded mt-1"
                 />
-                <label className="font-bold text-gray-700 mr-2">From :</label>
+                <div className="flex items-center">
+                  <label className="font-bold text-gray-700">From :</label>
+                  <button 
+                    onClick={() => {
+                      // Open modal or inline editor for From section
+                      const newFromData = prompt('Edit From Section (format: Company|Address Line 1|Address Line 2|Address Line 3|City ZIP|Mobile|GSTIN)', 
+                        `${invoiceData.fromSection.company}|${invoiceData.fromSection.addressLine1}|${invoiceData.fromSection.addressLine2}|${invoiceData.fromSection.addressLine3}|${invoiceData.fromSection.cityZip}|${invoiceData.fromSection.mobile}|${invoiceData.fromSection.gstin}`);
+                      if (newFromData) {
+                        const parts = newFromData.split('|');
+                        if (parts.length === 7) {
+                          handleFromSectionChange('company', parts[0]);
+                          handleFromSectionChange('addressLine1', parts[1]);
+                          handleFromSectionChange('addressLine2', parts[2]);
+                          handleFromSectionChange('addressLine3', parts[3]);
+                          handleFromSectionChange('cityZip', parts[4]);
+                          handleFromSectionChange('mobile', parts[5]);
+                          handleFromSectionChange('gstin', parts[6]);
+                        }
+                      }
+                    }}
+                    className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 rounded px-2 py-1"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
-              <div className="ml-6 text-right">
-                <p className="text-sm font-medium text-gray-800">TECH VASEEGRAH</p>
-                <p className="text-sm text-gray-600">No.11, VIJAYANAGAR,</p>
-                <p className="text-sm text-gray-600">REDDIPALAYAM ROAD,</p>
-                <p className="text-sm text-gray-600">SRINIVASAPURAM,</p>
-                <p className="text-sm text-gray-600">THANJAVUR - 613009</p>
-                <p className="text-sm text-gray-600">Mobile: 7667792779</p>
+              <div className="p-2 bg-gray-50 rounded text-left">
+                <p className="text-sm text-gray-800 font-bold">{invoiceData.fromSection.company}</p>
+                <p className="text-gray-700 text-xs">{invoiceData.fromSection.addressLine1}</p>
+                <p className="text-gray-700 text-xs">{invoiceData.fromSection.addressLine2}</p>
+                <p className="text-gray-700 text-xs">{invoiceData.fromSection.addressLine3}</p>
+                <p className="text-gray-700 text-xs">{invoiceData.fromSection.cityZip}</p>
+                <p className="text-gray-700 text-xs">{invoiceData.fromSection.mobile}</p>
                 {invoiceData.gstEnabled && (
-                  <>
-                    <div className="flex items-center justify-end mt-1">
-                      <input
-                        type="checkbox"
-                        checked={includeFields.customerGst}
-                        onChange={() => handleCheckboxChange('customerGst')}
-                        className="mr-2 h-4 w-4 text-green-600 rounded"
-                      />
-                      <label className="text-sm font-bold text-gray-700 mr-2">GSTIN:</label>
-                      <input
-                        type="text"
-                        name="customerGst"
-                        value={invoiceData.customerGst}
-                        onChange={handleInputChange}
-                        placeholder="GST Number"
-                        className="px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                      />
-                    </div>
-                  </>
+                  <p className="text-gray-700 text-xs">{invoiceData.fromSection.gstin}</p>
                 )}
               </div>
             </div>
           </div>
-          
-          {/* Invoice Details */}
-          <div className="flex justify-between mb-8">
-            <div className="w-1/2 pr-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={includeFields.invoiceNumber}
-                  onChange={() => handleCheckboxChange('invoiceNumber')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <label className="font-bold text-gray-700 mr-2">Invoice No.:</label>
-              </div>
-              <div className="ml-6">
-                <input
-                  type="text"
-                  name="invoiceNumber"
-                  value={invoiceData.invoiceNumber}
-                  onChange={handleInputChange}
-                  placeholder="Enter Invoice Number"
-                  className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                />
-              </div>
-            </div>
-            <div className="w-1/2 pl-4">
-              <div className="flex items-center justify-end">
-                <input
-                  type="checkbox"
-                  checked={includeFields.invoiceDate}
-                  onChange={() => handleCheckboxChange('invoiceDate')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <label className="font-bold text-gray-700 mr-2">Invoice Date:</label>
-              </div>
-              <div className="ml-6 text-right">
-                <input
-                  type="date"
-                  name="invoiceDate"
-                  value={invoiceData.invoiceDate}
-                  onChange={handleInputChange}
-                  className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Items Table */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="checkbox"
-                checked={includeFields.itemsTable}
-                onChange={() => handleCheckboxChange('itemsTable')}
-                className="mr-2 h-4 w-4 text-green-600 rounded"
-              />
-              <label className="font-bold text-gray-700 mr-2">Items:</label>
-            </div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="border-b border-gray-300 px-2 py-1 text-left">Description</th>
-                  <th className="border-b border-gray-300 px-2 py-1 text-right">Quantity</th>
-                  <th className="border-b border-gray-300 px-2 py-1 text-right">Rate</th>
-                  <th className="border-b border-gray-300 px-2 py-1 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoiceData.items.map((item, index) => (
-                  <tr key={index}>
-                    <td className="border-b border-gray-300 px-2 py-1 text-left">
-                      <input
-                        type="text"
-                        name={`items[${index}].description`}
-                        value={item.description}
-                        onChange={handleInputChange}
-                        placeholder="Description"
-                        className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                      />
-                    </td>
-                    <td className="border-b border-gray-300 px-2 py-1 text-right">
-                      <input
-                        type="number"
-                        name={`items[${index}].quantity`}
-                        value={item.quantity}
-                        onChange={handleInputChange}
-                        placeholder="Quantity"
-                        className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                      />
-                    </td>
-                    <td className="border-b border-gray-300 px-2 py-1 text-right">
-                      <input
-                        type="number"
-                        name={`items[${index}].rate`}
-                        value={item.rate}
-                        onChange={handleInputChange}
-                        placeholder="Rate"
-                        className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                      />
-                    </td>
-                    <td className="border-b border-gray-300 px-2 py-1 text-right">
-                      <input
-                        type="number"
-                        name={`items[${index}].amount`}
-                        value={item.amount}
-                        onChange={handleInputChange}
-                        placeholder="Amount"
-                        className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Total Amount */}
-          <div className="flex justify-between mb-8">
-            <div className="w-1/2 pr-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={includeFields.totalAmount}
-                  onChange={() => handleCheckboxChange('totalAmount')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <label className="font-bold text-gray-700 mr-2">Total Amount:</label>
-              </div>
-              <div className="ml-6">
-                <input
-                  type="number"
-                  name="totalAmount"
-                  value={invoiceData.totalAmount}
-                  onChange={handleInputChange}
-                  placeholder="Enter Total Amount"
-                  className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                />
-              </div>
-            </div>
-            <div className="w-1/2 pl-4">
-              <div className="flex items-center justify-end">
-                <input
-                  type="checkbox"
-                  checked={includeFields.totalWords}
-                  onChange={() => handleCheckboxChange('totalWords')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <label className="font-bold text-gray-700 mr-2">Total in Words:</label>
-              </div>
-              <div className="ml-6 text-right">
-                <input
-                  type="text"
-                  name="totalWords"
-                  value={invoiceData.totalWords}
-                  onChange={handleInputChange}
-                  placeholder="Enter Total in Words"
-                  className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Terms and Conditions */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="checkbox"
-                checked={includeFields.termsAndConditions}
-                onChange={() => handleCheckboxChange('termsAndConditions')}
-                className="mr-2 h-4 w-4 text-green-600 rounded"
-              />
-              <label className="font-bold text-gray-700 mr-2">Terms & Conditions:</label>
-            </div>
-            <textarea
-              name="termsAndConditions"
-              value={invoiceData.termsAndConditions}
-              onChange={handleInputChange}
-              placeholder="Enter Terms & Conditions"
-              className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal resize-none"
-              rows="3"
-            />
-          </div>
-          
-          {/* Bank Details */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="checkbox"
-                checked={includeFields.bankDetails}
-                onChange={() => handleCheckboxChange('bankDetails')}
-                className="mr-2 h-4 w-4 text-green-600 rounded"
-              />
-              <label className="font-bold text-gray-700 mr-2">Bank Details:</label>
-            </div>
-            <textarea
-              name="bankDetails"
-              value={invoiceData.bankDetails}
-              onChange={handleInputChange}
-              placeholder="Enter Bank Details"
-              className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal resize-none"
-              rows="3"
-            />
-          </div>
-          
-          {/* Signature */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="checkbox"
-                checked={includeFields.signature}
-                onChange={() => handleCheckboxChange('signature')}
-                className="mr-2 h-4 w-4 text-green-600 rounded"
-              />
-              <label className="font-bold text-gray-700 mr-2">Signature:</label>
-            </div>
-            <div className="ml-6">
-              <input
-                type="text"
-                name="signature"
-                value={invoiceData.signature}
-                onChange={handleInputChange}
-                placeholder="Enter Signature"
-                className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-              />
-            </div>
-          </div>
-          
-          {/* Footer */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <input
-                type="checkbox"
-                checked={includeFields.footer}
-                onChange={() => handleCheckboxChange('footer')}
-                className="mr-2 h-4 w-4 text-green-600 rounded"
-              />
-              <label className="font-bold text-gray-700 mr-2">Footer:</label>
-            </div>
-            <div className="ml-6">
-              <textarea
-                name="footer"
-                value={invoiceData.footer}
-                onChange={handleInputChange}
-                placeholder="Enter Footer Details"
-                className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal resize-none"
-                rows="2"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Table Header */}
-          <div className="mb-2">
-            <table className="w-full border-collapse">
+          {/* Items Table */}
+          <div className="mb-5">
+            <table className="w-full border-collapse border border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700 w-10">S.No</th>
-                  <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700">Description of Goods</th>
+                <tr style={{ backgroundColor: '#00843d' }}>
+                  <th className="py-2 px-3 border-r border-gray-300 text-center text-white text-xs font-bold uppercase">NO</th>
+                  <th className="py-2 px-3 border-r border-gray-300 text-left text-white text-xs font-bold uppercase">DESCRIPTION</th>
+                  
+                  {/* HSN/GST Columns: Conditionally Rendered */}
                   {invoiceData.gstEnabled && (
                     <>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-20">HSN</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-16">GST%</th>
+                      <th className="py-2 px-3 border-r border-gray-300 text-left text-white text-xs font-bold uppercase">HSN</th>
+                      <th className="py-2 px-3 border-r border-gray-300 text-right text-white text-xs font-bold uppercase">GST (%)</th>
                     </>
                   )}
-                  <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-16">QTY</th>
-                  <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-20">RATE</th>
-                  <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-24">TOTAL</th>
+                  
+                  <th className="py-2 px-3 border-r border-gray-300 text-right text-white text-xs font-bold uppercase">QTY</th>
+                  <th className="py-2 px-3 border-r border-gray-300 text-right text-white text-xs font-bold uppercase">PRICE</th>
+                  <th className="py-2 px-3 text-right text-white text-xs font-bold uppercase">TOTAL</th>
                 </tr>
               </thead>
               <tbody>
-                {/* Render table rows based on items or minimum rows */}
-                {Array.from({ length: numRowsToDisplay }).map((_, index) => {
-                  const item = invoiceData.items[index] || { 
-                    id: index + 1, 
-                    description: '', 
-                    hsn: '', 
-                    gst: 0, 
-                    qty: 1, 
-                    rate: 0, 
-                    total: 0, 
-                    isTotalOverridden: false 
-                  };
+                {[...Array(numRowsToDisplay)].map((_, index) => {
+                  const item = invoiceData.items[index];
+                  // Determine row background color
+                  const rowBackgroundColor = index % 2 === 0 ? '#FFFFFF' : '#E9F7EC';
                   
-                  return (
-                    <tr key={item.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-green-50'}`}>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 w-10">{index + 1}</td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700">
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
-                          placeholder="Item description"
-                          className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                        />
-                      </td>
-                      {invoiceData.gstEnabled && (
-                        <>
-                          <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 text-right w-20">
-                            <input
-                              type="text"
-                              value={item.hsn}
-                              onChange={(e) => handleItemChange(item.id, 'hsn', e.target.value)}
-                              placeholder="HSN"
-                              className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                            />
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 text-right w-16">
-                            <input
-                              type="number"
-                              value={item.gst}
-                              onChange={(e) => handleItemChange(item.id, 'gst', e.target.value)}
-                              placeholder="GST %"
-                              className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                              step="0.01"
-                            />
-                          </td>
-                        </>
-                      )}
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 text-right w-16">
-                        <input
-                          type="number"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(item.id, 'qty', e.target.value)}
-                          placeholder="Qty"
-                          className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                          step="1"
-                        />
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 text-right w-20">
-                        <input
-                          type="number"
-                          value={item.rate}
-                          onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
-                          placeholder="Rate"
-                          className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                          step="0.01"
-                        />
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2 text-sm text-gray-700 text-right w-24">
-                        <input
-                          type="number"
-                          value={item.total}
-                          onChange={(e) => handleItemChange(item.id, 'total', e.target.value)}
-                          placeholder="Total"
-                          className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
-                          step="0.01"
-                        />
-                      </td>
-                    </tr>
-                  );
+                  if (item) {
+                    return (
+                      <tr key={item.id} className="border-b border-gray-300" style={{ backgroundColor: rowBackgroundColor }}>
+                        <td className="py-2 px-3 border-r border-gray-300 text-sm text-center">{index + 1}</td>
+                        <td className="py-2 px-3 border-r border-gray-300">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                            className="w-full px-1 py-1 focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                            placeholder="Item description"
+                          />
+                        </td>
+
+                        {/* HSN/GST Cells: Conditionally Rendered */}
+                        {invoiceData.gstEnabled && (
+                          <>
+                            <td className="py-2 px-3 border-r border-gray-300">
+                              <input
+                                type="text"
+                                value={item.hsn}
+                                onChange={(e) => handleItemChange(item.id, 'hsn', e.target.value)}
+                                className="w-full px-1 py-1 focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                                placeholder="HSN"
+                              />
+                            </td>
+                            <td className="py-2 px-3 border-r border-gray-300">
+                              <input
+                                type="text"
+                                min="0"
+                                step="0.01"
+                                value={item.gst}
+                                onChange={(e) => handleItemChange(item.id, 'gst', e.target.value)}
+                                className="w-full px-1 py-1 text-right focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                              />
+                            </td>
+                          </>
+                        )}
+
+                        <td className="py-2 px-3 border-r border-gray-300">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.qty}
+                            onChange={(e) => handleItemChange(item.id, 'qty', e.target.value)}
+                            className="w-full px-1 py-1 text-right focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                          />
+                        </td>
+                        <td className="py-2 px-3 border-r border-gray-300">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.rate}
+                            onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
+                            className="w-full px-1 py-1 text-right focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                          />
+                        </td>
+                        <td className="py-2 px-3 text-right font-medium">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.total}
+                            onChange={(e) => handleItemChange(item.id, 'total', e.target.value)}
+                            className="w-full px-1 py-1 text-right focus:outline-none focus:bg-gray-100 text-sm font-normal"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  } else {
+                    // Render empty row with alternating colors
+                    return (
+                      <tr key={`empty-${index}`} className="border-b border-gray-300" style={{ backgroundColor: rowBackgroundColor }}>
+                        <td className="py-2 px-3 border-r border-gray-300 text-sm text-center">&nbsp;</td>
+                        <td className="py-2 px-3 border-r border-gray-300">&nbsp;</td>
+                        
+                        {/* HSN/GST Empty Cells: Conditionally Rendered */}
+                        {invoiceData.gstEnabled && (
+                          <>
+                            <td className="py-2 px-3 border-r border-gray-300">&nbsp;</td>
+                            <td className="py-2 px-3 border-r border-gray-300">&nbsp;</td>
+                          </>
+                        )}
+                        
+                        <td className="py-2 px-3 border-r border-gray-300">&nbsp;</td>
+                        <td className="py-2 px-3 border-r border-gray-300">&nbsp;</td>
+                        <td className="py-2 px-3">&nbsp;</td>
+                      </tr>
+                    );
+                  }
                 })}
               </tbody>
+              <tfoot>
+                {/* Add Item button - keeping it functional but not in the image */}
+                <tr className="bg-white">
+                  <td colSpan={invoiceData.gstEnabled ? 7 : 5} className="py-2 px-3 text-right">
+                    <button 
+                      onClick={addItem}
+                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md transition duration-300 text-xs"
+                    >
+                      Add Item
+                    </button>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
-          {/* Add Item Button */}
-          <div className="mb-6">
-            <button 
-              onClick={addItem}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition duration-300 text-sm"
-            >
-              Add Item
-            </button>
-          </div>
-
-          {/* Terms & Total Section */}
-          <div className="flex justify-between mb-6">
-            {/* Left Side: Terms & Conditions */}
-            <div className="w-1/2 pr-4">
-              <div className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  checked={includeFields.terms}
-                  onChange={() => handleCheckboxChange('terms')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <h3 className="font-bold text-sm text-gray-700 uppercase">Terms & Conditions:</h3>
-              </div>
-              <textarea
-                name="terms"
-                value={invoiceData.terms}
-                onChange={handleInputChange}
-                placeholder="Enter terms and conditions"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 text-sm h-24 resize-none"
-              />
-              
-              {/* Due Date */}
-              <div className="flex items-center mt-3">
-                <input
-                  type="checkbox"
-                  checked={includeFields.dueDate}
-                  onChange={() => handleCheckboxChange('dueDate')}
-                  className="mr-2 h-4 w-4 text-green-600 rounded"
-                />
-                <label className="font-bold text-sm text-gray-700 mr-2">Due Date:</label>
-                <input
-                  type="text"
-                  name="dueDate"
-                  value={invoiceData.dueDate}
-                  onChange={handleInputChange}
-                  placeholder="Due Date"
-                  className="px-2 py-1 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal"
-                />
-              </div>
-              
-              {/* Total in Words */}
-              <div className="mt-3">
-                <p className="text-sm font-medium text-gray-700 italic">{totals.totalInWords}</p>
-              </div>
+          {/* Summary */}
+          <div className="mb-6 flex justify-between items-start">
+             {/* Left Side: Total in Words */}
+            <div className="w-1/2">
+               <h3 className="font-bold text-gray-700 text-sm mb-1">Total In Words</h3>
+               <p className="text-gray-800 text-sm">{totals.totalInWords}</p>
             </div>
-
-            {/* Right Side: Totals */}
-            <div className="w-1/2 pl-4">
-              <table className="w-full border-collapse">
+            
+            {/* Right Side: Totals Table */}
+            <div className="w-1/3">
+              <table className="w-full">
                 <tbody>
                   <tr className="border-b border-gray-300">
                     <td className="py-2 px-3 text-sm text-right text-gray-700">Sub Total :</td>
                     <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.subtotal.toFixed(2)}</td>
                   </tr>
-                  
+
                   {/* --- GST TOTALS --- */}
-                  {invoiceData.gstEnabled && (
+                  {invoiceData.gstEnabled && invoiceData.saleType === 'Intrastate' && (
                     <>
                       <tr className="border-b border-gray-300">
-                        <td className="py-2 px-3 text-sm text-right text-gray-700">GST Total :</td>
-                        <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.gstTotal.toFixed(2)}</td>
+                        <td className="py-2 px-3 text-sm text-right text-gray-700">CGST Total :</td>
+                        <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.cgstTotal.toFixed(2)}</td>
                       </tr>
-                      {invoiceData.saleType === 'Intrastate' && (
-                        <>
-                          <tr className="border-b border-gray-300">
-                            <td className="py-2 px-3 text-sm text-right text-gray-700">CGST Total :</td>
-                            <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.cgstTotal.toFixed(2)}</td>
-                          </tr>
-                          <tr className="border-b border-gray-300">
-                            <td className="py-2 px-3 text-sm text-right text-gray-700">SGST Total :</td>
-                            <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.sgstTotal.toFixed(2)}</td>
-                          </tr>
-                        </>
-                      )}
-                      {invoiceData.saleType === 'Interstate' && (
-                        <tr className="border-b border-gray-300">
-                          <td className="py-2 px-3 text-sm text-right text-gray-700">IGST Total :</td>
-                          <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.igstTotal.toFixed(2)}</td>
-                        </tr>
-                      )}
+                      <tr className="border-b border-gray-300">
+                        <td className="py-2 px-3 text-sm text-right text-gray-700">SGST Total :</td>
+                        <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.sgstTotal.toFixed(2)}</td>
+                      </tr>
                     </>
+                  )}
+                  {invoiceData.gstEnabled && invoiceData.saleType === 'Interstate' && (
+                    <tr className="border-b border-gray-300">
+                      <td className="py-2 px-3 text-sm text-right text-gray-700">IGST Total :</td>
+                      <td className="py-2 px-3 text-sm font-medium text-right text-gray-800">₹{totals.igstTotal.toFixed(2)}</td>
+                    </tr>
                   )}
                   {/* --- END GST TOTALS --- */}
 
@@ -2137,7 +1902,37 @@ support period.`;
             <div className="w-9/12 border-b-2" style={{ borderColor: '#d1d5db' }}></div>
           </div>
         </div>
+      </div>
+
+      {/* File Upload Section - REMOVED Company Logo upload, keeping only Seal upload */}
+      <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-3">Upload Company Assets</h2>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Seal</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleSealUpload}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 text-sm"
+            />
+            <div className="mt-1">
+              {/* Show either the uploaded seal or the default stamp.png */}
+              <img 
+                src={sealPreview || '/stamp.png'} 
+                alt="Seal Preview" 
+                className="h-16" 
+                onError={(e) => {
+                  // If stamp.png doesn't exist, show placeholder
+                  e.target.src = '/placeholder-seal.png';
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default WorkerInvoice;
+export default AdvancedInvoice;

@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { getAllLeaves } from '../../services/leaveService';
 import { getAllComments } from '../../services/commentService';
+import { getNewInvoiceCount } from '../../services/invoiceService';
 import Sidebar from './Sidebar';
 import QuestionGenerationTracker from '../admin/QuestionGenerationTracker';
 import appContext from '../../context/AppContext';
@@ -62,6 +63,7 @@ const AdminLayout = () => {
   const { user, logout } = useAuth();
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [newComments, setNewComments] = useState(0);
+  const [newInvoices, setNewInvoices] = useState(0);
   
   // Global question generation tracker state (for future use)
   const [showGlobalTracker] = useState(false);
@@ -88,6 +90,10 @@ const AdminLayout = () => {
           (comment.replies && comment.replies.some(reply => reply.isNew))
         ).length;
         setNewComments(newUnreadComments);
+
+        // Fetch new invoice count
+        const invoiceData = await getNewInvoiceCount();
+        setNewInvoices(invoiceData.data?.count || 0);
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
@@ -149,7 +155,8 @@ const AdminLayout = () => {
     {
       to: '/admin/invoices',
       icon: <FaDollarSign style={{ color: iconColors.invoices }} />,
-      label: 'Invoices'
+      label: 'Invoices',
+      badge: newInvoices > 0 ? newInvoices : null
     },
     {
       to: '/admin/attendance',

@@ -117,10 +117,14 @@ const updateInvoice = async (req, res) => {
     }
 
     // Check if user has permission to update this invoice
-    if (invoice.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Workers can update their own invoices, admins can update any invoice
+    const isInvoiceOwner = invoice.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    
+    if (!isInvoiceOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'Access denied. You can only update your own invoices.'
       });
     }
 
@@ -264,10 +268,14 @@ const getInvoiceById = async (req, res) => {
     }
 
     // Check if user has permission to access this invoice
-    if (invoice.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Workers can access their own invoices, admins can access any invoice
+    const isInvoiceOwner = invoice.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    
+    if (!isInvoiceOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'Access denied. You can only access your own invoices.'
       });
     }
 
@@ -309,10 +317,14 @@ const deleteInvoice = async (req, res) => {
     }
 
     // Check if user has permission to delete this invoice
-    if (invoice.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Workers can delete their own invoices, admins can delete any invoice
+    const isInvoiceOwner = invoice.createdBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    
+    if (!isInvoiceOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'Access denied. You can only delete your own invoices.'
       });
     }
 
@@ -332,6 +344,69 @@ const deleteInvoice = async (req, res) => {
   }
 };
 
+// Update admin last viewed timestamp
+const updateAdminLastViewed = async (req, res) => {
+  try {
+    // Update all invoices to set adminLastViewed to current time
+    const result = await Invoice.updateMany(
+      {}, // Update all invoices
+      { adminLastViewed: new Date() }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Admin last viewed timestamp updated successfully',
+      data: { modifiedCount: result.modifiedCount }
+    });
+  } catch (error) {
+    console.error('Error updating admin last viewed timestamp:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating admin last viewed timestamp',
+      error: error.message
+    });
+  }
+};
+
+// Get count of new invoices since admin last viewed
+const getNewInvoiceCount = async (req, res) => {
+  try {
+    // Find the latest adminLastViewed timestamp
+    const latestViewed = await Invoice.findOne(
+      { adminLastViewed: { $ne: null } },
+      { adminLastViewed: 1 }
+    ).sort({ adminLastViewed: -1 });
+
+    let newInvoiceCount = 0;
+    
+    if (latestViewed) {
+      // Count invoices created after the last viewed time
+      newInvoiceCount = await Invoice.countDocuments({
+        createdAt: { $gt: latestViewed.adminLastViewed },
+        source: 'worker' // Only count worker-created invoices
+      });
+    } else {
+      // If no invoices have been viewed yet, count all worker-created invoices
+      newInvoiceCount = await Invoice.countDocuments({
+        source: 'worker'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'New invoice count retrieved successfully',
+      data: { count: newInvoiceCount }
+    });
+  } catch (error) {
+    console.error('Error retrieving new invoice count:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving new invoice count',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createInvoice,
   updateInvoice,
@@ -339,5 +414,7 @@ module.exports = {
   getInvoicesByAdmin,
   getAllInvoices,
   getInvoiceById,
-  deleteInvoice
+  deleteInvoice,
+  updateAdminLastViewed,
+  getNewInvoiceCount
 };

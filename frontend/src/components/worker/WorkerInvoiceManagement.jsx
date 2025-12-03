@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import Card from '../common/Card';
 import AdvancedInvoice from '../admin/AdvancedInvoice';
 import WorkerInvoiceHistory from './WorkerInvoiceHistory';
 import { useAuth } from '../../hooks/useAuth';
-import { getInvoices, createInvoice, updateInvoice, deleteInvoice } from '../../services/invoiceService';
+import { getInvoices, createInvoice, updateInvoice } from '../../services/invoiceService';
 
 const WorkerInvoiceManagement = () => {
   const [activeTab, setActiveTab] = useState('advanced-invoice');
@@ -26,9 +27,11 @@ const WorkerInvoiceManagement = () => {
         setInvoices(response.data);
       } else {
         setError(response.message || 'Failed to fetch invoices');
+        toast.error(response.message || 'Failed to fetch invoices');
       }
     } catch (err) {
       setError('Error fetching invoices: ' + (err.message || 'Unknown error'));
+      toast.error('Error fetching invoices: ' + (err.message || 'Unknown error'));
       console.error('Error fetching invoices:', err);
     } finally {
       setLoading(false);
@@ -64,35 +67,19 @@ const WorkerInvoiceManagement = () => {
       if (response.success) {
         // Refresh invoices list
         await fetchInvoices();
-        alert('Invoice saved successfully!');
+        toast.success('Invoice saved successfully!');
       } else {
-        alert('Failed to save invoice: ' + response.message);
+        toast.error('Failed to save invoice: ' + response.message);
       }
     } catch (err) {
       console.error('Error saving invoice:', err);
-      alert('Error saving invoice: ' + (err.message || 'Unknown error'));
+      toast.error('Error saving invoice: ' + (err.message || 'Unknown error'));
     }
   };
 
   const handleEditInvoice = (invoice) => {
     setEditingInvoice(invoice);
     setActiveTab('advanced-invoice');
-  };
-
-  const handleDeleteInvoice = async (invoiceId) => {
-    try {
-      const response = await deleteInvoice(invoiceId);
-      if (response.success) {
-        // Refresh invoices list
-        await fetchInvoices();
-        alert('Invoice deleted successfully!');
-      } else {
-        alert('Failed to delete invoice: ' + response.message);
-      }
-    } catch (err) {
-      console.error('Error deleting invoice:', err);
-      alert('Error deleting invoice: ' + (err.message || 'Unknown error'));
-    }
   };
 
   // Create a wrapper function that includes worker information
@@ -168,7 +155,6 @@ const WorkerInvoiceManagement = () => {
           <WorkerInvoiceHistory 
             invoices={invoices} 
             onEditInvoice={handleEditInvoice}
-            onDeleteInvoice={handleDeleteInvoice}
           />
         )}
       </div>
