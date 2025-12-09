@@ -54,6 +54,14 @@ const UnifiedInvoiceHistory = ({ onEditInvoice, onDeleteInvoice }) => {
 
   // Get creator information (admin or worker)
   const getCreatorInfo = (invoice) => {
+    // For admin-created invoices, display 'Admin'
+    if (invoice.source === 'admin') {
+      return {
+        name: 'Admin',
+        department: 'N/A'
+      };
+    }
+    
     // For worker-created invoices, use workerInfo if available
     if (invoice.source === 'worker' && invoice.workerInfo) {
       return {

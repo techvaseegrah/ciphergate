@@ -14,7 +14,7 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
   }).split('/').join('-');
 
   const [invoiceData, setInvoiceData] = useState({
-    invoiceNo: initialData?.invoiceNo || `TN${Math.floor(100000 + Math.random() * 900000)}`,
+    invoiceNo: initialData?.invoiceNo || 'TV000',
     invoiceDate: initialData?.invoiceDate || formattedDate,
     customerName: initialData?.customerName || '',
     customerContact: initialData?.customerContact || '',
@@ -425,7 +425,7 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setFontSize(10);
       
       const tableColumn = ['NO', 'DESCRIPTION'];
-      if (invoiceData.gstEnabled) tableColumn.push('HSN', 'GST (%)');
+      if (invoiceData.gstEnabled) tableColumn.push('HSN/SAC', 'GST (%)');
       tableColumn.push('QTY', 'PRICE', 'TOTAL');
       
       const tableRows = invoiceData.items.map((item, index) => {
@@ -642,6 +642,8 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setFillColor(209, 213, 219); 
       pdf.rect(marginLeft + greenLineWidth, dividerY + 0.5, grayLineWidth, 0.2, 'F');
       
+      // Add Terms and Conditions only if Common or Web Development checkbox is selected
+      if (invoiceData.terms === 'Common' || invoiceData.terms === 'Web Development') {
       pdf.addPage();
       
       const termsDividerYPosition = marginTop + 5; 
@@ -664,7 +666,9 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData }) => {
       pdf.setTextColor(51, 51, 51); 
       pdf.setFont(undefined, 'normal');
       
-      const termsAndConditions = `TERMS AND CONDITIONS
+      let termsAndConditions = '';
+      if (invoiceData.terms === 'Common') {
+        termsAndConditions = `TERMS AND CONDITIONS
 1. ACCEPTANCE OF TERMS
 By using the Inventory Management Module Progressive Web App (PWA) and related
 services, you agree to follow these Terms and our Privacy Policy. If you do not agree, please
@@ -690,7 +694,7 @@ discuss and agree on before starting the work.
 
 5. OWNERSHIP AND RIGHTS
 All parts of the app, including text, designs, logos, code, and custom features, belong to
-[Your Company Name] or its developers. You may not copy, change, or share any part of the
+Tech Vaseegrah or its developers. You may not copy, change, or share any part of the
 app without our written permission.
 
 6. PRIVACY POLICY Using the Inventory Management Module PWA means you agree to how
@@ -732,6 +736,19 @@ customer data.
 13. SERVICE INTERRUPTIONS
 While we strive for continuous service, scheduled maintenance and updates may
 temporarily interrupt app availability. We will provide advance notice when possible.`;
+      } else if (invoiceData.terms === 'Web Development') {
+        termsAndConditions = `TERMS AND CONDITIONS
+1. Full Payment to Begin the Project The project will officially start only after the full payment has been received. Once the full payment is made, we ensure the work will be completed diligently within the stipulated timeframe, as agreed with the client.
+2. Submission of Required Documents for Web Development Customers are kindly requested to provide all essential documents and details related to the web development project before work begins. These materials may include content, images, brand guidelines, specific requirements, and other necessary assets. Providing these items ensures a seamless and efficient development process.
+3. Five-Day Grace Period for Document Submission Upon receipt of the initial payment, customers are granted a grace period of five (10) days to organize and submit the required documents. This period is intended to give sufficient time for preparation. Delayed submission of these materials may affect the project timeline.
+4. Commencement of Development Work After Document Submission Once the required documents have been submitted, our team will review them and promptly begin the development process. The project timeline will officially commence on the day we receive all necessary materials in full. Development will proceed according to the agreed-upon specifications and schedule.
+5. Completion of Development Work Within Five Days From the official start date of development, we commit to completing the project within five (5) business days, provided all required documentation and details have been submitted on time. This ensures a timely launch of the website in accordance with the agreed timeline.
+6. Full Development Cost for Delays in Document Submission Should the customer fail to provide the required documents within the five-day grace period, the full development cost will apply. Delayed submissions can impact the project schedule, and the additional cost reflects the resources and time allocated to the project.
+7. Hosting on Our Web Server for Optimal Performance For enhanced performance, security, and reliability, we require that all customer websites be hosted on our web server. This arrangement allows us to maintain a secure hosting environment and offer consistent support and monitoring.
+8. Restrictions on Customer-Managed Servers To ensure security and performance, we are unable to permit customers to host their websites on independently managed servers. Our servers are equipped with state-of-the-art security features to safeguard customer data and maintain optimal website functionality.
+9. Optional Use of Customer-Owned Servers (With Conditions) If a customer prefers to use their own server, we are happy to accommodate this request. However, please note that we cannot assume responsibility for any issues arising from the use of an independently managed server. Customers who choose this option will bear full responsibility for the management, security, and reliability of their hosting environment.
+10. Fixed Costs for Development, Hosting, and Maintenance All agreed-upon costs for development, server hosting, and maintenance are fixed and non-negotiable. These fees are determined based on the scope of the project and the services provided. Adjustments or discounts will not be offered once terms are finalized. We appreciate your understanding and cooperation in adhering to these terms, which are designed to ensure a successful and efficient project experience for both parties. Thank you for choosing us for your web development needs!!`;
+      }
 
       const lines = pdf.splitTextToSize(termsAndConditions, pageWidth - marginLeft - marginRight);
       
@@ -750,7 +767,8 @@ temporarily interrupt app availability. We will provide advance notice when poss
         pdf.text(lines[i], marginLeft, yPositionTerms);
         yPositionTerms += lineHeight;
       }
-
+      }
+      
       pdf.save(`invoice-${invoiceData.invoiceNo}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -1051,7 +1069,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
                     <th style="width: 15mm;">NO</th>
                     <th class="description">DESCRIPTION</th>
                     ${invoiceData.gstEnabled ? 
-                        `<th style="width: 25mm; text-align: left;">HSN</th>
+                        `<th style="width: 25mm; text-align: left;">HSN/SAC</th>
                         <th style="width: 25mm; text-align: right;">GST (%)</th>` : ''}
                     <th style="width: 20mm; text-align: right;">QTY</th>
                     <th style="width: 25mm; text-align: right;">PRICE</th>
@@ -1142,6 +1160,37 @@ temporarily interrupt app availability. We will provide advance notice when poss
                 </div>
             </div>
           </div>
+          
+          <!-- Terms and Conditions Section (conditionally added) -->
+          <script>
+            // Add Terms and Conditions only if Common or Web Development checkbox is selected
+            var terms = "{invoiceData.terms}";
+            if (terms === 'Common' || terms === 'Web Development') {
+              document.write('<div style="page-break-before: always;"></div>');
+              
+              // Add divider
+              document.write('<div style="display: flex; width: 100%; height: 1mm; margin-top: 5mm; margin-bottom: 5mm;">');
+              document.write('<div style="width: 15%; background-color: #8cc63f;"></div>');
+              document.write('<div style="width: 85%; height: 0.7mm; background-color: #d1d5db; align-self: flex-end;"></div>');
+              document.write('</div>');
+              
+              // Add title
+              document.write('<h2 style="text-align: center; font-size: 18px; color: #00843d; font-weight: bold; margin-bottom: 10mm;">TERMS AND CONDITIONS</h2>');
+              
+              // Add terms content based on selection
+              var termsAndConditions = '';
+              if (terms === 'Common') {
+                termsAndConditions = '1. ACCEPTANCE OF TERMS\nBy using the Inventory Management Module Progressive Web App (PWA) and related\nservices, you agree to follow these Terms and our Privacy Policy. If you do not agree, please\ndo not use the app or services.\n\n2. CHANGES TO TERMS\nWe may update these Terms at any time. Changes will be posted here with a new \"Last\nUpdated\" date. If you keep using the app or services after changes, it means you accept the\nupdated Terms.\n\n3. USE OF THE APP\nThe Inventory Management Module PWA is a custom-built application designed to help\nmanage business operations, including appointment scheduling, customer management,\nservice tracking, billing, inventory management, staff performance monitoring, and financial\nreporting. You agree to use the app lawfully and provide accurate and up-to-date\ninformation when managing appointments, customer data, and business operations.\n\n4. CUSTOMIZATION AND ADD-ONS\nWe offer customization to fit the app to your specific needs, such as adding new categories,\nmodifying workflows, integrating payment systems, or creating custom reports. Any extra\nfeatures or changes beyond the standard app will have additional costs, which we will\ndiscuss and agree on before starting the work.\n\n5. OWNERSHIP AND RIGHTS\nAll parts of the app, including text, designs, logos, code, and custom features, belong to\n[Your Company Name] or its developers. You may not copy, change, or share any part of the\napp without our written permission.\n\n6. PRIVACY POLICY Using the Inventory Management Module PWA means you agree to how\nwe collect and use your data, including customer information, appointment records, and\nbusiness analytics, as explained in our Privacy Policy.\n\n7. SUPPORT HOURS\nWe provide support for the app from 10:00 AM to 7:00 PM, Monday to Saturday (except\npublic holidays). Any support requests outside these hours will be handled during the next\nsupport period.\n\n8. MONTHLY SERVER FEES\nThe app requires hosting, maintenance, and data backup services, which are billed\nmonthly. Using the app means you agree to these recurring fees.\n\n9. RULES FOR USING THE APP\nYou agree not to misuse the app, including:\nBreaking any laws or harming others\' rights\nDisrupting how the app works or compromising data security\nSharing harmful, illegal, or inappropriate content\nAttempting unauthorized access to customer data or system functions\nUsing the app for purposes other than legitimate business management\n\n10. DATA SECURITY AND CUSTOMER INFORMATION\nYou are responsible for maintaining the confidentiality of customer information\naccessed through the app. You agree to comply with applicable data protection laws\nand use customer data only for legitimate business purposes.\n\n11. LIMITATION OF LIABILITY Tech Vaseegrah and its developers are not responsible for\nany business losses, data loss, or damages from using or not being able to use the app,\neven if we\'re told such issues might happen. This includes losses related to missed\noperations, billing errors, or system downtime.\n\n12. INDEMNIFICATION\nYou agree to protect Tech Vaseegrah, its developers, and their teams from any claims or\ndamages caused by your misuse of the app, violation of these Terms, or mishandling of\ncustomer data.\n\n13. SERVICE INTERRUPTIONS\nWhile we strive for continuous service, scheduled maintenance and updates may\ntemporarily interrupt app availability. We will provide advance notice when possible.';
+              } else if (terms === 'Web Development') {
+                termsAndConditions = '1. Full Payment to Begin the Project The project will officially start only after the full payment has been received. Once the full payment is made, we ensure the work will be completed diligently within the stipulated timeframe, as agreed with the client.\n2. Submission of Required Documents for Web Development Customers are kindly requested to provide all essential documents and details related to the web development project before work begins. These materials may include content, images, brand guidelines, specific requirements, and other necessary assets. Providing these items ensures a seamless and efficient development process.\n3. Five-Day Grace Period for Document Submission Upon receipt of the initial payment, customers are granted a grace period of five (10) days to organize and submit the required documents. This period is intended to give sufficient time for preparation. Delayed submission of these materials may affect the project timeline.\n4. Commencement of Development Work After Document Submission Once the required documents have been submitted, our team will review them and promptly begin the development process. The project timeline will officially commence on the day we receive all necessary materials in full. Development will proceed according to the agreed-upon specifications and schedule.\n5. Completion of Development Work Within Five Days From the official start date of development, we commit to completing the project within five (5) business days, provided all required documentation and details have been submitted on time. This ensures a timely launch of the website in accordance with the agreed timeline.\n6. Full Development Cost for Delays in Document Submission Should the customer fail to provide the required documents within the five-day grace period, the full development cost will apply. Delayed submissions can impact the project schedule, and the additional cost reflects the resources and time allocated to the project.\n7. Hosting on Our Web Server for Optimal Performance For enhanced performance, security, and reliability, we require that all customer websites be hosted on our web server. This arrangement allows us to maintain a secure hosting environment and offer consistent support and monitoring.\n8. Restrictions on Customer-Managed Servers To ensure security and performance, we are unable to permit customers to host their websites on independently managed servers. Our servers are equipped with state-of-the-art security features to safeguard customer data and maintain optimal website functionality.\n9. Optional Use of Customer-Owned Servers (With Conditions) If a customer prefers to use their own server, we are happy to accommodate this request. However, please note that we cannot assume responsibility for any issues arising from the use of an independently managed server. Customers who choose this option will bear full responsibility for the management, security, and reliability of their hosting environment.\n10. Fixed Costs for Development, Hosting, and Maintenance All agreed-upon costs for development, server hosting, and maintenance are fixed and non-negotiable. These fees are determined based on the scope of the project and the services provided. Adjustments or discounts will not be offered once terms are finalized. We appreciate your understanding and cooperation in adhering to these terms, which are designed to ensure a successful and efficient project experience for both parties. Thank you for choosing us for your web development needs!!';
+              }
+              
+              // Add terms content with proper formatting
+              document.write('<div style="white-space: pre-line; font-size: 10px; color: #333; line-height: 1.5;">');
+              document.write(termsAndConditions);
+              document.write('</div>');
+            }
+          </script>
         </body>
       </html>
     `);
@@ -1421,7 +1470,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
                   <th className="py-2 px-3 border-r border-gray-300 text-left text-white text-xs font-bold uppercase">DESCRIPTION</th>
                   {invoiceData.gstEnabled && (
                     <>
-                      <th className="py-2 px-3 border-r border-gray-300 text-left text-white text-xs font-bold uppercase">HSN</th>
+                      <th className="py-2 px-3 border-r border-gray-300 text-left text-white text-xs font-bold uppercase">HSN/SAC</th>
                       <th className="py-2 px-3 border-r border-gray-300 text-right text-white text-xs font-bold uppercase">GST (%)</th>
                     </>
                   )}
@@ -1456,7 +1505,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
                                 value={item.hsn}
                                 onChange={(e) => handleItemChange(item.id, 'hsn', e.target.value)}
                                 className="w-full px-1 py-1 focus:outline-none focus:bg-gray-100 text-sm font-normal"
-                                placeholder="HSN"
+                                placeholder="HSN/SAC"
                               />
                             </td>
                             <td className="py-2 px-3 border-r border-gray-300">
@@ -1682,6 +1731,35 @@ temporarily interrupt app availability. We will provide advance notice when poss
                 }}
               />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Terms and Conditions Section */}
+      <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+        <h2 className="text-lg font-semibold mb-3">Terms and Conditions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="commonTerms"
+              name="commonTerms"
+              checked={invoiceData.terms === 'Common'}
+              onChange={(e) => handleInputChange({ target: { name: 'terms', value: e.target.checked ? 'Common' : '' } })}
+              className="h-4 w-4 text-green-600 rounded mr-2"
+            />
+            <label htmlFor="commonTerms" className="text-sm font-medium text-gray-700">Common</label>
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="webDevelopmentTerms"
+              name="webDevelopmentTerms"
+              checked={invoiceData.terms === 'Web Development'}
+              onChange={(e) => handleInputChange({ target: { name: 'terms', value: e.target.checked ? 'Web Development' : '' } })}
+              className="h-4 w-4 text-green-600 rounded mr-2"
+            />
+            <label htmlFor="webDevelopmentTerms" className="text-sm font-medium text-gray-700">Web Development</label>
           </div>
         </div>
       </div>

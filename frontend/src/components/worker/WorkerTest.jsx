@@ -1433,12 +1433,21 @@ const WorkerTest = () => {
                                 </h2>
                                 <div className="space-y-2 mt-4">
                                     {currentQuestion.options.map((option, index) => {
-                                        // Determine styling based on the selected answer
+                                        // Determine styling based on the selected answer and correctness
                                         let divStyle = 'p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600';
                                         
                                         // When an answer is selected
                                         if (answers[currentQuestionIndex] === index) {
-                                            divStyle = 'p-3 bg-blue-900 rounded-lg border-2 border-blue-500';
+                                            // If the selected answer is correct
+                                            if (index === currentQuestion.correctOption || index === currentQuestion.correctAnswer) {
+                                                divStyle = 'p-3 bg-green-700 rounded-lg border-2 border-green-500';
+                                            } else {
+                                                // If the selected answer is wrong
+                                                divStyle = 'p-3 bg-red-700 rounded-lg border-2 border-red-500';
+                                            }
+                                        } else if (showFeedback && (index === currentQuestion.correctOption || index === currentQuestion.correctAnswer)) {
+                                            // Show correct answer in green when feedback is shown
+                                            divStyle = 'p-3 bg-green-700 rounded-lg border-2 border-green-500';
                                         }
                                         
                                         return (
@@ -1449,6 +1458,16 @@ const WorkerTest = () => {
                                             >
                                                 <span className="font-medium mr-3">{String.fromCharCode(65 + index)}.</span>
                                                 {option}
+                                                {/* Show indicators for selected answers */}
+                                                {answers[currentQuestionIndex] === index && (
+                                                    index === currentQuestion.correctOption || index === currentQuestion.correctAnswer ? 
+                                                    <span className="float-right font-bold text-green-300">✓ CORRECT</span> : 
+                                                    <span className="float-right font-bold text-red-300">✗ WRONG</span>
+                                                )}
+                                                {/* Show correct answer indicator when feedback is shown */}
+                                                {showFeedback && (index === currentQuestion.correctOption || index === currentQuestion.correctAnswer) && answers[currentQuestionIndex] !== index && (
+                                                    <span className="float-right font-bold text-green-300">✓ CORRECT ANSWER</span>
+                                                )}
                                             </div>
                                         );
                                     })}

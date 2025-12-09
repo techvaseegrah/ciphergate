@@ -14,7 +14,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
   }).split('/').join('-');
 
   const [invoiceData, setInvoiceData] = useState({
-    invoiceNo: initialData?.invoiceNo || `TN${Math.floor(100000 + Math.random() * 900000)}`,
+    invoiceNo: initialData?.invoiceNo || 'TV0000000',
     invoiceDate: initialData?.invoiceDate || formattedDate,
     customerName: initialData?.customerName || '',
     customerContact: initialData?.customerContact || '',
@@ -81,7 +81,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
   useEffect(() => {
     if (initialData) {
       setInvoiceData({
-        invoiceNo: initialData.invoiceNo || `TN${Math.floor(100000 + Math.random() * 900000)}`,
+        invoiceNo: initialData.invoiceNo || 'TV0000000',
         invoiceDate: initialData.invoiceDate || formattedDate,
         customerName: initialData.customerName || '',
         customerContact: initialData.customerContact || '',
@@ -537,7 +537,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
       // Prepare table data
       const tableColumn = ['NO', 'DESCRIPTION'];
       if (invoiceData.gstEnabled) {
-        tableColumn.push('HSN', 'GST (%)');
+        tableColumn.push('HSN/SAC', 'GST (%)');
       }
       tableColumn.push('QTY', 'PRICE', 'TOTAL');
       
@@ -584,7 +584,7 @@ const WorkerInvoice = ({ onInvoiceSave, initialData }) => {
           0: { cellWidth: 15, halign: 'center' }, // NO
           1: { cellWidth: 'auto', halign: 'left' }, // DESCRIPTION
           ...(invoiceData.gstEnabled ? {
-            2: { cellWidth: 25, halign: 'center' }, // HSN CENTER
+            2: { cellWidth: 25, halign: 'center' }, // HSN/SAC CENTER
             3: { cellWidth: 25, halign: 'center' }  // GST (%) CENTER
           } : {}),
           [invoiceData.gstEnabled ? 4 : 2]: { cellWidth: 20, halign: 'center' }, // QTY CENTER
@@ -1239,7 +1239,7 @@ support period.`;
                   <th style="width: 15mm;">NO</th>
                   <th class="description">DESCRIPTION</th>
                   ${invoiceData.gstEnabled ? 
-                    `<th style="width: 25mm; text-align: left;">HSN</th>
+                    `<th style="width: 25mm; text-align: left;">HSN/SAC</th>
                      <th style="width: 25mm; text-align: right;">GST (%)</th>` : ''}
                   <th style="width: 20mm; text-align: right;">QTY</th>
                   <th style="width: 25mm; text-align: right;">PRICE</th>
@@ -1852,7 +1852,7 @@ support period.`;
                   <th className="border border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-700">Description of Goods</th>
                   {invoiceData.gstEnabled && (
                     <>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-20">HSN</th>
+                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-20">HSN/SAC</th>
                       <th className="border border-gray-300 px-3 py-2 text-right text-sm font-semibold text-gray-700 w-16">GST%</th>
                     </>
                   )}
@@ -1894,7 +1894,7 @@ support period.`;
                               type="text"
                               value={item.hsn}
                               onChange={(e) => handleItemChange(item.id, 'hsn', e.target.value)}
-                              placeholder="HSN"
+                              placeholder="HSN/SAC"
                               className="w-full px-1 py-0.5 border-b border-gray-300 focus:outline-none focus:border-green-500 text-sm font-normal text-right"
                             />
                           </td>
