@@ -44,6 +44,9 @@ const SalaryManagement = () => {
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedWorker, setSelectedWorker] = useState(null);
+    // Add state for delete confirmation modal
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [workerToDelete, setWorkerToDelete] = useState(null);
 
     // ADD FINE STATES
     const [isFineModalOpen, setIsFineModalOpen] = useState(false);
@@ -355,36 +358,52 @@ const SalaryManagement = () => {
         doc.text('Summary', 14, startY + 15);
         
         // Prepare summary data including bonus and fine information
+        // Fix currency formatting to ensure clean, professional appearance
+        // Updated to use "Rs." instead of "₹" symbol as per requirements
+        const formatCurrencyForPDF = (amount) => {
+            // Handle different input types
+            if (typeof amount === 'string') {
+                // If it's already a formatted string, extract the numeric value and reformat it properly
+                const numericValue = parseFloat(amount.replace(/[₹Rs.,\s]/g, ''));
+                if (isNaN(numericValue)) {
+                    return 'Rs. 0.00';
+                }
+                return `Rs. ${numericValue.toFixed(2)}`;
+            }
+            // If it's a number, format it properly
+            return `Rs. ${Number(amount).toFixed(2)}`;
+        };
+        
         const summaryData = [
             ['Employee ID', selectedWorker?.rfid],
-            ['Original Salary', `₹${reportData.report.summary?.originalSalary?.toFixed(2) || '0.00'}`],
-            ['Actual Earned Salary', `₹${reportData.report.summary?.finalSalary?.toFixed(2) || '0.00'}`],
+            ['Original Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
+            ['Actual Earned Salary', formatCurrencyForPDF(reportData.report.summary?.finalSalary || 0)],
             // ADD FINE INFORMATION TO THE SUMMARY
             ...(reportData.totalFinesAmount > 0 ? [
-                ['Total Fines', `₹${reportData.totalFinesAmount.toFixed(2)}`]
+                ['Total Fines', formatCurrencyForPDF(reportData.totalFinesAmount)]
             ] : []),
             ...(reportData.totalBonusAmount > 0 ? [
-                ['Bonus Amount Applied', `₹${reportData.totalBonusAmount.toFixed(2)}`]
+                ['Bonus Amount Applied', formatCurrencyForPDF(reportData.totalBonusAmount)]
             ] : []),
-            ['Total Final Salary', `₹${reportData.finalSalaryWithFines?.toFixed(2) || '0.00'}`],
+            ['Total Final Salary', formatCurrencyForPDF(reportData.finalSalaryWithFines || 0)],
             ['Total Days in Period', reportData.report.summary?.totalDaysInPeriod || 0],
             ['Total Working Days', reportData.report.summary?.totalWorkingDaysInPeriod || 0],
             ['Total Absent Days', reportData.report.summary?.totalAbsentDays || 0],
             ['Total Holidays', reportData.report.summary?.totalHolidaysInPeriod || 0],
             ['Total Sundays', reportData.report.summary?.totalSundaysInPeriod || 0],
             ['Actual Working Days', reportData.report.summary?.actualWorkingDays || 0],
-            ['Total Working Hours', `${(reportData.report.totalWorkingHours || 0).toFixed(2)} hrs`],
+            ['Total Working Hours', `${Number(reportData.report.totalWorkingHours || 0).toFixed(2)} hrs`],
             ['Total Permission Time', `${reportData.report.totalPermissionTime || 0} mins`],
-            ['Absent Deduction', `₹${reportData.report.summary?.absentDeduction?.toFixed(2) || '0.00'}`],
-            ['Permission Deduction', `₹${reportData.report.summary?.permissionDeduction?.toFixed(2) || '0.00'}`],
-            ['Total Deductions', `₹${reportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}`],
-            ['Attendance Rate', `${reportData.report.summary?.attendanceRate?.toFixed(2) || '0.00'}%`],
-            ['Per Minute Salary', `₹${reportData.report.summary?.perMinuteSalary?.toFixed(4) || '0.0000'}`],
+            ['Absent Deduction', formatCurrencyForPDF(reportData.report.summary?.absentDeduction || 0)],
+            ['Permission Deduction', formatCurrencyForPDF(reportData.report.summary?.permissionDeduction || 0)],
+            ['Total Deductions', formatCurrencyForPDF(reportData.report.totalSalaryDeduction || 0)],
+            ['Attendance Rate', `${Number(reportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
+            ['Per Minute Salary', `Rs. ${Number(reportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
         ];
         
         // Add bonus information if available
         if (reportData.totalBonusAmount > 0) {
-            summaryData.push(['Bonus Amount Applied', `₹${reportData.totalBonusAmount.toFixed(2)}`]);
+            summaryData.push(['Bonus Amount Applied', formatCurrencyForPDF(reportData.totalBonusAmount)]);
             
             // Add details of each bonus
             reportData.bonuses.forEach((bonus, index) => {
@@ -392,13 +411,24 @@ const SalaryManagement = () => {
             });
         }
         
+        // Set font properties to prevent spacing issues
+        doc.setFont('helvetica');
+        doc.setFontSize(9);
+        
         autoTable(doc, {
             startY: startY + 20,
             head: [['Metric', 'Value']],
             body: summaryData,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { fontSize: 9 }
+            styles: { 
+                fontSize: 9,
+                font: 'helvetica',
+                cellPadding: 2
+            },
+            columnStyles: {
+                1: { cellWidth: 50 } // Fixed width for value column
+            }
         });
         
         doc.addPage();
@@ -408,35 +438,66 @@ const SalaryManagement = () => {
             'Date', 'Status', 'In Time', 'Out Time',
             'Delay Time', 'Delay Deduction'
         ];
+        
+        // Fix formatting for daily breakdown table
         const tableRows = reportData.report.report.map(row => [
             row.date,
             row.status,
             row.inTime,
             row.outTime,
             row.delayTime,
-            row.deductionAmount
+            formatCurrencyForPDF(row.deductionAmount) // Ensure proper formatting for delay deduction
         ]);
+        
+        // Set font properties for daily breakdown table
+        doc.setFont('helvetica');
+        doc.setFontSize(8);
+        
         autoTable(doc, {
             startY: 30,
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { fontSize: 8 }
+            styles: { 
+                fontSize: 8,
+                font: 'helvetica',
+                cellPadding: 1.5
+            },
+            columnStyles: {
+                5: { cellWidth: 30 } // Fixed width for delay deduction column
+            }
         });
         doc.save(`salary_report_${selectedWorker.name}.pdf`);
     };
 
     const handleRemoveBonus = async (worker) => {
-        if (window.confirm('Are you sure you want to remove the bonus for this worker?')) {
-            try {
-                const response = await removeBonusAmount(worker._id);
-                toast.success(response.message);
-                loadData();
-            } catch (error) {
-                toast.error(error.message || 'Failed to remove bonus');
-            }
+        // Instead of using window.confirm, set state to show custom modal
+        setWorkerToDelete(worker);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    // Add function to handle the actual bonus removal
+    const confirmRemoveBonus = async () => {
+        if (!workerToDelete) return;
+        
+        try {
+            const response = await removeBonusAmount(workerToDelete._id);
+            toast.success(response.message);
+            loadData();
+        } catch (error) {
+            toast.error(error.message || 'Failed to remove bonus');
+        } finally {
+            // Close the modal and reset state
+            setIsDeleteConfirmOpen(false);
+            setWorkerToDelete(null);
         }
+    };
+
+    // Add function to cancel the bonus removal
+    const cancelRemoveBonus = () => {
+        setIsDeleteConfirmOpen(false);
+        setWorkerToDelete(null);
     };
 
     // ADD OPEN FINE MODAL FUNCTION
@@ -1037,6 +1098,33 @@ const SalaryManagement = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            </Modal>
+            {/* Delete Confirmation Modal */}
+            <Modal
+                isOpen={isDeleteConfirmOpen}
+                onClose={cancelRemoveBonus}
+                title="Confirm Removal"
+                size="sm"
+            >
+                <div className="text-center py-4">
+                    <p className="text-lg mb-6">
+                        Are you sure you want to remove the bonus for this worker?
+                    </p>
+                    <div className="flex justify-center space-x-4">
+                        <Button
+                            variant="danger"
+                            onClick={confirmRemoveBonus}
+                        >
+                            Yes, Remove
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={cancelRemoveBonus}
+                        >
+                            Cancel
+                        </Button>
+                    </div>
                 </div>
             </Modal>
         </div>

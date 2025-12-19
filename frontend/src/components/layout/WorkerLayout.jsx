@@ -79,62 +79,62 @@ const WorkerLayout = ({ children }) => {
   const sidebarLinks = [
     {
       to: '/worker',
-      icon: <FaHome style={{ color: '#4A90E2' }} />,
+      icon: <FaHome />,
       label: 'Dashboard'
     },
     {
       to: '/worker/attendance',
-      icon: <FaRegCalendarCheck style={{ color: '#7ED321' }} />,
+      icon: <FaRegCalendarCheck />,
       label: 'Attendance Report'
     },
     {
       isDropdown: true,
-      icon: <FaGraduationCap style={{ color: '#FF6B35' }} />,
+      icon: <FaGraduationCap />,
       label: 'Test',
       children: [
         {
           to: '/worker/tests',
-          icon: <FaClipboardList style={{ color: '#FF6B35' }} />,
+          icon: <FaClipboardList />,
           label: 'My Test'
         },
         {
           to: '/worker/daily-topics',
-          icon: <FaBook style={{ color: '#8B5CF6' }} />,
+          icon: <FaBook />,
           label: 'Daily Topics'
         }
       ]
     },
     {
       to: '/worker/food-request',
-      icon: <FaPizzaSlice style={{ color: '#F5A623' }} />,
+      icon: <FaPizzaSlice />,
       label: 'Food Request'
     },
     {
       to: '/worker/leave-apply',
-      icon: <FaCalendarPlus style={{ color: '#9B59B6' }} />,
+      icon: <FaCalendarPlus />,
       label: 'Apply for Leave'
     },
     {
       to: '/worker/leave-requests',
-      icon: <FaCalendarCheck style={{ color: '#D0021B' }} />,
+      icon: <FaCalendarCheck />,
       label: 'Leave Requests',
       badge: leaveUpdates > 0 ? leaveUpdates : null
     },
     {
       to: '/worker/notifications',
-      icon: <FaRegBell style={{ color: '#ccffcc' }} />,
+      icon: <FaRegBell />,
       label: 'Notifications',
       badge: newComments > 0 ? newComments : null
     },
     {
       to: '/worker/comments',
-      icon: <FaComments style={{ color: '#1ABC9C' }} />,
+      icon: <FaComments />,
       label: 'Comments',
       badge: newComments > 0 ? newComments : null
     },
     {
       to: '/worker/invoices',
-      icon: <FaClipboardList style={{ color: '#3498DB' }} />,
+      icon: <FaClipboardList />,
       label: 'Invoices'
     }
   ];

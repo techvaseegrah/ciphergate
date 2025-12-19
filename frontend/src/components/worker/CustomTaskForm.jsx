@@ -85,9 +85,9 @@ const CustomTaskForm = () => {
   };
 
   const getTabClassName = (tabName) => {
-    return `px-3 py-1 rounded-md cursor-pointer ${activeView === tabName
-      ? 'bg-theme-red text-white'
-      : 'bg-gray-200 text-gray-700 hover:bg-theme-red hover:text-white'
+    return `px-3 py-2 rounded-md cursor-pointer text-sm sm:text-base ${activeView === tabName
+      ? 'bg-[#0d9488] text-white'
+      : 'bg-gray-200 text-gray-700 hover:bg-[#0d9488] hover:text-white'
       }`;
   };
 
@@ -112,7 +112,7 @@ const CustomTaskForm = () => {
 
         <button
           type="submit"
-          className={`px-4 py-2 rounded-md text-white ${submitting ? 'bg-theme-red' : 'bg-theme-red hover:bg-white hover:text-theme-red border-2 border-theme-red'
+          className={`px-4 py-2 rounded-md text-white ${submitting ? 'bg-[#0d9488]' : 'bg-[#0d9488] hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488]'
             }`}
           disabled={submitting}
         >
@@ -127,7 +127,7 @@ const CustomTaskForm = () => {
             <h3 className="text-md font-medium">Your Custom Tasks</h3>
             <button
               onClick={() => setShowAllTasks(!showAllTasks)}
-              className="text-theme-red hover:text-theme-red text-sm flex items-center"
+              className="text-[#0d9488] hover:text-[#0d9488] text-sm flex items-center"
             >
               {showAllTasks ? (
                 <>Show Less {<FaChevronUp className="ml-1" />}</>
@@ -137,8 +137,8 @@ const CustomTaskForm = () => {
             </button>
           </div>
 
-          {/* View tabs */}
-          <div className="flex space-x-2 mb-4">
+          {/* View tabs - Improved mobile responsiveness */}
+          <div className="flex flex-wrap gap-2 mb-4">
             <div
               className={getTabClassName('recent')}
               onClick={() => setActiveView('recent')}
@@ -190,7 +190,7 @@ const CustomTaskForm = () => {
           {!showAllTasks && customTasks.length > 3 && (
             <button
               onClick={() => setShowAllTasks(true)}
-              className="mt-4 w-full py-2 text-sm text-theme-red hover:text-theme-red border border-theme-red rounded-md hover:bg-theme-red hover:text-white"
+              className="mt-4 w-full py-2 text-sm text-[#0d9488] hover:text-[#0d9488] border border-[#0d9488] rounded-md hover:bg-[#0d9488] hover:text-white"
             >
               View All ({customTasks.length}) Tasks
             </button>

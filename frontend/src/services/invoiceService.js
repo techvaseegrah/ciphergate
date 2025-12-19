@@ -96,3 +96,33 @@ export const getNewInvoiceCount = async () => {
     throw error.response?.data || { message: 'Error fetching new invoice count' };
   }
 };
+
+// Get delete history for admin
+export const getAdminDeleteHistory = async () => {
+  try {
+    const response = await api.get('/invoices/delete-history/admin');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching admin delete history' };
+  }
+};
+
+// Get delete history for worker
+export const getWorkerDeleteHistory = async () => {
+  try {
+    const response = await api.get('/invoices/delete-history/worker');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching worker delete history' };
+  }
+};
+
+// Get a specific deleted invoice by ID
+export const getDeletedInvoiceById = async (id) => {
+  try {
+    const response = await api.get(`/invoices/delete-history/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching deleted invoice' };
+  }
+};

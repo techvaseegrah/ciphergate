@@ -961,8 +961,8 @@ const GenerateQuestions = () => {
                 icon={BookOpen} 
                 headerActions={
                     <div className="flex items-center space-x-2">
-                        <button type="button" onClick={() => setTopicMode('common')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'common' ? 'bg-theme-red text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'}`}>Common Topic</button>
-                        <button type="button" onClick={() => setTopicMode('individual')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'individual' ? 'bg-theme-red text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'}`}>Individual Topics</button>
+                        <button type="button" onClick={() => setTopicMode('common')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'common' ? 'bg-[#0d9488] text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-[#0d9488] hover:text-white'}`}>Common Topic</button>
+                        <button type="button" onClick={() => setTopicMode('individual')} className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${topicMode === 'individual' ? 'bg-[#0d9488] text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-[#0d9488] hover:text-white'}`}>Individual Topics</button>
                     </div>
                 }
             >
@@ -1085,8 +1085,8 @@ const GenerateQuestions = () => {
                                 onClick={() => setQuestionFormat('mcq')}
                                 className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
                                     questionFormat === 'mcq' 
-                                        ? 'bg-theme-red text-white shadow-md' 
-                                        : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'
+                                        ? 'bg-[#0d9488] text-white shadow-md' 
+                                        : 'bg-gray-200 text-gray-600 hover:bg-[#0d9488] hover:text-white'
                                 }`}
                             >
                                 MCQ Type
@@ -1096,8 +1096,8 @@ const GenerateQuestions = () => {
                                 onClick={() => setQuestionFormat('upsc')}
                                 className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${
                                     questionFormat === 'upsc' 
-                                        ? 'bg-theme-red text-white shadow-md' 
-                                        : 'bg-gray-200 text-gray-600 hover:bg-theme-red hover:text-white'
+                                        ? 'bg-[#0d9488] text-white shadow-md' 
+                                        : 'bg-gray-200 text-gray-600 hover:bg-[#0d9488] hover:text-white'
                                 }`}
                             >
                                 UPSC/GK Style

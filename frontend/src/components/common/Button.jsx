@@ -8,19 +8,22 @@ const Button = ({
     fullWidth = false,
     className = ''
   }) => {
-    const baseClasses = 'rounded-full font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+    // Base classes matching the admin Download Report button
+    const baseClasses = 'rounded-xl font-medium shadow-md transition-colors duration-200 focus:outline-none';
     
+    // Updated variant classes to match admin Download Report button styling
     const variantClasses = {
-      primary: 'bg-theme-red text-white hover:bg-white hover:text-theme-red border-2 border-theme-red focus:ring-theme-red',
-      secondary: 'bg-secondary text-white hover:bg-white hover:text-secondary border-2 border-secondary focus:ring-secondary',
-      danger: 'bg-danger text-white hover:bg-white hover:text-danger border-2 border-danger focus:ring-danger',
-      success: 'bg-success text-white hover:bg-white hover:text-success border-2 border-success focus:ring-success',
-      outline: 'border-2 border-theme-red bg-white text-theme-red hover:bg-theme-red hover:text-white focus:ring-theme-red'
+      primary: 'bg-[#0d9488] hover:bg-[#0f766e] text-white focus:ring-[#0d9488]',
+      secondary: 'bg-[#0d9488] hover:bg-[#0f766e] text-white focus:ring-[#0d9488]',
+      danger: 'bg-[#0d9488] hover:bg-[#0f766e] text-white focus:ring-[#0d9488]',
+      success: 'bg-[#0d9488] hover:bg-[#0f766e] text-white focus:ring-[#0d9488]',
+      outline: 'bg-[#0d9488] hover:bg-[#0f766e] text-white focus:ring-[#0d9488]'
     };
     
+    // Updated size classes to match admin Download Report button styling
     const sizeClasses = {
       sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2',
+      md: 'px-5 py-2 text-sm',
       lg: 'px-6 py-3 text-lg'
     };
     

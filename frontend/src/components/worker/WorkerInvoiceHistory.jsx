@@ -6,6 +6,12 @@ import { toast } from 'react-toastify';
 const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [localInvoices, setLocalInvoices] = useState(invoices); // Add local state for invoices
+
+  // Update local state when invoices prop changes
+  React.useEffect(() => {
+    setLocalInvoices(invoices);
+  }, [invoices]);
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -43,6 +49,11 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
     try {
       const response = await deleteInvoice(invoiceToDelete);
       if (response.success) {
+        // Update local state to immediately remove the deleted invoice
+        setLocalInvoices(prevInvoices => 
+          prevInvoices.filter(invoice => invoice._id !== invoiceToDelete)
+        );
+        
         // Call the onDeleteInvoice callback if provided
         if (onDeleteInvoice) {
           onDeleteInvoice(invoiceToDelete);
@@ -78,7 +89,7 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
     <div className="max-w-6xl mx-auto p-4 bg-white font-sans">
       <h1 className="text-xl font-bold text-gray-800 mb-6">Invoice History</h1>
       
-      {invoices.length === 0 ? (
+      {localInvoices.length === 0 ? (
         <Card className="p-6 text-center">
           <p className="text-gray-500">No invoices found. Create your first invoice to get started.</p>
         </Card>
@@ -96,7 +107,7 @@ const WorkerInvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice, index) => (
+              {localInvoices.map((invoice, index) => (
                 <tr key={invoice._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="py-3 px-4 text-sm text-gray-700 border-b">{invoice.invoiceNo}</td>
                   <td className="py-3 px-4 text-sm text-gray-700 border-b">{invoice.invoiceDate || formatDate(invoice.createdAt)}</td>

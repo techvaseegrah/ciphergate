@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Admin = require('../models/Admin');
 const Worker = require('../models/Worker');
+const DeleteHistory = require('../models/DeleteHistory'); // Add this line
 const mongoose = require('mongoose');
 
 // Create a new invoice
@@ -328,11 +329,56 @@ const deleteInvoice = async (req, res) => {
       });
     }
 
+    // Calculate total amount for storing in delete history
+    const subtotal = invoice.items.reduce((sum, item) => 
+      sum + (item.isTotalOverridden ? item.total : (item.qty * item.rate)), 0);
+    
+    const gstTotal = (invoice.gstEnabled) ? 
+      invoice.items.reduce((sum, item) => 
+        sum + (item.isTotalOverridden ? (item.total * item.gst / 100) : (item.qty * item.rate * item.gst / 100)), 0) : 0;
+    
+    const totalAmount = subtotal + gstTotal;
+
+    // Get user information for delete history
+    let deletedByName = 'Unknown User';
+    let deletedById = req.user._id;
+    let deletedByRole = req.user.role === 'admin' ? 'Admin' : 'Worker';
+    
+    try {
+      if (req.user.role === 'admin') {
+        const admin = await Admin.findById(req.user._id);
+        deletedByName = (admin && admin.name) ? admin.name : `Admin (${req.user.email || 'No Email'})`;
+      } else {
+        const worker = await Worker.findById(req.user._id);
+        deletedByName = (worker && worker.name) ? worker.name : `Worker (${req.user.email || 'No Email'})`;
+      }
+    } catch (userLookupError) {
+      console.error('Error looking up user for delete history:', userLookupError);
+      // Use fallback values
+      deletedByName = req.user.role === 'admin' ? 'Unknown Admin' : 'Unknown Worker';
+    }
+
+    // Create delete history record
+    const deleteHistory = new DeleteHistory({
+      invoiceId: invoice._id,
+      invoiceNo: invoice.invoiceNo,
+      invoiceDate: invoice.invoiceDate,
+      customerName: invoice.customerName || '',
+      totalAmount: totalAmount,
+      deletedByRole: deletedByRole,
+      deletedByName: deletedByName,
+      deletedById: deletedById,
+      originalInvoiceData: invoice // Store the entire invoice data for viewing details
+    });
+
+    await deleteHistory.save();
+
+    // Remove the invoice from the main collection
     await Invoice.findByIdAndDelete(id);
 
     res.status(200).json({
       success: true,
-      message: 'Invoice deleted successfully'
+      message: 'Invoice deleted successfully and moved to delete history'
     });
   } catch (error) {
     console.error('Error deleting invoice:', error);
@@ -407,6 +453,107 @@ const getNewInvoiceCount = async (req, res) => {
   }
 };
 
+// Add new controller functions for delete history
+// Get delete history for admin (all deleted invoices)
+const getDeleteHistoryForAdmin = async (req, res) => {
+  try {
+    // Only admins can access this
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only admins can view delete history.'
+      });
+    }
+
+    const deleteHistory = await DeleteHistory.find()
+      .sort({ deletedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: 'Delete history retrieved successfully',
+      data: deleteHistory
+    });
+  } catch (error) {
+    console.error('Error retrieving delete history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving delete history',
+      error: error.message
+    });
+  }
+};
+
+// Get delete history for worker (only their deleted invoices)
+const getDeleteHistoryForWorker = async (req, res) => {
+  try {
+    // Workers can only see their own delete history
+    const deleteHistory = await DeleteHistory.find({ deletedById: req.user._id })
+      .sort({ deletedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: 'Delete history retrieved successfully',
+      data: deleteHistory
+    });
+  } catch (error) {
+    console.error('Error retrieving delete history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving delete history',
+      error: error.message
+    });
+  }
+};
+
+// Get a specific deleted invoice by ID
+const getDeletedInvoiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid delete history ID'
+      });
+    }
+
+    const deleteHistoryRecord = await DeleteHistory.findById(id);
+
+    if (!deleteHistoryRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Deleted invoice not found'
+      });
+    }
+
+    // Check if user has permission to access this delete history record
+    // Workers can access their own delete history, admins can access any delete history
+    const isRecordOwner = deleteHistoryRecord.deletedById.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    
+    if (!isRecordOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own delete history.'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Deleted invoice retrieved successfully',
+      data: deleteHistoryRecord
+    });
+  } catch (error) {
+    console.error('Error retrieving deleted invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving deleted invoice',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createInvoice,
   updateInvoice,
@@ -416,5 +563,9 @@ module.exports = {
   getInvoiceById,
   deleteInvoice,
   updateAdminLastViewed,
-  getNewInvoiceCount
+  getNewInvoiceCount,
+  // Add the new export functions
+  getDeleteHistoryForAdmin,
+  getDeleteHistoryForWorker,
+  getDeletedInvoiceById
 };

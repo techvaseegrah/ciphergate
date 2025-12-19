@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useLocation } from 'react-router-dom'; // Added useLocation import
 import { toast } from 'react-toastify';
 import { FaPlus, FaEdit, FaTrash, FaCamera } from 'react-icons/fa';
 import { getWorkers, createWorker, updateWorker, deleteWorker, getUniqueId } from '../../services/workerService';
@@ -15,6 +16,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import FaceCapture from './FaceCapture'; // Import FaceCapture component
 
 const WorkerManagement = () => {
+  const location = useLocation(); // Added useLocation hook
   const nameInputRef = useRef(null);
   const [workers, setWorkers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -113,10 +115,23 @@ useEffect(() => {
   // Filter workers
   const filteredWorkers = Array.isArray(workers)
     ? workers.filter(
-      worker =>
-        worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()))
+      worker => {
+        // Check if there's a department filter in the URL
+        const urlParams = new URLSearchParams(location.search);
+        const departmentFilter = urlParams.get('department');
+        
+        // Apply department filter if present
+        const matchesDepartment = departmentFilter 
+          ? worker.department === departmentFilter || worker.department?._id === departmentFilter
+          : true;
+        
+        // Apply search term filter
+        const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        return matchesDepartment && matchesSearch;
+      }
     )
     : [];
 
@@ -393,93 +408,85 @@ const handleAddWorker = async (e) => {
               src={record.photo
                 ? record.photo
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}`}
-
               alt="Employee"
               className="w-8 h-8 rounded-full mr-2"
             />
           )}
-          {record?.name || 'Unknown'}
+          <span>{record.name}</span>
         </div>
-      )
+      ),
     },
     {
-      header: 'Salary',
-      accessor: 'salary'
-    },
-    {
-      header: 'Employee ID',
-      accessor: 'rfid'
-    },
-    {
-      header: 'Batch',
-      accessor: 'batch'
+      header: 'Username',
+      accessor: 'username',
     },
     {
       header: 'Department',
-      accessor: 'department'
+      accessor: 'department',
+      render: (record) => (
+        <span>
+          {typeof record.department === 'object' 
+            ? record.department.name 
+            : (departments.find(dept => dept._id === record.department)?.name || record.department || 'N/A')}
+        </span>
+      ),
     },
     {
-      header: 'Face Data',
-      accessor: 'faceData',
-      render: (worker) => (
-        <div className="flex items-center">
-          <span className={worker.faceEmbeddings && worker.faceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
-            {worker.faceEmbeddings && worker.faceEmbeddings.length > 0 ? 'Captured' : 'Not Captured'}
-          </span>
-          <button
-            onClick={() => openFaceCaptureModal(worker)}
-            className="ml-2 p-1 text-blue-600 hover:text-blue-800"
-            title="Capture Face"
-          >
-            <FaCamera />
-          </button>
-        </div>
-      )
+      header: 'Batch',
+      accessor: 'batch',
+    },
+    {
+      header: 'RFID',
+      accessor: 'rfid',
     },
     {
       header: 'Actions',
       accessor: 'actions',
-      render: (worker) => (
+      render: (record) => (
         <div className="flex space-x-2">
           <button
-            onClick={() => openEditModal(worker)}
-            className="p-1 text-blue-600 hover:text-blue-800"
+            onClick={() => openEditModal(record)}
+            className="text-blue-500 hover:text-blue-700"
           >
             <FaEdit />
           </button>
           <button
-            onClick={() => openDeleteModal(worker)}
-            className="p-1 text-red-600 hover:text-red-800"
+            onClick={() => openDeleteModal(record)}
+            className="text-red-500 hover:text-red-700"
           >
             <FaTrash />
           </button>
+          <button
+            onClick={() => openFaceCaptureModal(record)}
+            className="text-green-500 hover:text-green-700"
+          >
+            <FaCamera />
+          </button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Employee Management</h1>
-        <Button
-          variant="primary"
-          onClick={openAddModal}
-          className='flex items-center'
-        >
-          <FaPlus className="mr-2" /> Add Employee
+        <Button variant="primary" onClick={openAddModal}>
+          <FaPlus className="mr-2 inline" /> Add Employee
         </Button>
       </div>
 
       <Card>
-        <div className="mb-4">
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search by name, department, or Employee ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-4 md:space-y-0">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search employees..."
+              className="form-input w-full md:w-64"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -490,361 +497,305 @@ const handleAddWorker = async (e) => {
           <Table
             columns={columns}
             data={filteredWorkers}
-            noDataMessage="No employee found."
+            isLoading={isLoading}
           />
         )}
       </Card>
 
-      {/* Add Worker Modal */}
+      {/* Add Employee Modal */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Add Worker"
+        title="Add Employee"
       >
         <form onSubmit={handleAddWorker}>
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">Name</label>
-            <input
-              ref={nameInputRef}
-              type="text"
-              id="name"
-              name="name"
-              className="form-input"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">Name *</label>
+              <input
+                ref={nameInputRef}
+                type="text"
+                name="name"
+                className="form-input"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter employee name"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="username" className="form-label">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              className="form-input"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">Username *</label>
+              <input
+                type="text"
+                name="username"
+                className="form-input"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter username"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="text" className="form-label">Unique ID</label>
-            <input
-              type="text"
-              id="rfid"
-              name="rfid"
-              className="form-input"
-              value={formData.rfid}
-              onChange={handleChange}
-              required
-              disabled
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">Password *</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  className="form-input pr-10"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="number" className="form-label">{"Salary (per month)"}</label>
-            <input
-              type="number"
-              id="salary"
-              name="salary"
-              className="form-input"
-              value={formData.salary}
-              onChange={handleChange}
-              
-            />
-          </div>
-
-          <div className="form-group relative">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              name="password"
-              className="form-input pr-12"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-600"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="department" className="form-label">Department</label>
-            <select
-              id="department"
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              required
-            >
-              {departments.length === 0 ? (
-                <option value="">No departments available</option>
-              ) : (
-                <>
-                  <option value="">Select Department</option>
-                  {departments.map(dept => (
-                    <option key={dept._id} value={dept._id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-          </div>
-
-                  <div className="form-group">
-                        <label htmlFor="batch" className="form-label">Batch</label>
-                        <select
-                            id="batch"
-                            name="batch"
-                            className="form-input"
-                            value={formData.batch}
-                            onChange={handleChange}
-                            required
-                        >
-                            <option value="">Select a batch</option>
-                            {batches.map(batch => (
-                                <option key={batch.batchName} value={batch.batchName}>
-                                    {batch.batchName} ({batch.from} - {batch.to})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-          <div className="form-group">
-            <label htmlFor="photo" className="form-label">Photo</label>
-            <input
-              type="file"
-              id="photo"
-              name="photo"
-              className="form-input"
-              onChange={handlePhotoChange}
-              accept="image/*"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Face Data</label>
-            <div className="flex items-center">
-              <span className={workerFaceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
-                {workerFaceEmbeddings.length > 0 ? `${workerFaceEmbeddings.length} face(s) captured` : 'No face data captured'}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowFaceCapture(true)}
-                className="ml-2"
+            <div className="form-group">
+              <label className="form-label">Department *</label>
+              <select
+                name="department"
+                className="form-input"
+                value={formData.department}
+                onChange={handleChange}
+                required
               >
-                <FaCamera className="mr-1" /> Capture Face
-              </Button>
+                <option value="">Select Department</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Batch *</label>
+              <select
+                name="batch"
+                className="form-input"
+                value={formData.batch}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Batch</option>
+                {batches.map((batch) => (
+                  <option key={batch._id} value={batch.batchName}>
+                    {batch.batchName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Salary *</label>
+              <input
+                type="number"
+                name="salary"
+                className="form-input"
+                value={formData.salary}
+                onChange={handleChange}
+                placeholder="Enter salary"
+                required
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Unique ID</label>
+              <div className="flex">
+                <input
+                  type="text"
+                  name="rfid"
+                  className="form-input rounded-r-none"
+                  value={formData.rfid}
+                  onChange={handleChange}
+                  placeholder="Auto-generated"
+                  readOnly
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={getWorkerId}
+                  className="rounded-l-none"
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+
+            <div className="form-group md:col-span-2">
+              <label className="form-label">Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="form-input"
+                onChange={handlePhotoChange}
+              />
             </div>
           </div>
 
           <div className="flex justify-end mt-6 space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsAddModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-            >
+            <Button type="submit" variant="primary">
               Add Employee
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Edit Worker Modal */}
+      {/* Edit Employee Modal */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Edit Employee: ${selectedWorker?.name}`}
+        title="Edit Employee"
       >
         <form onSubmit={handleEditWorker}>
-          <div className="form-group">
-            <label htmlFor="edit-name" className="form-label">Name</label>
-            <input
-              type="text"
-              id="edit-name"
-              name="name"
-              className="form-input"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">Name *</label>
+              <input
+                type="text"
+                name="name"
+                className="form-input"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter employee name"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="edit-username" className="form-label">Username</label>
-            <input
-              type="text"
-              id="edit-username"
-              name="username"
-              className="form-input"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">Username *</label>
+              <input
+                type="text"
+                name="username"
+                className="form-input"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter username"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="edit-username" className="form-label">Salary</label>
-            <input
-              type="number"
-              id="edit-username"
-              name="salary"
-              className="form-input"
-              value={formData.salary}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* New Password Fields */}
-          <div className="form-group relative">
-            <label htmlFor="edit-password" className="form-label">New Password (optional)</label>
-            <input
-              type={showEditPassword ? 'text' : 'password'}
-              id="edit-password"
-              name="password"
-              className="form-input pr-12"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Leave blank to keep current password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowEditPassword(v => !v)}
-              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-600"
-            >
-              {showEditPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </div>
-
-          <div className="form-group relative">
-            <label htmlFor="edit-confirm-password" className="form-label">Confirm New Password</label>
-            <input
-              type={showEditConfirmPassword ? 'text' : 'password'}
-              id="edit-confirm-password"
-              name="confirmPassword"
-              className="form-input pr-12"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm new password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowEditConfirmPassword(v => !v)}
-              className="absolute right-3 top-11 transform -translate-y-1/2 text-gray-600"
-            >
-              {showEditConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="edit-photo" className="form-label">Photo</label>
-            <div className="flex items-center">
-              {selectedWorker?.photo && (
-                <img
-                  src={selectedWorker.photo}
-
-                  alt="Current Photo"
-                  className="w-20 h-20 rounded-full object-cover mr-4"
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <div className="relative">
+                <input
+                  type={showEditPassword ? "text" : "password"}
+                  name="password"
+                  className="form-input pr-10"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter new password (optional)"
                 />
-              )}
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowEditPassword(!showEditPassword)}
+                >
+                  {showEditPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirm Password</label>
+              <div className="relative">
+                <input
+                  type={showEditConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  className="form-input pr-10"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowEditConfirmPassword(!showEditConfirmPassword)}
+                >
+                  {showEditConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Department *</label>
+              <select
+                name="department"
+                className="form-input"
+                value={formData.department}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Batch *</label>
+              <select
+                name="batch"
+                className="form-input"
+                value={formData.batch}
+                onChange={handleChange}
+              >
+                <option value="">Select Batch</option>
+                {batches.map((batch) => (
+                  <option key={batch._id} value={batch.batchName}>
+                    {batch.batchName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Salary</label>
+              <input
+                type="number"
+                name="salary"
+                className="form-input"
+                value={formData.salary}
+                onChange={handleChange}
+                placeholder="Enter salary"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div className="form-group md:col-span-2">
+              <label className="form-label">Photo</label>
               <input
                 type="file"
-                id="edit-photo"
-                name="photo"
+                accept="image/*"
                 className="form-input"
                 onChange={handlePhotoChange}
-                accept="image/*"
               />
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="edit-department" className="form-label">Department</label>
-            <select
-              id="edit-department"
-              name="department"
-              className="form-input"
-              value={formData.department}
-              onChange={handleChange}
-              required
-            >
-              {departments.map((dept) => (
-                <option
-                  key={dept._id}
-                  value={dept._id}
-                >
-                  {dept.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* ADDED: Batch selection for edit form */}
-          <div className="form-group">
-            <label htmlFor="edit-batch" className="form-label">Batch</label>
-            <select
-              id="edit-batch"
-              name="batch"
-              className="form-input"
-              value={formData.batch}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select a batch</option>
-              {batches.map(batch => (
-                <option key={batch.batchName} value={batch.batchName}>
-                  {batch.batchName} ({batch.from} - {batch.to})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Face Data</label>
-            <div className="flex items-center">
-              <span className={workerFaceEmbeddings.length > 0 ? 'text-green-600' : 'text-red-600'}>
-                {workerFaceEmbeddings.length > 0 ? `${workerFaceEmbeddings.length} face(s) captured` : 'No face data captured'}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowFaceCapture(true)}
-                className="ml-2"
-              >
-                <FaCamera className="mr-1" /> {workerFaceEmbeddings.length > 0 ? 'Re-capture Face' : 'Capture Face'}
-              </Button>
-            </div>
-          </div>
-
           <div className="flex justify-end mt-6 space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-            >
+            <Button type="submit" variant="primary">
               Update Employee
             </Button>
           </div>

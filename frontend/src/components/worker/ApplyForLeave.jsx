@@ -232,7 +232,7 @@ const ApplyForLeave = () => {
             <textarea
               id="reason"
               name="reason"
-              className="form-input"
+              className="form-input rounded-lg"
               rows="4"
               value={formData.reason}
               onChange={handleChange}

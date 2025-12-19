@@ -185,7 +185,7 @@ const LeaveManagement = () => {
           <button
             onClick={() => handleReview(leave._id, 'Approved', leave)}
             disabled={processing[leave._id]}
-            className="px-3 py-1 bg-theme-red text-white rounded hover:bg-white hover:text-theme-red border-2 border-theme-red"
+            className="px-3 py-1 bg-[#0d9488] text-white rounded hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488]"
           >
             Approve
           </button>
@@ -205,8 +205,8 @@ const LeaveManagement = () => {
 
   const getTabClassName = (tabName) => {
     return `px-3 py-1 rounded-md cursor-pointer ${activeView === tabName
-        ? 'bg-theme-red text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-theme-red hover:text-white'
+        ? 'bg-[#0d9488] text-white'
+        : 'bg-gray-200 text-gray-700 hover:bg-[#0d9488] hover:text-white'
       }`;
   };
 
@@ -238,7 +238,7 @@ const LeaveManagement = () => {
               </div>
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-theme-red hover:text-white"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-[#0d9488] hover:text-white"
               >
                 Clear Filters
               </button>
@@ -253,7 +253,7 @@ const LeaveManagement = () => {
               </span>
               <button
                 onClick={() => setShowAllLeaves(!showAllLeaves)}
-                className="text-theme-red hover:text-theme-red text-sm flex items-center"
+                className="text-[#0d9488] hover:text-[#0d9488] text-sm flex items-center"
               >
                 {showAllLeaves ? (
                   <>Show Less {<FaChevronUp className="ml-1" />}</>
@@ -304,7 +304,7 @@ const LeaveManagement = () => {
               {!showAllLeaves && filteredLeaves.length > 5 && (
                 <button
                   onClick={() => setShowAllLeaves(true)}
-                  className="mt-4 w-full py-2 text-sm text-theme-red hover:text-theme-red border border-theme-red rounded-full hover:bg-theme-red hover:text-white"
+                  className="mt-4 w-full py-2 text-sm text-[#0d9488] hover:text-[#0d9488] border border-[#0d9488] rounded-full hover:bg-[#0d9488] hover:text-white"
                 >
                   View All ({filteredLeaves.length}) Leaves
                 </button>

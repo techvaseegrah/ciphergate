@@ -16,9 +16,26 @@ const Sidebar = ({
   const [expandedDropdowns, setExpandedDropdowns] = useState({});
   const [showFullLogo, setShowFullLogo] = useState(false);
   const [triggerLogoAnimation, setTriggerLogoAnimation] = useState(false);
+  const [clickedItem, setClickedItem] = useState(null); // Track clicked item
   const location = useLocation();
 
   const { subdomain } = useContext(appContext);
+
+  // Theme Colors
+  const themeColor = "bg-[#0d9488]"; // Teal color from image
+  const activeBg = "bg-[#f3f4f6]"; // Light gray background for active item
+  const activeText = "text-[#0d9488]"; // Teal text for active item
+  
+  // Get icon class based on state
+  const getIconClass = (isActive, isClicked) => {
+    if (isClicked) {
+      return "sidebar-icon-gradient clicked mr-3 text-lg";
+    }
+    if (isActive) {
+      return "sidebar-icon-gradient active mr-3 text-lg";
+    }
+    return "sidebar-icon-gradient inactive mr-3 text-lg";
+  };
 
   // Trigger logo animation when component mounts
   useEffect(() => {
@@ -53,6 +70,15 @@ const Sidebar = ({
     setIsOpen(false);
   };
 
+  const handleItemClick = (to) => {
+    setClickedItem(to);
+    // Reset clicked item after animation duration
+    setTimeout(() => {
+      setClickedItem(null);
+    }, 1000);
+    closeSidebar();
+  };
+
   const toggleDropdown = (key) => {
     setExpandedDropdowns(prev => ({
       ...prev,
@@ -66,19 +92,19 @@ const Sidebar = ({
 
   return (
     <>
-      {/* External toggle button - positioned in the middle of the page when sidebar is closed */}
+      {/* External toggle button */}
       {!isOpen && (
         <button
           type="button"
-          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-full text-black bg-white/90 backdrop-blur-lg hover:bg-theme-red hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-pulse"
+          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-full text-white bg-[#0d9488] shadow-lg hover:bg-[#0f766e] focus:outline-none transform -translate-y-1/2"
           onClick={toggleSidebar}
         >
-      <span className="sr-only">Open sidebar</span>
-          <FaChevronRight className="h-6 w-6 sidebar-toggle-animated" />
+          <span className="sr-only">Open sidebar</span>
+          <FaChevronRight className="h-6 w-6" />
         </button>
       )}
 
-      {/* Sidebar Backdrop with blur effect */}
+      {/* Sidebar Backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden"
@@ -86,78 +112,69 @@ const Sidebar = ({
         ></div>
       )}
 
-      {/* Close toggle button - positioned outside the sidebar when open */}
+      {/* Close toggle button */}
       {isOpen && (
         <button
           type="button"
-          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-full text-black bg-white/90 backdrop-blur-lg hover:bg-theme-red hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white transform -translate-y-1/2 transition-all duration-300 hover:scale-110 animate-bounce"
+          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-full text-[#0d9488] bg-white shadow-lg focus:outline-none transform -translate-y-1/2"
           onClick={toggleSidebar}
         >
           <span className="sr-only">Close sidebar</span>
-          <FaChevronLeft className="h-6 w-6 sidebar-toggle-animated" />
+          <FaChevronLeft className="h-6 w-6" />
         </button>
       )}
 
-      {/* Sidebar with Apple-style blur effect */}
+      {/* Sidebar Container - Teal Background */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white/90 backdrop-blur-lg transition-transform duration-300 ease-in-out transform overflow-y-auto md:overflow-y-scroll rounded-r-2xl ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed inset-y-0 left-0 z-30 w-64 ${themeColor} transform overflow-y-auto sidebar-container ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
+        style={{ borderTopRightRadius: '30px', borderBottomRightRadius: '30px' }}
       >
-        {/* Logo section with smooth transition */}
-        <div className="flex flex-col items-center justify-center h-20 px-2 bg-white/80 backdrop-blur-sm border-b border-gray-200 rounded-tr-2xl">
-          <div className="flex items-center justify-center">
-            <div className="w-12 h-12 flex items-center justify-center">
+        {/* Logo section */}
+        <div className="flex items-center justify-center h-16 px-4">
+          <div className="flex items-center justify-center w-full">
+            <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-xl p-1 flex-shrink-0">
               <ShatteredLogo 
                 triggerAnimation={triggerLogoAnimation}
                 src="/logo.png" 
                 alt="Logo" 
-                className="w-full h-full" 
+                className="w-full h-full object-contain" 
                 onComplete={() => console.log('Shattering animation complete')}
               />
             </div>
             
-            {/* Animated text that appears after logo reassembly */}
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ 
-                opacity: showFullLogo ? 1 : 0, 
-                width: showFullLogo ? 'auto' : 0 
-              }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="ml-3 overflow-hidden"
+            <div
+              className={`ml-3 overflow-hidden ${showFullLogo ? 'opacity-100' : 'opacity-0'} w-full`}
             >
-              <motion.h1 
-                className="text-lg font-bold text-black whitespace-nowrap"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: showFullLogo ? 1 : 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
+              <h1 
+                className="text-lg font-bold text-white truncate"
               >
                 {logoText}
-              </motion.h1>
-            </motion.div>
+              </h1>
+            </div>
           </div>
         </div>
 
         {/* User profile */}
         {user && (
-          <div className="px-4 py-3 border-b border-gray-200 bg-white">
-            <div className="flex items-center justify-between">
-              <div className='flex items-center min-w-0'>
+          <div className="px-4 py-3 mb-2 mx-3 bg-white/10 rounded-xl backdrop-blur-sm">
+            <div className="flex items-center justify-between w-full">
+              <div className='flex items-center min-w-0 w-full'>
                 <div className="flex-shrink-0">
                   <img
-                    className="h-8 w-8 rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover border-2 border-white/30"
                     src={user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}`}
                     alt={user.name || user.username}
                   />
                 </div>
-                <div className="ml-2 min-w-0">
-                  <p className="text-sm font-medium text-black truncate">{user.name || user.username}</p>
-                  <p className="text-xs font-medium text-gray-600 truncate">{user.department || user.role} - {subdomain}</p>
+                <div className="ml-2 min-w-0 w-full">
+                  <p className="text-xs font-semibold text-white truncate">{user.displayName || user.name || user.username}</p>
+                  <p className="text-xs text-teal-100 truncate">{user.subdomain ? `${user.role}-${user.subdomain}` : (user.department || user.role)}</p>
                 </div>
               </div>
-              <div className="ml-2">
+              <div className="ml-1 flex-shrink-0">
                 {onLogout && <button 
-                  className="font-medium text-black p-1 text-lg hover:text-theme-red transition-colors duration-200"
+                  className="text-white p-1 hover:text-red-200 text-sm"
                   onClick={onLogout}
                 >
                   <FiLogOut />
@@ -167,14 +184,18 @@ const Sidebar = ({
           </div>
         )}
 
-        {/* Navigation Links - Updated with new theme and hover effects */}
-        <nav className="mt-3 px-2 space-y-1">
+        {/* Navigation Links */}
+        <nav className="mt-6 px-0 pb-10 space-y-2">
           {links.map((link, index) => {
+            // Define variables at the top to avoid scope issues
+            const isActive = location.pathname === link.to;
+            const isClicked = clickedItem === link.to;
+            
             // Handle header items
             if (link.isHeader) {
               return (
-                <div key={`header-${index}`} className="pt-4 pb-2">
-                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+                <div key={`header-${index}`} className="pt-4 pb-2 px-6">
+                  <h3 className="text-xs font-bold text-teal-200 uppercase tracking-wider">
                     {link.label}
                   </h3>
                 </div>
@@ -188,65 +209,53 @@ const Sidebar = ({
               const hasActiveChild = isAnyChildActive(link.children || []);
               
               return (
-                <div key={dropdownKey}>
+                <div key={dropdownKey} className="px-4">
                   <button
                     onClick={() => toggleDropdown(dropdownKey)}
                     className={`
-                      group flex items-center w-full px-2 py-2 text-base font-medium rounded-full 
-                      transition-all duration-300 
+                      group flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl
                       ${hasActiveChild 
-                        ? 'bg-theme-red text-white' 
-                        : 'text-black hover:bg-gray-100'
+                        ? 'bg-white text-[#0d9488] shadow-md' 
+                        : 'text-white hover:bg-white/10'
                       }
                     `}
                   >
                     {link.icon && (
-                      <span className="mr-3 h-8 w-8 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
+                      <span className={getIconClass(hasActiveChild, false)}>
                         {link.icon}
                       </span>
                     )}
                     <span className="flex-1 text-left truncate">{link.label}</span>
                     {link.badge && (
-                      <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
+                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5 flex-shrink-0">
                         {link.badge}
                       </span>
                     )}
-                    <span className="ml-2 flex-shrink-0">
-                      {isExpanded ? 
-                        <FaChevronUp className="h-4 w-4" /> : 
-                        <FaChevronDown className="h-4 w-4" />
-                      }
+                    <span className={`ml-2 ${isExpanded ? 'rotate-180' : ''}`}>
+                       <FaChevronDown className="h-3 w-3" />
                     </span>
                   </button>
                   
                   {/* Dropdown children */}
-                  <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`${isExpanded ? 'block' : 'hidden'}`}>
                     <div className="pl-4 space-y-1 mt-1">
                       {link.children?.map((child) => (
                         <Link
                           key={child.to}
                           to={child.to}
                           className={`
-                            group flex items-center px-2 py-2 text-sm font-medium rounded-full 
-                            transition-all duration-300 
+                            group flex items-center px-4 py-2 text-sm font-medium rounded-xl mx-2
                             ${location.pathname === child.to 
-                              ? 'bg-theme-red text-white border-l-2 border-white' 
-                              : 'text-black hover:bg-gray-100'
+                              ? 'bg-white/20 text-white' 
+                              : 'text-teal-100 hover:text-white hover:bg-white/10'
                             }
                           `}
-                          onClick={closeSidebar}
+                          onClick={() => handleItemClick(child.to)}
                         >
-                          {child.icon && (
-                            <span className="mr-3 h-6 w-6 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
-                              {child.icon}
-                            </span>
-                          )}
+                          <span className={getIconClass(location.pathname === child.to, clickedItem === child.to)}>
+                            {child.icon}
+                          </span>
                           <span className="flex-1 text-left truncate">{child.label}</span>
-                          {child.badge && (
-                            <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
-                              {child.badge}
-                            </span>
-                          )}
                         </Link>
                       ))}
                     </div>
@@ -256,36 +265,68 @@ const Sidebar = ({
             }
             
             // Handle regular navigation items
+            // Variables are already defined at the top
+            
             return (
+              <div key={link.to} className={`relative ${isActive ? 'px-0 pl-0' : 'px-4'}`}>
+                 {isActive && (
+                    <>
+                        {/* CSS trick to create the curve effect above and below active item */}
+                        <div className="absolute right-0 top-[-20px] w-5 h-5 bg-transparent rounded-br-3xl shadow-[5px_5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
+                        <div className="absolute right-0 bottom-[-20px] w-5 h-5 bg-transparent rounded-tr-3xl shadow-[5px_-5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
+                    </>
+                 )}
               <Link
-                key={link.to}
                 to={link.to}
                 className={`
-                  group flex items-center px-2 py-2 text-base font-medium rounded-full 
-                  transition-all duration-300 
-                  ${location.pathname === link.to 
-                    ? 'bg-theme-red text-white' 
-                    : 'text-black hover:bg-gray-100'
+                  group flex items-center px-6 py-3.5 text-sm font-medium
+                  relative
+                  ${isActive 
+                    ? `${activeBg} ${activeText} rounded-l-full ml-4 shadow-sm z-0 md:rounded-r-none md:rounded-l-full` 
+                    : 'text-white hover:bg-white/10 rounded-xl'
                   }
+                  md:${isActive ? 'rounded-l-full ml-4' : 'rounded-xl'}
+                  ${isActive ? 'mobile-active-item' : ''}
                 `}
-                onClick={closeSidebar}
+                onClick={() => handleItemClick(link.to)}
               >
                 {link.icon && (
-                  <span className="mr-3 h-8 w-8 flex items-center justify-center rounded-full bg-white flex-shrink-0 transition-all duration-300">
+                  <span className={getIconClass(isActive, isClicked)}>
                     {link.icon}
                   </span>
                 )}
                 <span className="flex-1 text-left truncate">{link.label}</span>
                 {link.badge && (
-                  <span className="ml-2 bg-theme-red text-white text-xs rounded-full px-2 py-1 flex-shrink-0">
+                  <span className={`ml-2 text-xs rounded-full px-2 py-0.5 flex-shrink-0 ${isActive ? 'bg-[#0d9488] text-white' : 'bg-white text-[#0d9488]'}`}>
                     {link.badge}
                   </span>
                 )}
               </Link>
+              </div>
             );
           })}
         </nav>
       </div>
+      
+      {/* Mobile specific styles for active item - converted to standard style tag */}
+      <style>{`
+        @media (max-width: 767px) {
+          .mobile-active-item {
+            border-top-right-radius: 2rem !important;
+            border-bottom-right-radius: 2rem !important;
+            border-top-left-radius: 0.5rem !important;
+            border-bottom-left-radius: 0.5rem !important;
+            margin-left: 1rem !important;
+            margin-right: 1rem !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          }
+          
+          .sidebar-container {
+            border-top-right-radius: 30px !important;
+            border-bottom-right-radius: 30px !important;
+          }
+        }
+      `}</style>
     </>
   );
 };

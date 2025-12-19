@@ -148,108 +148,128 @@ const Dashboard = () => {
 
       {/* Improved responsive grid for salary cards */}
       <div
-        className="mb-6 rounded-lg p-4 md:p-6 shadow-lg bg-black"
+        className="mb-6 rounded-3xl p-6 shadow-lg bg-white text-gray-800 relative overflow-hidden border border-gray-100"
       >
-        <motion.h2
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 120, damping: 20, duration:0.5 }}
-          className="text-xl font-bold mb-5 text-red-600"
-        >
-          Welcome, {user?.username}!
-        </motion.h2>
-        <p className="mb-4 text-white">
-          Your workspace at{' '}
-          <motion.span
+        {/* Decorative circles */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#0d9488] opacity-5 rounded-full -mr-10 -mt-10"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#0d9488] opacity-5 rounded-full -ml-10 -mb-10"></div>
+        
+        <div className="relative z-10">
+          <motion.h2
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 120, damping: 20, duration: 0.5 }}
-            className="text-xl font-bold text-red-600"
+            transition={{ type: 'spring', stiffness: 120, damping: 20, duration:0.5 }}
+            className="text-2xl font-bold mb-2 text-[#0d9488]"
           >
-            {user?.subdomain}
-          </motion.span>
-        </p>
-        {/* Responsive grid that works well on all screen sizes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Base Salary with Icon */}
-          <div className="bg-white p-4 rounded-lg flex items-center space-x-4 min-w-0 border border-gray-200">
-          <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
-                        <FaMoneyBillAlt className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="min-w-0">
-             <p className="text-sm text-gray-600 truncate">Base Monthly Salary</p>
-             {baseSalary > 0 ? (
-                <CountUp
-                  start={0}
-                  end={baseSalary}
-                  duration={1}
-                  prefix="₹"
-                  decimals={2}
-                  className="text-2xl font-bold text-black truncate"
-                />
-              ) : (
-                <p className="text-2xl font-bold text-black truncate">N/A</p>
-              )}
-            </div>
-          </div>
-          {/* Final Monthly Salary with Icon */}
-          <div className="bg-white p-4 rounded-lg flex items-center space-x-4 min-w-0 border border-gray-200">
-          <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
-                      <FaMoneyBillAlt className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="min-w-0">
-            <p className="text-sm text-gray-600 truncate">Final Monthly Salary</p>
-             {finalSalary > 0 ? (
-                <div
-                  title={
-                    `Base: ₹${baseSalary.toFixed(2)} | ` +
-                    `Allowances: ₹${allowances.toFixed(2)} | ` +
-                    `Deductions: ₹${deductions.toFixed(2)}`
-                  }
-                >
-                  <CountUp
-                    start={0}
-                    end={finalSalary}
-                    duration={1}
-                    prefix="₹"
-                    decimals={2}
-                    className="text-2xl font-bold text-black truncate"
-                  />
-                </div>
-              ) : (
-                <p className="text-2xl font-bold text-black truncate">N/A</p>
-              )}
-            </div>
-          </div>
-          {/* Face Attendance Card - Changed to button that opens popup */}
-          <button 
-            onClick={() => setShowFaceAttendance(true)}
-            className="bg-white p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-50 transition-colors min-w-0 border border-gray-200"
-          >
-            <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
-              <FaCamera className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm text-gray-600 truncate">Face Attendance</p>
-              <p className="text-lg font-bold text-black truncate">Mark Attendance</p>
-            </div>
-          </button>
+            Welcome, {user?.name || user?.username}!
+          </motion.h2>
+          <p className="text-gray-600 text-sm mb-6">
+            Your workspace at{' '}
+            <motion.span
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 120, damping: 20, duration: 0.5 }}
+              className="font-bold text-[#0d9488]"
+            >
+              {user?.subdomain}
+            </motion.span>
+          </p>
           
-          {/* RFID Attendance Card - Changed to button that opens popup */}
-          <button 
-            onClick={() => setShowRFIDAttendance(true)}
-            className="bg-white p-4 rounded-lg flex items-center space-x-4 hover:bg-gray-50 transition-colors min-w-0 border border-gray-200"
-          >
-            <div className="bg-white p-3 rounded-full flex-shrink-0 border border-gray-300 shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+          {/* Responsive grid that works well on all screen sizes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Base Salary with Icon */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
+                  <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-600 truncate">Base Monthly Salary</p>
+                  {baseSalary > 0 ? (
+                    <CountUp
+                      start={0}
+                      end={baseSalary}
+                      duration={1}
+                      prefix="₹"
+                      decimals={2}
+                      className="text-xl font-bold text-gray-800 truncate"
+                    />
+                  ) : (
+                    <p className="text-xl font-bold text-gray-800 truncate">N/A</p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm text-gray-600 truncate">RFID Attendance</p>
-              <p className="text-lg font-bold text-black truncate">Mark Attendance</p>
+            
+            {/* Final Monthly Salary with Icon */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
+                  <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-600 truncate">Final Monthly Salary</p>
+                  {finalSalary > 0 ? (
+                    <div
+                      title={
+                        `Base: ₹${baseSalary.toFixed(2)} | ` +
+                        `Allowances: ₹${allowances.toFixed(2)} | ` +
+                        `Deductions: ₹${deductions.toFixed(2)}`
+                      }
+                    >
+                      <CountUp
+                        start={0}
+                        end={finalSalary}
+                        duration={1}
+                        prefix="₹"
+                        decimals={2}
+                        className="text-xl font-bold text-gray-800 truncate"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-gray-800 truncate">N/A</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </button>
+            
+            {/* Attendance Cards */}
+            <div 
+              className="bg-gray-50 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => setShowFaceAttendance(true)}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
+                  <FaCamera className="h-6 w-6 text-[#0d9488]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-600 truncate">Face Attendance</p>
+                  <p className="text-sm font-bold text-[#0d9488] truncate">
+                    Mark Attendance
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className="bg-gray-50 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => setShowRFIDAttendance(true)}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#0d9488]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-600 truncate">RFID Attendance</p>
+                  <p className="text-sm font-bold text-[#0d9488] truncate">
+                    Mark Attendance
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

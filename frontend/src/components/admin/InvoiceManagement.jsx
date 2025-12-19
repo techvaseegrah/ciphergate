@@ -4,6 +4,7 @@ import Card from '../common/Card';
 import AdvancedInvoice from './AdvancedInvoice';
 import InvoiceHistory from './InvoiceHistory';
 import UnifiedInvoiceHistory from './UnifiedInvoiceHistory';
+import AdminDeleteHistory from './AdminDeleteHistory'; // Add this import
 import { getInvoices, getAllInvoices, createInvoice, updateInvoice, deleteInvoice, updateAdminLastViewed } from '../../services/invoiceService';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -73,20 +74,11 @@ const InvoiceManagement = () => {
     setActiveTab('advanced-invoice');
   };
 
+  // Handle delete invoice callback
   const handleDeleteInvoice = async (invoiceId) => {
-    try {
-      const response = await deleteInvoice(invoiceId);
-      if (response.success) {
-        // Refresh invoices list
-        await fetchInvoices();
-        toast.success('Invoice deleted successfully!');
-      } else {
-        toast.error('Failed to delete invoice: ' + response.message);
-      }
-    } catch (err) {
-      console.error('Error deleting invoice:', err);
-      toast.error('Error deleting invoice: ' + (err.message || 'Unknown error'));
-    }
+    // Refresh invoices list after deletion
+    await fetchInvoices();
+    toast.success('Invoice deleted successfully!');
   };
 
   return (
@@ -140,7 +132,7 @@ const InvoiceManagement = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            My Invoices
+            Invoice History
           </button>
           <button
             onClick={() => setActiveTab('unified-history')}
@@ -151,6 +143,16 @@ const InvoiceManagement = () => {
             }`}
           >
             All Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab('delete-history')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'delete-history'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Delete History
           </button>
         </nav>
       </div>
@@ -167,14 +169,17 @@ const InvoiceManagement = () => {
           <InvoiceHistory 
             invoices={invoices} 
             onEditInvoice={handleEditInvoice}
-            onDeleteInvoice={handleDeleteInvoice}
+            onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />
         )}
         {activeTab === 'unified-history' && (
           <UnifiedInvoiceHistory 
             onEditInvoice={handleEditInvoice}
-            onDeleteInvoice={handleDeleteInvoice}
+            onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />
+        )}
+        {activeTab === 'delete-history' && (
+          <AdminDeleteHistory />
         )}
       </div>
     </div>

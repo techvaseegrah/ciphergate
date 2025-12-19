@@ -638,7 +638,7 @@ const AttendanceManagement = () => {
                                 <button
                                     onClick={loadMoreAttendance}
                                     disabled={isFetchingMore}
-                                    className="flex items-center px-4 py-2 bg-theme-red text-white rounded-full hover:bg-white hover:text-theme-red border-2 border-theme-red transition-colors disabled:opacity-50"
+                                    className="flex items-center px-5 py-2 bg-[#0d9488] text-white rounded-xl shadow-md hover:bg-[#0f766e] transition-colors disabled:opacity-50"
                                 >
                                     {isFetchingMore ? (
                                         <>

@@ -965,6 +965,23 @@ support period.`;
                 size: A4;
                 margin: 20mm;
               }
+              /* Mobile Invoice Scaling for Print */
+              @media (max-width: 768px) {
+                .mobile-invoice-container {
+                  transform-origin: top center;
+                  transform: scale(0.8);
+                  width: 125%;
+                  margin-left: -12.5%;
+                }
+              }
+              
+              @media (max-width: 480px) {
+                .mobile-invoice-container {
+                  transform: scale(0.65);
+                  width: 154%;
+                  margin-left: -27%;
+                }
+              }
             }
             body {
               font-family: 'Poppins', sans-serif;
@@ -1032,6 +1049,7 @@ support period.`;
               font-weight: bold;
               display: inline-block;
               width: 35mm;
+
             }
             .address-section {
               display: flex;
@@ -1347,9 +1365,9 @@ support period.`;
     <div className="max-w-6xl mx-auto p-4 bg-white font-sans">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-xl font-bold text-gray-800">
-          {initialData ? 'Edit Invoice' : 'Advanced Invoice Creator'}
+          {initialData ? 'Edit Invoice' : 'Worker Invoice'}
         </h1>
-        <div className="space-x-2">
+        <div className="space-x-2 invoice-action-buttons">
           <button 
             onClick={() => {
               // Validate that all items have descriptions before saving
@@ -1383,11 +1401,11 @@ support period.`;
         </div>
       </div>
 
-      {/* Invoice Preview */}
+      {/* Invoice Preview - Added mobile-responsive container with scaling */}
       <div className="bg-white p-6 border border-gray-300 rounded-lg mb-6">
         <div 
           ref={invoiceRef} 
-          className="max-w-4xl mx-auto bg-white"
+          className="max-w-4xl mx-auto bg-white mobile-invoice-container"
           style={{ 
             fontFamily: 'Poppins, sans-serif',
             color: '#333',

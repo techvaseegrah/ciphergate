@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react'; // Add React import
+import React, { useState, useEffect, useContext, Suspense } from 'react';
 import { useNavigate, Outlet, Routes, Route, Navigate } from 'react-router-dom';
 import {
   FaHome,
@@ -21,6 +21,7 @@ import {
   FaAsterisk,
   FaWhatsapp
 } from 'react-icons/fa';
+import { IoMdSettings } from 'react-icons/io';
 
 import { useAuth } from '../../hooks/useAuth';
 import { getAllLeaves } from '../../services/leaveService';
@@ -29,9 +30,6 @@ import { getNewInvoiceCount } from '../../services/invoiceService';
 import Sidebar from './Sidebar';
 import QuestionGenerationTracker from '../admin/QuestionGenerationTracker';
 import appContext from '../../context/AppContext';
-import { IoMdSettings } from 'react-icons/io';
-
-import { Suspense } from 'react';
 
 // Import management components
 import WorkerManagement from '../admin/WorkerManagement';
@@ -50,8 +48,8 @@ import GoWhatsIntegration from '../admin/GoWhatsIntegration';
 import HolidayManagement from '../admin/HolidayManagement';
 import Settings from '../admin/Settings';
 import WorkerAttendance from '../admin/WorkerAttendance';
-import InvoiceManagement from '../admin/InvoiceManagement'; // Add Invoice Management
-import AdminDashboard from '../../pages/Admin/AdminDashboard'; // Add this import
+import InvoiceManagement from '../admin/InvoiceManagement'; 
+import AdminDashboard from '../../pages/Admin/AdminDashboard'; 
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -65,17 +63,14 @@ const AdminLayout = () => {
   const [newComments, setNewComments] = useState(0);
   const [newInvoices, setNewInvoices] = useState(0);
   
-  // Global question generation tracker state (for future use)
   const [showGlobalTracker] = useState(false);
   
   const navigate = useNavigate();
   const { subdomain } = useContext(appContext);
 
-  // Check for new comments and leave updates
   useEffect(() => {
     const fetchNotificationCounts = async () => {
       try {
-        // Fetch leaves
         const leaves = await getAllLeaves({ subdomain }) || [];
         const unviewedLeaves = Array.isArray(leaves) ? leaves.filter(leave =>
           !leave.workerViewed &&
@@ -83,7 +78,6 @@ const AdminLayout = () => {
         ).length : 0;
         setPendingLeaves(unviewedLeaves);
 
-        // Fetch comments
         const comments = await getAllComments({ subdomain });
         const newUnreadComments = comments.filter(comment =>
           comment.isNew ||
@@ -91,7 +85,6 @@ const AdminLayout = () => {
         ).length;
         setNewComments(newUnreadComments);
 
-        // Fetch new invoice count
         const invoiceData = await getNewInvoiceCount();
         setNewInvoices(invoiceData.data?.count || 0);
       } catch (error) {
@@ -111,115 +104,92 @@ const AdminLayout = () => {
     navigate('/admin/login');
   };
 
-  // Multi-color icon scheme
-  const iconColors = {
-    dashboard: '#4CAF50', // Green
-    workers: '#2196F3', // Blue
-    salary: '#FF9800', // Orange
-    attendance: '#F44336', // Red
-    departments: '#9C27B0', // Purple
-    food: '#795548', // Brown
-    tasks: '#00BCD4', // Cyan
-    columns: '#607D8B', // Blue Grey
-    topics: '#E91E63', // Pink
-    customTasks: '#FF5722', // Deep Orange
-    leaves: '#8BC34A', // Light Green
-    gowhats: '#00E676', // Green A400
-    holidays: '#00E5FF', // Cyan A400
-    notifications: '#FFD600', // Yellow A400
-    comments: '#64FFDA', // Teal A400
-    invoices: '#FFAB00', // Orange A700
-    test: '#7C4DFF', // Deep Purple A400
-    history: '#FF4081', // Pink A400
-    scores: '#18FFFF', // Cyan A400
-    scoreboard: '#FF6E40', // Deep Orange A400
-    settings: '#78909C' // Blue Grey 300
-  };
+  // NOTE: Removed hardcoded iconColors to allow Sidebar CSS to control active/inactive state colors
+  // Icons now inherit text color from parent (White for inactive, Teal for active)
 
   const sidebarLinks = [
     {
       to: '/admin',
-      icon: <FaHome style={{ color: iconColors.dashboard }} />,
+      icon: <FaHome />,
       label: 'Dashboard'
     },
     {
       to: '/admin/workers',
-      icon: <FaUsers style={{ color: iconColors.workers }} />,
+      icon: <FaUsers />,
       label: 'Employees'
     },
     {
       to: '/admin/salary',
-      icon: <FaDollarSign style={{ color: iconColors.salary }} />,
+      icon: <FaDollarSign />,
       label: 'Salary'
     },
     {
       to: '/admin/invoices',
-      icon: <FaDollarSign style={{ color: iconColors.invoices }} />,
+      icon: <FaDollarSign />,
       label: 'Invoices',
       badge: newInvoices > 0 ? newInvoices : null
     },
     {
       to: '/admin/attendance',
-      icon: <FaRegCalendarCheck style={{ color: iconColors.attendance }} />,
+      icon: <FaRegCalendarCheck />,
       label: 'Attendance'
     },
     {
       to: '/admin/departments',
-      icon: <FaBuilding style={{ color: iconColors.departments }}/>,
+      icon: <FaBuilding />,
       label: 'Departments'
     },
 
     {
       to: '/admin/food-requests',
-      icon: <FaPizzaSlice style={{ color: iconColors.food }}/>,
+      icon: <FaPizzaSlice />,
       label: 'Food Requests'
     },
     {
       to: '/admin/tasks',
-      icon: <FaTasks style={{ color: iconColors.tasks }}/>,
+      icon: <FaTasks />,
       label: 'Tasks'
     },
     {
       to: '/admin/columns',
-      icon: <FaColumns style={{ color: iconColors.columns }}/>,
+      icon: <FaColumns />,
       label: 'columns'
     },
     {
       to: '/admin/topics',
-      icon: <FaTags style={{ color: iconColors.topics }}/>,
+      icon: <FaTags />,
       label: 'Topics'
     },
     {
       to: '/admin/custom-tasks',
-      icon: <FaClipboardList style={{ color: iconColors.customTasks }}/>,
+      icon: <FaClipboardList />,
       label: 'Custom Tasks'
     },
     {
       to: '/admin/leaves',
-      icon: <FaCalendarAlt style={{ color: iconColors.leaves }}/>,
+      icon: <FaCalendarAlt />,
       label: 'Leave Requests',
       badge: pendingLeaves > 0 ? pendingLeaves : null
     },
     {
       to: '/admin/gowhats',
-      icon: <FaWhatsapp style={{ color: iconColors.gowhats }}/>,
+      icon: <FaWhatsapp />,
       label: 'GoWhats',
-      // badge: pendingLeaves > 0 ? pendingLeaves : null
     },
     {
       to: '/admin/holidays',
-      icon: <FaAsterisk style={{ color: iconColors.holidays }}/>,
+      icon: <FaAsterisk />,
       label: 'Holidays'
     },
     {
       to: '/admin/notifications',
-      icon: <FaRegBell style={{ color: iconColors.notifications }}/>,
+      icon: <FaRegBell />,
       label: 'Notifications',
       badge: newComments > 0 ? newComments : null
     },
     {
       to: '/admin/comments',
-      icon: <FaComments style={{ color: iconColors.comments }}/>,
+      icon: <FaComments />,
       label: 'Comments',
       badge: newComments > 0 ? newComments : null
     },
@@ -228,39 +198,39 @@ const AdminLayout = () => {
     {
       label: 'Test Management',
       isDropdown: true,
-      icon: <FaQuestionCircle style={{ color: iconColors.test }} />,
+      icon: <FaQuestionCircle />,
       children: [
         {
           to: '/admin/test/generate-questions',
-          icon: <FaQuestionCircle style={{ color: iconColors.test }} />,
+          icon: <FaQuestionCircle />,
           label: 'Generate Questions'
         },
         {
           to: '/admin/test/question-history',
-          icon: <FaHistory style={{ color: iconColors.history }} />,
+          icon: <FaHistory />,
           label: 'Questions History'
         },
         {
           to: '/admin/test/employee-scores',
-          icon: <FaChartBar style={{ color: iconColors.scores }} />,
+          icon: <FaChartBar />,
           label: 'Employee Scores'
         },
         {
           to: '/admin/test/global-scoreboard',
-          icon: <FaTrophy style={{ color: iconColors.scoreboard }} />,
+          icon: <FaTrophy />,
           label: 'Global Scoreboard'
         }
       ]
     },
     {
       to: '/admin/settings',
-      icon: <IoMdSettings style={{ color: iconColors.settings }}/>,
+      icon: <IoMdSettings />,
       label: 'Settings',
     }
   ];
 
   return (
-    <div className="flex h-screen bg-light">
+    <div className="flex h-screen bg-[#f3f4f6]">
       <Sidebar
         links={sidebarLinks}
         logoText="Admin Dashboard"
@@ -290,7 +260,7 @@ const AdminLayout = () => {
             <Route path="gowhats" element={<GoWhatsIntegration />} />
             <Route path="invoices" element={<InvoiceManagement />} />
             
-            {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
+            {/* Test Management Routes */}
             <Route path="test/generate-questions" element={
               <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
                 <GenerateQuestions />
@@ -312,13 +282,11 @@ const AdminLayout = () => {
               </Suspense>
             } />
             
-            {/* Catch-all route for unknown admin paths */}
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>
       </div>
       
-      {/* Global Question Generation Tracker - Available for future enhancements */}
       <QuestionGenerationTracker
         isVisible={showGlobalTracker}
         onClose={() => {}}

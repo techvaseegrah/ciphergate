@@ -23,6 +23,16 @@ router.route('/admin-viewed')
 router.route('/new-count')
   .get(adminOnly, invoiceController.getNewInvoiceCount);
 
+// Routes for delete history
+router.route('/delete-history/admin')
+  .get(adminOnly, invoiceController.getDeleteHistoryForAdmin);
+
+router.route('/delete-history/worker')
+  .get(adminOrWorker, invoiceController.getDeleteHistoryForWorker);
+
+router.route('/delete-history/:id')
+  .get(adminOrWorker, invoiceController.getDeletedInvoiceById);
+
 // Individual invoice routes (allow both admin and worker for their own invoices)
 router.route('/:id')
   .get(adminOrWorker, invoiceController.getInvoiceById)

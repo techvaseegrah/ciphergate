@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import Card from '../common/Card';
 import AdvancedInvoice from '../admin/AdvancedInvoice';
 import WorkerInvoiceHistory from './WorkerInvoiceHistory';
+import WorkerDeleteHistory from './WorkerDeleteHistory'; // Add this import
 import { useAuth } from '../../hooks/useAuth';
 import { getInvoices, createInvoice, updateInvoice } from '../../services/invoiceService';
 
@@ -82,6 +83,13 @@ const WorkerInvoiceManagement = () => {
     setActiveTab('advanced-invoice');
   };
 
+  // Handle delete invoice callback
+  const handleDeleteInvoice = async (invoiceId) => {
+    // Refresh invoices list after deletion
+    await fetchInvoices();
+    toast.success('Invoice deleted successfully!');
+  };
+
   // Create a wrapper function that includes worker information
   const handleInvoiceSaveWithWorkerInfo = (invoiceData) => {
     handleInvoiceSave(invoiceData);
@@ -140,6 +148,16 @@ const WorkerInvoiceManagement = () => {
           >
             Invoice History
           </button>
+          <button
+            onClick={() => setActiveTab('delete-history')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'delete-history'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Delete History
+          </button>
         </nav>
       </div>
 
@@ -155,7 +173,11 @@ const WorkerInvoiceManagement = () => {
           <WorkerInvoiceHistory 
             invoices={invoices} 
             onEditInvoice={handleEditInvoice}
+            onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />
+        )}
+        {activeTab === 'delete-history' && (
+          <WorkerDeleteHistory />
         )}
       </div>
     </div>

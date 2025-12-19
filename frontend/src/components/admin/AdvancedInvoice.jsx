@@ -806,6 +806,23 @@ temporarily interrupt app availability. We will provide advance notice when poss
               .footer-container {
                  page-break-inside: avoid;
               }
+              /* Mobile Invoice Scaling for Print */
+              @media (max-width: 768px) {
+                .mobile-invoice-container {
+                  transform-origin: top center;
+                  transform: scale(0.8);
+                  width: 125%;
+                  margin-left: -12.5%;
+                }
+              }
+              
+              @media (max-width: 480px) {
+                .mobile-invoice-container {
+                  transform: scale(0.65);
+                  width: 154%;
+                  margin-left: -27%;
+                }
+              }
             }
             body {
               font-family: 'Poppins', sans-serif;
@@ -847,6 +864,98 @@ temporarily interrupt app availability. We will provide advance notice when poss
               margin-bottom: 6mm;
             }
             .divider-green {
+              background-color: #8cb23f;
+              width: 15%;
+            }
+            .divider-gray {
+              background-color: #d1d5db;
+              width: 85%;
+            }
+            .invoice-details {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10mm;
+            }
+            .invoice-details .left {
+              width: 45%;
+            }
+            .invoice-details .right {
+              width: 45%;
+              text-align: right;
+            }
+            .invoice-details .right .label {
+              font-weight: bold;
+            }
+            .invoice-details .right .value {
+              margin-left: 10px;
+            }
+            .customer-details {
+              margin-bottom: 10mm;
+            }
+            .customer-details .label {
+              font-weight: bold;
+            }
+            .customer-details .value {
+              margin-left: 10px;
+            }
+            .table-container {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 10mm;
+            }
+            .table-container th, .table-container td {
+              border: 1px solid #d1d5db;
+              padding: 4px;
+              text-align: center;
+            }
+            .table-container th {
+              background-color: #00843d;
+              color: white;
+              font-weight: bold;
+            }
+            .table-container .total-row {
+              font-weight: bold;
+            }
+            .table-container .total-row td {
+              background-color: #e9f7ec;
+            }
+            .footer-container {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: auto;
+            }
+            .footer-container .payment-method {
+              width: 45%;
+            }
+            .footer-container .payment-method .label {
+              font-weight: bold;
+            }
+            .footer-container .payment-method .value {
+              margin-left: 10px;
+            }
+            .footer-container .seal {
+              width: 45%;
+              text-align: right;
+            }
+            .footer-container .seal img {
+              width: 35mm;
+              height: 30mm;
+              object-fit: contain;
+            }
+            .thank-you {
+              text-align: center;
+              margin-top: 10mm;
+              font-weight: bold;
+            }
+            .thank-you .divider-green {
+              background-color: #8cb23f;
+              width: 15%;
+            }
+            .thank-you .divider-gray {
+              background-color: #d1d5db;
+              width: 85%;
+            }
               width: 15%;
               background-color: #8cc63f;
             }
@@ -894,6 +1003,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
             }
             .address-text {
               white-space: pre-line;
+
               line-height: 1.2;
               font-size: 12px; 
             }
@@ -1018,7 +1128,7 @@ temporarily interrupt app availability. We will provide advance notice when poss
           </style>
         </head>
         <body>
-          <div class="invoice-container">
+          <div class="invoice-container mobile-invoice-container">
             <div>
                 <div class="header">
                 <img src="/Invoicelogo.png" alt="Company Logo" class="logo" />
@@ -1209,14 +1319,17 @@ temporarily interrupt app availability. We will provide advance notice when poss
         <h1 className="text-xl font-bold text-gray-800">
           {initialData ? 'Edit Invoice' : 'Advanced Invoice Creator'}
         </h1>
-        <div className="space-x-2">
+        <div className="space-x-2 invoice-action-buttons">
           <button 
             onClick={() => {
+              // Validate that all items have descriptions before saving
               const hasEmptyDescriptions = invoiceData.items.some(item => !item.description || item.description.trim() === '');
               if (hasEmptyDescriptions) {
                 toast.error('Please fill in descriptions for all items before saving.');
                 return;
               }
+              
+              // Save invoice to backend
               if (onInvoiceSave) {
                 onInvoiceSave({ ...invoiceData, _id: initialData?._id });
               }
@@ -1240,10 +1353,11 @@ temporarily interrupt app availability. We will provide advance notice when poss
         </div>
       </div>
 
+      {/* Invoice Preview - Added mobile-responsive container with scaling */}
       <div className="bg-white p-6 border border-gray-300 rounded-lg mb-6">
         <div 
           ref={invoiceRef} 
-          className="max-w-4xl mx-auto bg-white"
+          className="max-w-4xl mx-auto bg-white mobile-invoice-container"
           style={{ 
             fontFamily: 'Poppins, sans-serif',
             color: '#333',
