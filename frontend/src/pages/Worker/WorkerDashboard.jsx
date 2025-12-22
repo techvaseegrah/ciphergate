@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import WorkerLayout from '../../components/layout/WorkerLayout';
 import Dashboard from '../../components/worker/Dashboard';
@@ -14,13 +15,21 @@ import RFIDAttendance from '../../components/worker/RFIDAttendance'; // Import R
 import WorkerInvoiceManagement from '../../components/worker/WorkerInvoiceManagement'; // Import Invoice Management
 
 const WorkerDashboard = () => {
+  // State to track if a test is in progress
+  const [isTestInProgress, setIsTestInProgress] = useState(false);
+
+  // Handler to update test state
+  const handleTestStateChange = (inProgress) => {
+    setIsTestInProgress(inProgress);
+  };
+
   return (
-    <WorkerLayout>
+    <WorkerLayout isTestInProgress={isTestInProgress}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/attendance" element={<AttendanceReport />} />
         <Route path="/daily-topics" element={<DailyTopics />} />
-        <Route path="/tests" element={<WorkerTest />} />
+        <Route path="/tests" element={<WorkerTest onTestStateChange={handleTestStateChange} />} />
         <Route path="/leave-apply" element={<LeaveApplication />} />
         <Route path="/leave-requests" element={<LeaveRequests />} />
         <Route path="/comments" element={<Comments />} />

@@ -23,7 +23,7 @@ const startServer = async () => {
         const allowedOrigins = [
           'http://localhost:3000',
           'https://tvtasks.netlify.app',
-          'https://techvaseegrah.ciphergate.in/',
+          'https://techvaseegrah.ciphergate.in',
         ];
         const regex = /^http:\/\/.*\.localhost:3000$/; // Allow subdomains of localhost:3000
 

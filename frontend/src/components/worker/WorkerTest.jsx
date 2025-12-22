@@ -15,7 +15,7 @@ import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { getTestDetails } from '../../services/testService';
 
-const WorkerTest = () => {
+const WorkerTest = ({ onTestStateChange }) => { // Add prop for notifying test state changes
     const { user } = useAuth();
     const [step, setStep] = useState('dashboard'); // 'dashboard', 'test', 'result', 'scoreboard'
     const [availableTests, setAvailableTests] = useState([]);
@@ -288,6 +288,13 @@ const WorkerTest = () => {
         setFilteredScoreboard(filtered);
     }, [searchTerm, scoreboard]);
 
+    // Notify parent component about test state changes
+    useEffect(() => {
+        if (onTestStateChange) {
+            onTestStateChange(step === 'test');
+        }
+    }, [step, onTestStateChange]);
+
     const startTest = async (test) => {
         try {
             setLoading(true);
@@ -450,6 +457,11 @@ const WorkerTest = () => {
                 setTestResults(response.data);
                 setStep('result');
                 
+                // Notify parent that test is no longer in progress
+                if (onTestStateChange) {
+                    onTestStateChange(false);
+                }
+                
                 // Refresh test data
                 fetchAvailableTests();
                 fetchTestHistory();
@@ -473,6 +485,11 @@ const WorkerTest = () => {
                 });
                 setStep('result');
                 
+                // Notify parent that test is no longer in progress
+                if (onTestStateChange) {
+                    onTestStateChange(false);
+                }
+                
                 // Still show scoreboard after 5 seconds even if there was an error
                 console.log('Test submitted with issues, showing results for 5 seconds before redirecting to scoreboard');
                 setTimeout(() => {
@@ -491,6 +508,11 @@ const WorkerTest = () => {
                 message: 'Test submitted with technical issues.'
             });
             setStep('result');
+            
+            // Notify parent that test is no longer in progress
+            if (onTestStateChange) {
+                onTestStateChange(false);
+            }
             
             // Still show scoreboard after 5 seconds even if there was an error
             console.log('Test submitted with technical issues, showing results for 5 seconds before redirecting to scoreboard');
@@ -516,6 +538,12 @@ const WorkerTest = () => {
         setShowWarning(false);
         setTestResults(null);
         testCompletedNaturally.current = false; // Reset the flag
+        
+        // Notify parent that test is no longer in progress
+        if (onTestStateChange) {
+            onTestStateChange(false);
+        }
+        
         // Exit fullscreen if still in fullscreen mode
         if (document.fullscreenElement) {
             document.exitFullscreen().catch(err => console.log('Error exiting fullscreen:', err));
@@ -527,6 +555,11 @@ const WorkerTest = () => {
         setSelectedDate(''); // Clear any date filter
         fetchScoreboard();
         setStep('scoreboard');
+        
+        // Notify parent that test is no longer in progress
+        if (onTestStateChange) {
+            onTestStateChange(false);
+        }
     };
 
     const formatTime = (seconds) => {

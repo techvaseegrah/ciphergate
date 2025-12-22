@@ -190,9 +190,6 @@ const Dashboard = () => {
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">Departments</h2>
-              <Link to="/admin/departments" className="text-[#0d9488] text-sm font-semibold hover:underline flex items-center">
-                Show all <FaArrowRight className="ml-1 text-xs" />
-              </Link>
             </div>
 
             <div className="overflow-x-auto">
@@ -201,8 +198,7 @@ const Dashboard = () => {
                   {departments.map((department) => (
                     <div 
                       key={department._id} 
-                      className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/admin/workers?department=${department._id}`)}
+                      className="border border-gray-200 rounded-xl p-4"
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center">
@@ -215,9 +211,6 @@ const Dashboard = () => {
                               {department.workerCount || 0} Employee{(department.workerCount || 0) !== 1 ? 's' : ''}
                             </p>
                           </div>
-                        </div>
-                        <div className="bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-600">
-                          View
                         </div>
                       </div>
                     </div>

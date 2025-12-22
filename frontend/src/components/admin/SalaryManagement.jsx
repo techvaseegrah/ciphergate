@@ -375,15 +375,13 @@ const SalaryManagement = () => {
         };
         
         const summaryData = [
+            ['Employee Name', selectedWorker?.name], // Added Employee Name to match UI
             ['Employee ID', selectedWorker?.rfid],
             ['Original Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
             ['Actual Earned Salary', formatCurrencyForPDF(reportData.report.summary?.finalSalary || 0)],
             // ADD FINE INFORMATION TO THE SUMMARY
             ...(reportData.totalFinesAmount > 0 ? [
                 ['Total Fines', formatCurrencyForPDF(reportData.totalFinesAmount)]
-            ] : []),
-            ...(reportData.totalBonusAmount > 0 ? [
-                ['Bonus Amount Applied', formatCurrencyForPDF(reportData.totalBonusAmount)]
             ] : []),
             ['Total Final Salary', formatCurrencyForPDF(reportData.finalSalaryWithFines || 0)],
             ['Total Days in Period', reportData.report.summary?.totalDaysInPeriod || 0],
@@ -431,22 +429,91 @@ const SalaryManagement = () => {
             }
         });
         
+        // Add bonus period details if there are bonuses
+        if (reportData.totalBonusAmount > 0 && reportData.bonuses && reportData.bonuses.length > 0) {
+            doc.addPage();
+            doc.setFontSize(18);
+            doc.text('Bonus Details', 14, 20);
+            
+            const bonusColumns = ['Period', 'From Date', 'To Date', 'Amount'];
+            const bonusRows = reportData.bonuses.map((bonus, index) => [
+                `Bonus Period ${index + 1}`,
+                new Date(bonus.fromDate).toLocaleDateString(),
+                new Date(bonus.toDate).toLocaleDateString(),
+                formatCurrencyForPDF(bonus.amount)
+            ]);
+            
+            doc.setFontSize(12);
+            autoTable(doc, {
+                startY: 30,
+                head: [bonusColumns],
+                body: bonusRows,
+                theme: 'striped',
+                headStyles: { fillColor: [52, 73, 94] },
+                styles: { 
+                    fontSize: 9,
+                    font: 'helvetica',
+                    cellPadding: 2
+                }
+            });
+        }
+        
+        // Add detailed fines table if there are fines
+        if (reportData.worker?.fines && reportData.worker.fines.length > 0) {
+            const filteredFines = reportData.worker.fines.filter(fine => {
+                const fineDate = new Date(fine.date);
+                const fromDate = new Date(reportDateRange.fromDate);
+                const toDate = new Date(reportDateRange.toDate);
+                return fineDate >= fromDate && fineDate <= toDate;
+            });
+            
+            if (filteredFines.length > 0) {
+                doc.addPage();
+                doc.setFontSize(18);
+                doc.text('Fines', 14, 20);
+                
+                const finesColumns = ['Date', 'Amount', 'Reason'];
+                const finesRows = filteredFines.map(fine => [
+                    new Date(fine.date).toLocaleDateString(),
+                    formatCurrencyForPDF(fine.amount),
+                    fine.reason
+                ]);
+                
+                doc.setFontSize(12);
+                autoTable(doc, {
+                    startY: 30,
+                    head: [finesColumns],
+                    body: finesRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [52, 73, 94] },
+                    styles: { 
+                        fontSize: 9,
+                        font: 'helvetica',
+                        cellPadding: 2
+                    }
+                });
+            }
+        }
+        
         doc.addPage();
         doc.setFontSize(18);
         doc.text('Daily Breakdown', 14, 20);
+        // Updated table columns to match UI - added Total Salary column
         const tableColumn = [
             'Date', 'Status', 'In Time', 'Out Time',
-            'Delay Time', 'Delay Deduction'
+            'Delay Time', 'Delay Deduction', 'Total Salary'
         ];
         
         // Fix formatting for daily breakdown table
+        // Format Delay Deduction and Total Salary with "Rs" instead of "₹" for PDF
         const tableRows = reportData.report.report.map(row => [
             row.date,
             row.status,
             row.inTime,
             row.outTime,
             row.delayTime,
-            formatCurrencyForPDF(row.deductionAmount) // Ensure proper formatting for delay deduction
+            row.deductionAmount.replace('₹', 'Rs '), // Replace ₹ with Rs for Delay Deduction
+            row.totalSalary.replace('₹', 'Rs ') // Replace ₹ with Rs for Total Salary
         ]);
         
         // Set font properties for daily breakdown table
@@ -465,7 +532,8 @@ const SalaryManagement = () => {
                 cellPadding: 1.5
             },
             columnStyles: {
-                5: { cellWidth: 30 } // Fixed width for delay deduction column
+                5: { cellWidth: 30 }, // Fixed width for delay deduction column
+                6: { cellWidth: 30 }  // Fixed width for total salary column
             }
         });
         doc.save(`salary_report_${selectedWorker.name}.pdf`);
