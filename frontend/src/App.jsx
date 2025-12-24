@@ -26,6 +26,8 @@ import AttendanceManagement from './components/admin/AttendanceManagement';
 import NotificationManagement from './components/admin/NotificationManagement';
 import SalaryManagement from './components/admin/SalaryManagement';
 import GoWhatsIntegration from './components/admin/GoWhatsIntegration';
+import InternCertificate from './components/admin/InternCertificate';
+import OfferLetter from './components/admin/OfferLetter';
 
 // Test Management Components - Lazy loaded to prevent initialization in worker sessions
 const GenerateQuestions = lazy(() => import('./components/admin/GenerateQuestions'));
@@ -48,6 +50,7 @@ import Settings from './components/admin/Settings';
 import ForgotPassword from './components/admin/ForgotPassword';
 import ResetPassword from './components/admin/ResetPassword';
 import HolidayManagement from './components/admin/HolidayManagement';
+import AcceptanceLetter from './components/admin/AcceptanceLetter';
 
 function App() {
   // Initialize subdomain with the actual value from localStorage immediately
@@ -167,6 +170,9 @@ function App() {
               <Route path="notifications" element={<NotificationManagement />} />
               <Route path="settings" element={<Settings />} />
               <Route path="gowhats" element={<GoWhatsIntegration />} />
+              <Route path="intern-certificate" element={<InternCertificate />} />
+              <Route path="offer-letter" element={<OfferLetter />} />
+              <Route path="acceptance-letter" element={<AcceptanceLetter />} />
               
               {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
               <Route path="test/generate-questions" element={

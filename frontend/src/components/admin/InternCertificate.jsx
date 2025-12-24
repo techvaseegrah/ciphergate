@@ -24,12 +24,12 @@ styleTag.innerHTML = `
   }
   .certificate-outer {
     background-color: #fdfaf5;
-    border: 15px solid #a67c52; /* Thick outer bronze border */
+    border: 15px solid #a67c52;
     padding: 6px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.15);
   }
   .certificate-inner {
-    border: 2px solid #a67c52; /* Inner border line */
+    border: 2px solid #a67c52;
     height: 100%;
     width: 100%;
     position: relative;
@@ -38,33 +38,22 @@ styleTag.innerHTML = `
     flex-direction: column;
     align-items: center;
   }
+  /* Custom radio button style */
+  .logo-option input[type="radio"] {
+    accent-color: #a67c52;
+    cursor: pointer;
+  }
 `;
 document.head.appendChild(styleTag);
 
-// UPDATED: Exact Vintage Baroque Corner Ornament from your reference
-const CornerOrnament = ({ className, style }) => (
-  <svg 
-    className={`absolute w-40 h-40 text-[#d4af37] pointer-events-none ${className}`} 
-    viewBox="0 0 100 100" 
-    fill="currentColor"
-    style={style}
-  >
-    {/* Main Scrollwork Body */}
-    <path d="M2,2 L2,35 C2,35 5,25 15,20 C25,15 35,15 35,15 L35,15 
-             C35,15 45,20 40,35 C35,50 15,55 15,55 C15,55 5,55 5,75 L5,90
-             C5,90 8,80 12,75 C16,70 25,70 25,70 C25,70 45,70 55,50 
-             C65,30 50,10 50,10 C50,10 65,15 75,12 C85,9 90,2 90,2 L2,2 Z" opacity="0.9"/>
-    
-    {/* Detailed Floral Accents & Swirls */}
-    <path d="M90,2 C90,2 75,15 65,25 C55,35 55,45 65,55 C75,65 85,60 85,60 
-             C85,60 75,60 70,70 C65,80 70,90 70,90
-             M2,90 C2,90 10,75 25,70 M45,45 C45,45 55,55 45,65 C35,75 25,65 25,65" 
-             fill="none" stroke="currentColor" strokeWidth="1.5" />
-             
-    {/* The distinctive Fan/Flower at the very corner vertex */}
-    <path d="M2,2 L25,25 M2,15 L15,2 M15,15 L30,30" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
-    <circle cx="5" cy="5" r="2" fill="currentColor" />
-  </svg>
+// Corner Image Component
+const CornerImage = ({ className }) => (
+  <img 
+    src="/border.png" 
+    alt="decoration" 
+    className={`absolute w-28 h-28 object-contain pointer-events-none ${className}`}
+    crossOrigin="anonymous" 
+  />
 );
 
 const InternCertificate = () => {
@@ -77,13 +66,29 @@ const InternCertificate = () => {
     toDate: '28-05-2025',
   });
 
+  // State for editable signatories
+  const [signatories, setSignatories] = useState({
+    sig1Name: 'Vijaya Mahadevan',
+    sig1Title: 'Proprietrix',
+    sig2Name: 'Sreekarrthikeyan',
+    sig2Title: 'Program Director'
+  });
+
   const [signatures, setSignatures] = useState({ sig1: null, sig2: null });
+  // Default to 'tech' or 'veda'
+  const [logoSelection, setLogoSelection] = useState('tech'); 
   const [isGenerating, setIsGenerating] = useState(false);
   const certificateRef = useRef();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handler for changing signatory text
+  const handleSignatoryChange = (e) => {
+    const { name, value } = e.target;
+    setSignatories(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSignatureUpload = (e, key) => {
@@ -99,12 +104,12 @@ const InternCertificate = () => {
     const input = certificateRef.current;
     setIsGenerating(true);
     
-    // Ensure fonts are loaded before capturing
     await document.fonts.ready;
 
     html2canvas(input, {
       scale: 3, 
       useCORS: true, 
+      allowTaint: true,
       backgroundColor: '#fdfaf5',
       scrollY: -window.scrollY, 
       onclone: (clonedDoc) => {
@@ -144,19 +149,193 @@ const InternCertificate = () => {
   return (
     <div className="min-h-screen bg-gray-300 py-12 flex flex-col items-center">
       
-      {/* Controls */}
-      <div className="w-[210mm] flex justify-between items-center mb-8 px-4">
+      {/* 1. Main Certificate Content */}
+      <div className="shadow-2xl"> 
+        <div ref={certificateRef} className="certificate-outer w-[210mm] h-[297mm] box-border mx-auto bg-[#fdfaf5]">
+          <div className="certificate-inner">
+            
+            {/* Corner Ornaments */}
+            <CornerImage className="top-0 left-0" />
+            <CornerImage className="top-0 right-0 rotate-90" />
+            <CornerImage className="bottom-0 left-0 -rotate-90" />
+            <CornerImage className="bottom-0 right-0 rotate-180" />
+
+            {/* Logo Section - Lightly Big Size */}
+            <div className="mt-10 mb-2 h-32 flex items-center justify-center">
+              {logoSelection === 'tech' && (
+                <img 
+                  src="/Invoicelogo.png" 
+                  alt="Tech Vaseegrah" 
+                  className="h-24 w-auto object-contain" 
+                  crossOrigin="anonymous" 
+                />
+              )}
+              {logoSelection === 'veda' && (
+                <img 
+                  src="/vaseveda.png" 
+                  alt="Vaseegrah Veda" 
+                  className="h-28 w-auto object-contain" 
+                  crossOrigin="anonymous" 
+                />
+              )}
+            </div>
+
+            {/* Main Labels */}
+            <h3 className="mt-2 text-2xl tracking-[0.4em] font-semibold text-gray-800" style={{ fontFamily: 'Cinzel, serif' }}>
+              INTERNSHIP
+            </h3>
+            
+            <h1 className="text-[78px] mt-2 mb-6 text-gray-900 leading-tight" style={{ fontFamily: 'Dancing Script, cursive', fontWeight: 500 }}>
+              Certificate of Completion
+            </h1>
+
+            <p className="text-xl text-gray-700 mb-6 italic" style={{ fontFamily: 'EB Garamond, serif', letterSpacing: '0.05em' }}>
+              This certificate is proudly awarded to
+            </p>
+
+            {/* Name Field */}
+            <div className="w-[85%] border-b border-[#a67c52] mb-8">
+              <input
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                className="cert-input text-5xl font-medium py-3 tracking-wide"
+                style={{ fontFamily: 'EB Garamond, serif' }}
+              />
+            </div>
+
+            {/* Details Section */}
+            <div className="text-center space-y-3 text-gray-800 max-w-[90%] text-xl" style={{ fontFamily: 'EB Garamond, serif' }}>
+              
+              <p className="font-bold text-lg mb-2 italic whitespace-nowrap">
+                (REG NO <input name="registerNumber" value={formData.registerNumber} onChange={handleInputChange} className="cert-input font-bold inline-block text-center" style={{ width: '160px' }} />)
+              </p>
+
+              <p className="italic text-2xl">
+                A student of <input name="collegeName" value={formData.collegeName} onChange={handleInputChange} className="cert-input inline-block w-auto px-1 italic" style={{ width: '380px' }} />, pursuing
+              </p>
+              
+              <div className="font-bold text-3xl py-1">
+                <input name="courseDegree" value={formData.courseDegree} onChange={handleInputChange} className="cert-input font-bold" />
+              </div>
+
+              {/* DYNAMIC COMPANY NAME BASED ON SELECTION */}
+              <p className="pt-2 text-2xl">
+                Successfully completed their internship at {logoSelection === 'tech' ? 'Tech Vaseegrah' : 'Vaseegrah Veda'}
+              </p>
+              
+              <p className="italic pt-6 text-xl font-medium" style={{ fontFamily: 'EB Garamond, serif' }}>Period</p>
+              
+              <div className="flex items-center justify-center gap-3 text-2xl mt-1" style={{ fontStyle: 'italic' }}>
+                 <input name="fromDate" value={formData.fromDate} onChange={handleInputChange} className="cert-input w-36" />
+                 <span className="text-lg normal-case">to</span>
+                 <input name="toDate" value={formData.toDate} onChange={handleInputChange} className="cert-input w-36" />
+              </div>
+            </div>
+
+            {/* Footer Signatories (EDITABLE) */}
+            <div className="absolute bottom-20 w-full px-20 flex justify-between">
+              
+              {/* Left Signatory */}
+              <div className="text-center w-64">
+                <div className="h-24 flex items-end justify-center pb-2">
+                  {signatures.sig1 ? (
+                    <img src={signatures.sig1} alt="Sig" className="h-20 object-contain" />
+                  ) : null}
+                </div>
+                <div className="border-t-2 border-gray-900 pt-3">
+                  {/* Editable Name */}
+                  <input 
+                    name="sig1Name" 
+                    value={signatories.sig1Name} 
+                    onChange={handleSignatoryChange} 
+                    className="cert-input font-bold text-xl text-gray-900" 
+                    style={{ fontFamily: 'EB Garamond, serif' }} 
+                  />
+                  {/* Editable Title */}
+                  <input 
+                    name="sig1Title" 
+                    value={signatories.sig1Title} 
+                    onChange={handleSignatoryChange} 
+                    className="cert-input text-base text-gray-700 italic font-medium" 
+                  />
+                </div>
+              </div>
+
+              {/* Right Signatory */}
+              <div className="text-center w-64">
+                <div className="h-24 flex items-end justify-center pb-2">
+                  {signatures.sig2 ? (
+                    <img src={signatures.sig2} alt="Sig" className="h-20 object-contain" />
+                  ) : null}
+                </div>
+                <div className="border-t-2 border-gray-900 pt-3">
+                   {/* Editable Name */}
+                   <input 
+                    name="sig2Name" 
+                    value={signatories.sig2Name} 
+                    onChange={handleSignatoryChange} 
+                    className="cert-input font-bold text-xl text-gray-900" 
+                    style={{ fontFamily: 'EB Garamond, serif' }} 
+                  />
+                  {/* Editable Title */}
+                  <input 
+                    name="sig2Title" 
+                    value={signatories.sig2Title} 
+                    onChange={handleSignatoryChange} 
+                    className="cert-input text-base text-gray-700 italic font-medium" 
+                  />
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Bottom Controls Bar */}
+      <div className="w-[210mm] flex flex-wrap justify-between items-center mt-8 px-4 gap-4">
+        
+        {/* Signatures Upload */}
         <div className="flex gap-3">
-            <label className="cursor-pointer bg-white px-4 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold transition-colors">
-                <FaUpload className="text-amber-700"/> VIJAYA'S SIGN
+            <label className="cursor-pointer bg-white px-3 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold text-gray-700 transition-colors">
+                <FaUpload className="text-amber-700"/> Proprietrix
                 <input type="file" className="hidden" onChange={(e) => handleSignatureUpload(e, 'sig1')} accept="image/*" />
             </label>
-            <label className="cursor-pointer bg-white px-4 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold transition-colors">
-                <FaUpload className="text-amber-700"/> SREEKAR'S SIGN
+            <label className="cursor-pointer bg-white px-3 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold text-gray-700 transition-colors">
+                <FaUpload className="text-amber-700"/> Program Director
                 <input type="file" className="hidden" onChange={(e) => handleSignatureUpload(e, 'sig2')} accept="image/*" />
             </label>
         </div>
 
+        {/* LOGO SELECTION CONTROLS */}
+        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded shadow-sm border text-gray-800 text-xs font-bold">
+            <span className="text-amber-700">SELECT LOGO:</span>
+            
+            <label className="logo-option flex items-center gap-1 cursor-pointer hover:text-amber-800">
+                <input 
+                  type="radio" 
+                  name="logoChoice" 
+                  checked={logoSelection === 'tech'} 
+                  onChange={() => setLogoSelection('tech')}
+                />
+                TECH VASEEGRAH
+            </label>
+
+            <div className="w-[1px] h-4 bg-gray-300"></div>
+
+            <label className="logo-option flex items-center gap-1 cursor-pointer hover:text-amber-800">
+                <input 
+                  type="radio" 
+                  name="logoChoice" 
+                  checked={logoSelection === 'veda'} 
+                  onChange={() => setLogoSelection('veda')}
+                />
+                VASEEGRAH VEDA
+            </label>
+        </div>
+
+        {/* Download Button */}
         <button 
           onClick={downloadPDF} 
           disabled={isGenerating}
@@ -170,109 +349,6 @@ const InternCertificate = () => {
         </button>
       </div>
 
-      {/* Main Certificate Content */}
-      <div className="shadow-2xl"> 
-        <div ref={certificateRef} className="certificate-outer w-[210mm] h-[297mm] box-border mx-auto bg-[#fdfaf5]">
-          <div className="certificate-inner relative overflow-hidden">
-            
-            {/* UPDATED: The 4 Corners positioned precisely to merge with the border */}
-            {/* Top Left */}
-            <CornerOrnament className="top-0 left-0" />
-            {/* Top Right - Flipped Horizontal */}
-            <CornerOrnament className="top-0 right-0 transform -scale-x-100" />
-            {/* Bottom Left - Flipped Vertical */}
-            <CornerOrnament className="bottom-0 left-0 transform -scale-y-100" />
-            {/* Bottom Right - Rotated 180 */}
-            <CornerOrnament className="bottom-0 right-0 transform rotate-180" />
-
-            {/* 1. Logo */}
-            <div className="mt-12 mb-4">
-              <img src="/Invoicelogo.png" alt="Tech Vaseegrah" className="h-16 w-auto object-contain" crossOrigin="anonymous" />
-            </div>
-
-            {/* 2. Main Labels */}
-            <h3 className="mt-2 text-2xl tracking-[0.4em] font-semibold text-gray-800" style={{ fontFamily: 'Cinzel, serif' }}>
-              INTERNSHIP
-            </h3>
-            
-            <h1 className="text-[78px] mt-2 mb-6 text-gray-900 leading-tight" style={{ fontFamily: 'Dancing Script, cursive', fontWeight: 500 }}>
-              Certificate of Completion
-            </h1>
-
-            <p className="text-xl text-gray-700 mb-6 italic" style={{ fontFamily: 'EB Garamond, serif', letterSpacing: '0.05em' }}>
-              This certificate is proudly awarded to
-            </p>
-
-            {/* 3. Name Field */}
-            <div className="w-[85%] border-b border-[#a67c52] mb-8">
-              <input
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className="cert-input text-5xl font-medium py-3 tracking-wide"
-                style={{ fontFamily: 'EB Garamond, serif' }}
-              />
-            </div>
-
-            {/* 5. Details Section */}
-            <div className="text-center space-y-3 text-gray-800 max-w-[90%] text-xl" style={{ fontFamily: 'EB Garamond, serif' }}>
-              
-              <p className="font-bold text-lg mb-2 italic">
-                (REG NO <input name="registerNumber" value={formData.registerNumber} onChange={handleInputChange} className="cert-input w-36 font-bold inline-block" />)
-              </p>
-
-              <p className="italic text-2xl">
-                A student of <input name="collegeName" value={formData.collegeName} onChange={handleInputChange} className="cert-input inline-block w-auto px-1 italic" style={{ width: '380px' }} />, pursuing
-              </p>
-              
-              <div className="font-bold text-3xl py-1">
-                <input name="courseDegree" value={formData.courseDegree} onChange={handleInputChange} className="cert-input font-bold" />
-              </div>
-
-              <p className="pt-2 text-2xl">Successfully completed their internship at Tech Vaseegrah</p>
-              
-              <p className="italic pt-6 text-xl font-medium" style={{ fontFamily: 'EB Garamond, serif' }}>Period</p>
-              
-              <div className="flex items-center justify-center gap-3 text-2xl mt-1" style={{ fontStyle: 'italic' }}>
-                 <input name="fromDate" value={formData.fromDate} onChange={handleInputChange} className="cert-input w-36" />
-                 <span className="text-lg normal-case">to</span>
-                 <input name="toDate" value={formData.toDate} onChange={handleInputChange} className="cert-input w-36" />
-              </div>
-            </div>
-
-            {/* 6. Footer Signatories */}
-            <div className="absolute bottom-20 w-full px-20 flex justify-between">
-              
-              {/* Left Signature */}
-              <div className="text-center w-64">
-                <div className="h-24 flex items-end justify-center pb-2">
-                  {signatures.sig1 ? (
-                    <img src={signatures.sig1} alt="Sig" className="h-20 object-contain" />
-                  ) : null}
-                </div>
-                <div className="border-t-2 border-gray-900 pt-3">
-                  <p className="font-bold text-xl text-gray-900" style={{ fontFamily: 'EB Garamond, serif' }}>Vijaya Mahadevan</p>
-                  <p className="text-base text-gray-700 italic font-medium">Proprietrix</p>
-                </div>
-              </div>
-
-              {/* Right Signature */}
-              <div className="text-center w-64">
-                <div className="h-24 flex items-end justify-center pb-2">
-                  {signatures.sig2 ? (
-                    <img src={signatures.sig2} alt="Sig" className="h-20 object-contain" />
-                  ) : null}
-                </div>
-                <div className="border-t-2 border-gray-900 pt-3">
-                  <p className="font-bold text-xl text-gray-900" style={{ fontFamily: 'EB Garamond, serif' }}>Sreekarrthikeyan</p>
-                  <p className="text-base text-gray-700 italic font-medium">Program Director</p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

@@ -19,8 +19,7 @@ import {
   FaTrophy,
   FaChartBar,
   FaAsterisk,
-  FaWhatsapp,
-  FaAward
+  FaWhatsapp
 } from 'react-icons/fa';
 import { IoMdSettings } from 'react-icons/io';
 
@@ -51,11 +50,6 @@ import Settings from '../admin/Settings';
 import WorkerAttendance from '../admin/WorkerAttendance';
 import InvoiceManagement from '../admin/InvoiceManagement'; 
 import AdminDashboard from '../../pages/Admin/AdminDashboard'; 
-import InternCertificate from '../admin/InternCertificate';
-import OfferLetter from '../admin/OfferLetter';
-import AcceptanceLetter from '../admin/AcceptanceLetter';
-import RelievingLetter from '../admin/RelievingLetter';
-import ExperienceCertificate from '../admin/ExperienceCertificate';
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -150,38 +144,6 @@ const AdminLayout = () => {
       to: '/admin/food-requests',
       icon: <FaPizzaSlice />,
       label: 'Food Requests'
-    },
-    {
-      label: 'Certificate',
-      isDropdown: true,
-      icon: <FaAward />,
-      children: [
-        {
-          to: '/admin/intern-certificate',
-          icon: <FaAward />,
-          label: 'Intern Certificate'
-        },
-        {
-          to: '/admin/offer-letter',
-          icon: <FaAward />,
-          label: 'Offer Letter'
-        },
-        {
-          to: '/admin/acceptance-letter',
-          icon: <FaAward />,
-          label: 'Acceptance Letter'
-        },
-        {
-          to: '/admin/relieving-letter',
-          icon: <FaAward />,
-          label: 'Relieving Letter'
-        },
-        {
-          to: '/admin/experience-certificate',
-          icon: <FaAward />,
-          label: 'Experience Certificate'
-        }
-      ]
     },
     {
       to: '/admin/tasks',
@@ -297,11 +259,6 @@ const AdminLayout = () => {
             <Route path="settings" element={<Settings />} />
             <Route path="gowhats" element={<GoWhatsIntegration />} />
             <Route path="invoices" element={<InvoiceManagement />} />
-            <Route path="intern-certificate" element={<InternCertificate />} />
-            <Route path="offer-letter" element={<OfferLetter />} />
-            <Route path="acceptance-letter" element={<AcceptanceLetter />} />
-            <Route path="relieving-letter" element={<RelievingLetter />} />
-            <Route path="experience-certificate" element={<ExperienceCertificate />} />
             
             {/* Test Management Routes */}
             <Route path="test/generate-questions" element={

@@ -40,12 +40,11 @@ const AdminRegister = () => {
 
     // Check subdomain availability when subdomain field changes
     if (name === 'subdomain') {
-      handleSubdomainChange(e);
+      handleSubdomainChange(value);
     }
   };
 
-  const handleSubdomainChange = async (e) => {
-    const { value } = e.target;
+  const handleSubdomainChange = async (value) => {
     
     // Basic validation
     if (value.length < 3) {
@@ -58,7 +57,14 @@ const AdminRegister = () => {
       setDomainAvailable(response.available);
     } catch (error) {
       console.error('Subdomain check error:', error);
-      setDomainAvailable(false);
+      // If there's a network error, we'll allow the user to continue
+      // but show a warning that availability couldn't be checked
+      if (error.message.includes('Failed to check subdomain availability') || 
+          error.message.includes('Network Error')) {
+        setDomainAvailable(true); // Allow typing but don't show error
+      } else {
+        setDomainAvailable(false);
+      }
     }
   };
 
@@ -189,7 +195,7 @@ const AdminRegister = () => {
               name="subdomain"
               className={`w-full px-4 py-3 bg-gray-100 border ${domainAvailable ? 'border-gray-300' : 'border-red-500'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0d9488] focus:border-transparent text-black`}
               value={formData.subdomain}
-              onChange={handleSubdomainChange}
+              onChange={handleChange}
               required
               placeholder="Enter your company name"
             />
