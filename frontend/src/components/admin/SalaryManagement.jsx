@@ -1,7 +1,7 @@
 // attendance _31/client/src/components/admin/SalaryManagement.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { toast } from 'react-toastify';
-import { FaDonate, FaFileInvoiceDollar, FaFilePdf, FaTrash } from 'react-icons/fa';
+import { FaDonate, FaFileInvoiceDollar, FaFilePdf, FaTrash, FaCalendarAlt, FaList } from 'react-icons/fa';
 import { FiRefreshCcw } from "react-icons/fi";
 import { getWorkers } from '../../services/workerService';
 import { getDepartments } from '../../services/departmentService';
@@ -57,6 +57,16 @@ const SalaryManagement = () => {
     });
     const [fineSearchTerm, setFineSearchTerm] = useState('');
     const [selectedFineWorker, setSelectedFineWorker] = useState(null);
+
+    // NEW: State for bulk salary report
+    const [isBulkReportModalOpen, setIsBulkReportModalOpen] = useState(false);
+    const [selectedWorkersForReport, setSelectedWorkersForReport] = useState([]);
+    const [isBulkReportLoading, setIsBulkReportLoading] = useState(false);
+    const [bulkReportData, setBulkReportData] = useState([]);
+    const [isIndividualReportModalOpen, setIsIndividualReportModalOpen] = useState(false);
+    const [selectedIndividualWorker, setSelectedIndividualWorker] = useState(null);
+    const [isIndividualReportLoading, setIsIndividualReportLoading] = useState(false);
+    const [individualReportData, setIndividualReportData] = useState(null);
 
     const { subdomain } = useContext(appContext);
 
@@ -603,6 +613,335 @@ const SalaryManagement = () => {
         }
     };
 
+    // NEW: Bulk report functions
+    const openBulkReportModal = () => {
+        setSelectedWorkersForReport([]);
+        setIsBulkReportModalOpen(true);
+    };
+
+    const toggleWorkerSelection = (workerId) => {
+        setSelectedWorkersForReport(prev => {
+            if (prev.includes(workerId)) {
+                return prev.filter(id => id !== workerId);
+            } else {
+                return [...prev, workerId];
+            }
+        });
+    };
+
+    const toggleAllWorkersSelection = () => {
+        if (selectedWorkersForReport.length === filteredWorkers.length) {
+            setSelectedWorkersForReport([]);
+        } else {
+            setSelectedWorkersForReport(filteredWorkers.map(w => w._id));
+        }
+    };
+
+    const generateBulkReport = async () => {
+        if (selectedWorkersForReport.length === 0) {
+            toast.error('Please select at least one worker.');
+            return;
+        }
+
+        setIsBulkReportLoading(true);
+        try {
+            const reportPromises = selectedWorkersForReport.map(async (workerId) => {
+                const worker = workers.find(w => w._id === workerId);
+                if (!worker) return null;
+
+                // Calculate the date range for the selected month
+                const year = selectedYear;
+                const month = selectedMonth;
+                
+                const formatDate = (date) => {
+                    const d = new Date(date);
+                    let month = '' + (d.getMonth() + 1);
+                    let day = '' + d.getDate();
+                    const year = d.getFullYear();
+                
+                    if (month.length < 2) month = '0' + month;
+                    if (day.length < 2) day = '0' + day;
+                
+                    return [year, month, day].join('-');
+                };
+                
+                // Create first day of the month
+                const firstDay = new Date(year, month - 1, 1);
+                
+                // Create last day of the month
+                const lastDay = new Date(year, month, 0);
+                
+                const fromDate = formatDate(firstDay);
+                const toDate = formatDate(lastDay);
+
+                try {
+                    const report = await getSalaryReport(workerId, fromDate, toDate);
+                    return {
+                        workerId: worker._id,
+                        name: worker.name,
+                        department: worker.department?.name || worker.department || 'N/A',
+                        totalWorkingDays: report.report.summary?.totalWorkingDaysInPeriod || 0,
+                        totalAbsentDays: report.report.summary?.totalAbsentDays || 0,
+                        totalFinalSalary: report.finalSalaryWithFines || 0
+                    };
+                } catch (error) {
+                    console.error(`Failed to fetch report for worker ${workerId}:`, error);
+                    return {
+                        workerId: worker._id,
+                        name: worker.name,
+                        department: worker.department?.name || worker.department || 'N/A',
+                        totalWorkingDays: 0,
+                        totalAbsentDays: 0,
+                        totalFinalSalary: 0
+                    };
+                }
+            });
+
+            const reports = await Promise.all(reportPromises);
+            const validReports = reports.filter(r => r !== null);
+            setBulkReportData(validReports);
+        } catch (error) {
+            toast.error('Failed to generate bulk report');
+            console.error(error);
+        } finally {
+            setIsBulkReportLoading(false);
+        }
+    };
+
+    const openIndividualReport = async (worker) => {
+        setSelectedIndividualWorker(worker);
+        setIsIndividualReportModalOpen(true);
+        setIsIndividualReportLoading(true);
+        
+        try {
+            // Calculate the date range for the selected month
+            const year = selectedYear;
+            const month = selectedMonth;
+            
+            const formatDate = (date) => {
+                const d = new Date(date);
+                let month = '' + (d.getMonth() + 1);
+                let day = '' + d.getDate();
+                const year = d.getFullYear();
+            
+                if (month.length < 2) month = '0' + month;
+                if (day.length < 2) day = '0' + day;
+            
+                return [year, month, day].join('-');
+            };
+            
+            // Create first day of the month
+            const firstDay = new Date(year, month - 1, 1);
+            
+            // Create last day of the month
+            const lastDay = new Date(year, month, 0);
+            
+            const fromDate = formatDate(firstDay);
+            const toDate = formatDate(lastDay);
+
+            const report = await getSalaryReport(worker.workerId, fromDate, toDate);
+            setIndividualReportData(report);
+        } catch (error) {
+            toast.error('Failed to fetch individual report');
+            console.error(error);
+        } finally {
+            setIsIndividualReportLoading(false);
+        }
+    };
+
+    const downloadIndividualPDF = () => {
+        if (!individualReportData || !selectedIndividualWorker) {
+            toast.error("No report data available to download.");
+            return;
+        }
+        
+        const doc = new jsPDF();
+        const startY = 20;
+        doc.setFontSize(18);
+        doc.text(`Salary Report for ${selectedIndividualWorker.name}`, 14, startY);
+        doc.setFontSize(12);
+        doc.text('Summary', 14, startY + 15);
+        
+        // Prepare summary data including bonus and fine information
+        const formatCurrencyForPDF = (amount) => {
+            // Handle different input types
+            if (typeof amount === 'string') {
+                // If it's already a formatted string, extract the numeric value and reformat it properly
+                const numericValue = parseFloat(amount.replace(/[₹Rs.,\s]/g, ''));
+                if (isNaN(numericValue)) {
+                    return 'Rs. 0.00';
+                }
+                return `Rs. ${numericValue.toFixed(2)}`;
+            }
+            // If it's a number, format it properly
+            return `Rs. ${Number(amount).toFixed(2)}`;
+        };
+        
+        const summaryData = [
+            ['Employee Name', selectedIndividualWorker?.name], // Added Employee Name to match UI
+            ['Employee ID', workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'],
+            ['Original Salary', formatCurrencyForPDF(individualReportData.report.summary?.originalSalary || 0)],
+            ['Actual Earned Salary', formatCurrencyForPDF(individualReportData.report.summary?.finalSalary || 0)],
+            // ADD FINE INFORMATION TO THE SUMMARY
+            ...(individualReportData.totalFinesAmount > 0 ? [
+                ['Total Fines', formatCurrencyForPDF(individualReportData.totalFinesAmount)]
+            ] : []),
+            ['Total Final Salary', formatCurrencyForPDF(individualReportData.finalSalaryWithFines || 0)],
+            ['Total Days in Period', individualReportData.report.summary?.totalDaysInPeriod || 0],
+            ['Total Working Days', individualReportData.report.summary?.totalWorkingDaysInPeriod || 0],
+            ['Total Absent Days', individualReportData.report.summary?.totalAbsentDays || 0],
+            ['Total Holidays', individualReportData.report.summary?.totalHolidaysInPeriod || 0],
+            ['Total Sundays', individualReportData.report.summary?.totalSundaysInPeriod || 0],
+            ['Actual Working Days', individualReportData.report.summary?.actualWorkingDays || 0],
+            ['Total Working Hours', `${Number(individualReportData.report.totalWorkingHours || 0).toFixed(2)} hrs`],
+            ['Total Permission Time', `${individualReportData.report.totalPermissionTime || 0} mins`],
+            ['Absent Deduction', formatCurrencyForPDF(individualReportData.report.summary?.absentDeduction || 0)],
+            ['Permission Deduction', formatCurrencyForPDF(individualReportData.report.summary?.permissionDeduction || 0)],
+            ['Total Deductions', formatCurrencyForPDF(individualReportData.report.totalSalaryDeduction || 0)],
+            ['Attendance Rate', `${Number(individualReportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
+            ['Per Minute Salary', `Rs. ${Number(individualReportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
+        ];
+        
+        // Add bonus information if available
+        if (individualReportData.totalBonusAmount > 0) {
+            summaryData.push(['Bonus Amount Applied', formatCurrencyForPDF(individualReportData.totalBonusAmount)]);
+            
+            // Add details of each bonus
+            individualReportData.bonuses.forEach((bonus, index) => {
+                summaryData.push([`Bonus Period ${index + 1}`, `${new Date(bonus.fromDate).toLocaleDateString()} to ${new Date(bonus.toDate).toLocaleDateString()}`]);
+            });
+        }
+        
+        // Set font properties to prevent spacing issues
+        doc.setFont('helvetica');
+        doc.setFontSize(9);
+        
+        autoTable(doc, {
+            startY: startY + 20,
+            head: [['Metric', 'Value']],
+            body: summaryData,
+            theme: 'striped',
+            headStyles: { fillColor: [52, 73, 94] },
+            styles: { 
+                fontSize: 9,
+                font: 'helvetica',
+                cellPadding: 2
+            },
+            columnStyles: {
+                1: { cellWidth: 50 } // Fixed width for value column
+            }
+        });
+        
+        // Add bonus period details if there are bonuses
+        if (individualReportData.totalBonusAmount > 0 && individualReportData.bonuses && individualReportData.bonuses.length > 0) {
+            doc.addPage();
+            doc.setFontSize(18);
+            doc.text('Bonus Details', 14, 20);
+            
+            const bonusColumns = ['Period', 'From Date', 'To Date', 'Amount'];
+            const bonusRows = individualReportData.bonuses.map((bonus, index) => [
+                `Bonus Period ${index + 1}`,
+                new Date(bonus.fromDate).toLocaleDateString(),
+                new Date(bonus.toDate).toLocaleDateString(),
+                formatCurrencyForPDF(bonus.amount)
+            ]);
+            
+            doc.setFontSize(12);
+            autoTable(doc, {
+                startY: 30,
+                head: [bonusColumns],
+                body: bonusRows,
+                theme: 'striped',
+                headStyles: { fillColor: [52, 73, 94] },
+                styles: { 
+                    fontSize: 9,
+                    font: 'helvetica',
+                    cellPadding: 2
+                }
+            });
+        }
+        
+        // Add detailed fines table if there are fines
+        if (individualReportData.worker?.fines && individualReportData.worker.fines.length > 0) {
+            const filteredFines = individualReportData.worker.fines.filter(fine => {
+                const fineDate = new Date(fine.date);
+                const fromDate = new Date(reportDateRange.fromDate);
+                const toDate = new Date(reportDateRange.toDate);
+                return fineDate >= fromDate && fineDate <= toDate;
+            });
+            
+            if (filteredFines.length > 0) {
+                doc.addPage();
+                doc.setFontSize(18);
+                doc.text('Fines', 14, 20);
+                
+                const finesColumns = ['Date', 'Amount', 'Reason'];
+                const finesRows = filteredFines.map(fine => [
+                    new Date(fine.date).toLocaleDateString(),
+                    formatCurrencyForPDF(fine.amount),
+                    fine.reason
+                ]);
+                
+                doc.setFontSize(12);
+                autoTable(doc, {
+                    startY: 30,
+                    head: [finesColumns],
+                    body: finesRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [52, 73, 94] },
+                    styles: { 
+                        fontSize: 9,
+                        font: 'helvetica',
+                        cellPadding: 2
+                    }
+                });
+            }
+        }
+        
+        doc.addPage();
+        doc.setFontSize(18);
+        doc.text('Daily Breakdown', 14, 20);
+        // Updated table columns to match UI - added Total Salary column
+        const tableColumn = [
+            'Date', 'Status', 'In Time', 'Out Time',
+            'Delay Time', 'Delay Deduction', 'Total Salary'
+        ];
+        
+        // Fix formatting for daily breakdown table
+        // Format Delay Deduction and Total Salary with "Rs" instead of "₹" for PDF
+        const tableRows = individualReportData.report.report.map(row => [
+            row.date,
+            row.status,
+            row.inTime,
+            row.outTime,
+            row.delayTime,
+            row.deductionAmount.replace('₹', 'Rs '), // Replace ₹ with Rs for Delay Deduction
+            row.totalSalary.replace('₹', 'Rs ') // Replace ₹ with Rs for Total Salary
+        ]);
+        
+        // Set font properties for daily breakdown table
+        doc.setFont('helvetica');
+        doc.setFontSize(8);
+        
+        autoTable(doc, {
+            startY: 30,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [52, 73, 94] },
+            styles: { 
+                fontSize: 8,
+                font: 'helvetica',
+                cellPadding: 1.5
+            },
+            columnStyles: {
+                5: { cellWidth: 30 }, // Fixed width for delay deduction column
+                6: { cellWidth: 30 }  // Fixed width for total salary column
+            }
+        });
+        doc.save(`salary_report_${selectedIndividualWorker.name}.pdf`);
+    };
+
     const columns = [
         {
             header: 'Name',
@@ -691,6 +1030,13 @@ const SalaryManagement = () => {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Salary Management</h1>
                 <div className="flex space-x-2">
+                    <Button
+                        variant="secondary"
+                        className='flex items-center'
+                        onClick={openBulkReportModal}
+                    >
+                        <FaList className="mr-2" /> View All Reports
+                    </Button>
                     <Button
                         variant="secondary"
                         className='flex items-center'
@@ -909,6 +1255,351 @@ const SalaryManagement = () => {
                     </form>
                 )}
             </Modal>
+            
+            {/* BULK REPORT MODAL */}
+            <Modal
+                isOpen={isBulkReportModalOpen}
+                onClose={() => setIsBulkReportModalOpen(false)}
+                title="View All Employees Salary Report"
+                size="xl"
+            >
+                <div>
+                    <div className="flex space-x-4 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                            <select
+                                value={selectedMonth}
+                                onChange={handleMonthChange}
+                                className="form-input"
+                            >
+                                <option value={1}>January</option>
+                                <option value={2}>February</option>
+                                <option value={3}>March</option>
+                                <option value={4}>April</option>
+                                <option value={5}>May</option>
+                                <option value={6}>June</option>
+                                <option value={7}>July</option>
+                                <option value={8}>August</option>
+                                <option value={9}>September</option>
+                                <option value={10}>October</option>
+                                <option value={11}>November</option>
+                                <option value={12}>December</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                            <select
+                                value={selectedYear}
+                                onChange={handleYearChange}
+                                className="form-input"
+                            >
+                                {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-lg font-medium">Select Employees</h3>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleAllWorkersSelection}
+                            >
+                                {selectedWorkersForReport.length === filteredWorkers.length ? 'Deselect All' : 'Select All'}
+                            </Button>
+                        </div>
+                        <div className="max-h-96 overflow-y-auto border rounded-lg">
+                            {filteredWorkers.map(worker => (
+                                <div 
+                                    key={worker._id}
+                                    className={`p-3 border-b flex items-center ${selectedWorkersForReport.includes(worker._id) ? 'bg-blue-50' : ''}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedWorkersForReport.includes(worker._id)}
+                                        onChange={() => toggleWorkerSelection(worker._id)}
+                                        className="mr-3"
+                                    />
+                                    <div className="flex items-center">
+                                        {worker?.photo && (
+                                            <img
+                                                src={worker.photo
+                                                    ? worker.photo
+                                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}`}
+                                                alt="Employee"
+                                                className="w-8 h-8 rounded-full mr-2"
+                                            />
+                                        )}
+                                        <div>
+                                            <div className="font-medium">{worker.name}</div>
+                                            <div className="text-sm text-gray-500">{worker.department?.name || worker.department}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                        <Button
+                            variant="primary"
+                            onClick={generateBulkReport}
+                            disabled={isBulkReportLoading}
+                        >
+                            {isBulkReportLoading ? <Spinner size="sm" /> : 'View Reports'}
+                        </Button>
+                    </div>
+                    
+                    {bulkReportData.length > 0 && (
+                        <div className="mt-6">
+                            <h3 className="text-lg font-medium mb-4">Selected Employees Report</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Working Days</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absent Days</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final Salary</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {bulkReportData.map((report, index) => (
+                                            <tr key={index}>
+                                                <td className="px-6 py-4 whitespace-nowrap">{report.name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">{report.department}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">{report.totalWorkingDays}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">{report.totalAbsentDays}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">₹{report.totalFinalSalary.toFixed(2)}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => openIndividualReport(report)}
+                                                    >
+                                                        View Report
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </Modal>
+            
+            {/* INDIVIDUAL REPORT MODAL */}
+            <Modal
+                isOpen={isIndividualReportModalOpen}
+                onClose={() => {
+                    setIsIndividualReportModalOpen(false);
+                    setIndividualReportData(null);
+                    setSelectedIndividualWorker(null);
+                }}
+                title={`Salary Report for ${selectedIndividualWorker?.name || ''}`}
+                size="xl"
+            >
+                {isIndividualReportLoading ? (
+                    <div className="flex justify-center py-8">
+                        <Spinner size="lg" />
+                    </div>
+                ) : individualReportData ? (
+                    <div>
+                        <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <p><strong>Name:</strong> {selectedIndividualWorker.name}</p>
+                                <p><strong>Department:</strong> {selectedIndividualWorker.department}</p>
+                            </div>
+                            <div>
+                                <p><strong>Working Days:</strong> {selectedIndividualWorker.totalWorkingDays}</p>
+                                <p><strong>Absent Days:</strong> {selectedIndividualWorker.totalAbsentDays}</p>
+                                <p><strong>Final Salary:</strong> ₹{selectedIndividualWorker.totalFinalSalary.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        
+                        <Card className="mb-6">
+                            <h3 className="text-xl font-semibold mb-4">Summary</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p><strong>Employee Name:</strong> {selectedIndividualWorker?.name}</p>
+                                    <p><strong>Employee ID:</strong> {workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p><strong>Original Salary:</strong> ₹{individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Actual Earned Salary:</strong> ₹{individualReportData.report.summary.finalSalary?.toFixed(2) || '0.00'}</p>
+                                    {/* ADD FINE INFORMATION TO THE SUMMARY */}
+                                    {individualReportData.totalFinesAmount > 0 && (
+                                        <p><strong>Total Fines:</strong> <span className="text-red-600">₹{individualReportData.totalFinesAmount.toFixed(2)}</span></p>
+                                    )}
+                                    {individualReportData.totalBonusAmount > 0 && (
+                                        <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">₹{individualReportData.totalBonusAmount.toFixed(2)}</span></p>
+                                    )}
+                                    <p><strong>Total Final Salary:</strong> <span className="font-bold">₹{individualReportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                </div>
+                            </div>
+                            <hr className="my-4" />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <p><strong>Total Days in Period:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalDaysInPeriod || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Working Days:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalWorkingDaysInPeriod || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Absent Days:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalAbsentDays || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Holidays:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalHolidaysInPeriod || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Sundays:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalSundaysInPeriod || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Actual Working Days:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.actualWorkingDays || 0}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Working Hours:</strong></p>
+                                    <span className="font-bold">{(individualReportData.report.totalWorkingHours || 0).toFixed(2)} hrs</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Permission Time:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.totalPermissionTime || 0} mins</span>
+                                </div>
+                                <div>
+                                    <p><strong>Absent Deduction:</strong></p>
+                                    <span className="font-bold">₹{individualReportData.report.summary.absentDeduction?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Permission Deduction:</strong></p>
+                                    <span className="font-bold">₹{individualReportData.report.summary.permissionDeduction?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Total Deductions:</strong></p>
+                                    <span className="font-bold">₹{individualReportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div>
+                                    <p><strong>Attendance Rate:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.attendanceRate?.toFixed(2) || '0.00'}%</span>
+                                </div>
+                                <div>
+                                    <p><strong>Per Minute Salary:</strong></p>
+                                    <span className="font-bold">₹{individualReportData.report.summary.perMinuteSalary?.toFixed(4) || '0.0000'}</span>
+                                </div>
+                                {/* Display bonus information */}
+                                {individualReportData.totalBonusAmount > 0 && (
+                                    <>
+                                        <div>
+                                            <p><strong>Bonus Amount Applied:</strong></p>
+                                            <span className="font-bold text-green-600">₹{individualReportData.totalBonusAmount.toFixed(2)}</span>
+                                        </div>
+                                        {individualReportData.bonuses.map((bonus, index) => (
+                                            <div key={index}>
+                                                <p><strong>Bonus Period {index + 1}:</strong></p>
+                                                <span className="font-bold">{new Date(bonus.fromDate).toLocaleDateString()} to {new Date(bonus.toDate).toLocaleDateString()}</span>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                                {/* Display fine information */}
+                                {individualReportData.totalFinesAmount > 0 && (
+                                    <div>
+                                        <p><strong>Total Fines:</strong></p>
+                                        <span className="font-bold text-red-600">₹{individualReportData.totalFinesAmount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                        {/* ADD FINES DISPLAY SECTION */}
+                        {individualReportData.worker?.fines && individualReportData.worker.fines.length > 0 && (
+                            <Card className="mb-6">
+                                <h3 className="text-xl font-semibold mb-4">Fines</h3>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {individualReportData.worker.fines
+                                                .filter(fine => {
+                                                    const fineDate = new Date(fine.date);
+                                                    const fromDate = new Date(reportDateRange.fromDate);
+                                                    const toDate = new Date(reportDateRange.toDate);
+                                                    return fineDate >= fromDate && fineDate <= toDate;
+                                                })
+                                                .map((fine) => (
+                                                    <tr key={fine._id}>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            {new Date(fine.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="text-red-600 font-medium">₹{fine.amount.toFixed(2)}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            {fine.reason}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <button
+                                                                onClick={() => handleDeleteFine(selectedIndividualWorker.workerId, fine._id)}
+                                                                className="text-red-600 hover:text-red-900"
+                                                                title="Delete Fine"
+                                                            >
+                                                                <FaTrash />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
+                        )}
+                        <Card>
+                            <h3 className="text-xl font-semibold mb-4">Daily Breakdown</h3>
+                            <Table
+                                columns={[
+                                    { header: 'Date', accessor: 'date' },
+                                    { header: 'Status', accessor: 'status' },
+                                    { header: 'In Time', accessor: 'inTime' },
+                                    { header: 'Out Time', accessor: 'outTime' },
+                                    { header: 'Delay Time', accessor: 'delayTime' },
+                                    { header: 'Delay Deduction', accessor: 'deductionAmount' },
+                                    { header: 'Total Salary', accessor: 'totalSalary' }
+                                ]}
+                                data={individualReportData.report.report}
+                                noDataMessage="No daily records found for this period."
+                            />
+                        </Card>
+                        <div className="flex justify-end mt-4">
+                            <Button onClick={downloadIndividualPDF} variant="outline" className="flex items-center">
+                                <FaFilePdf className="mr-2" /> Download PDF
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-8">
+                        <p>No report data available.</p>
+                    </div>
+                )}
+            </Modal>
+            
             <Modal
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}

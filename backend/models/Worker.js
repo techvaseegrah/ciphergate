@@ -88,6 +88,16 @@ const workerSchema = mongoose.Schema({
       }
     }],
     default: []
+  },
+  employeeType: {
+    type: String,
+    enum: ['intern', 'intern_with_stphen', 'employee', 'developer'],
+    default: 'intern'
+  },
+  class: {
+    type: String,
+    enum: ['A', 'B', 'C'],
+    default: 'A'
   }
 }, {
   timestamps: true

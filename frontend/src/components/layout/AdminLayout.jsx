@@ -45,6 +45,8 @@ import CustomTasks from '../admin/CustomTasks';
 import AttendanceManagement from '../admin/AttendanceManagement';
 import NotificationManagement from '../admin/NotificationManagement';
 import SalaryManagement from '../admin/SalaryManagement';
+import EmployeeCompensation from '../admin/EmployeeCompensation'; // Add this import
+import DeveloperCompensation from '../admin/DeveloperCompensation'; // Add this import
 import GoWhatsIntegration from '../admin/GoWhatsIntegration';
 import HolidayManagement from '../admin/HolidayManagement';
 import Settings from '../admin/Settings';
@@ -125,9 +127,26 @@ const AdminLayout = () => {
       label: 'Employees'
     },
     {
-      to: '/admin/salary',
+      label: 'Salary Management',
+      isDropdown: true,
       icon: <FaDollarSign />,
-      label: 'Salary'
+      children: [
+        {
+          to: '/admin/salary',
+          icon: <FaDollarSign />,
+          label: 'Salary'
+        },
+        {
+          to: '/admin/compensation',
+          icon: <FaDollarSign />,
+          label: 'Employee Compensation'
+        },
+        {
+          to: '/admin/developer-compensation',
+          icon: <FaDollarSign />,
+          label: 'Developer Compensation'
+        }
+      ]
     },
     {
       to: '/admin/invoices',
@@ -281,6 +300,8 @@ const AdminLayout = () => {
           <Routes>
             <Route index element={<AdminDashboard />} />
             <Route path="workers" element={<WorkerManagement />} />
+            <Route path="compensation" element={<EmployeeCompensation />} />
+            <Route path="developer-compensation" element={<DeveloperCompensation />} />
             <Route path="salary" element={<SalaryManagement />} />
             <Route path="attendance" element={<AttendanceManagement />} />
             <Route path="attendance/:id" element={<WorkerAttendance />} />

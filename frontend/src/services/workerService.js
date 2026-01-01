@@ -145,6 +145,54 @@ export const deleteWorker = async (id) => {
   }
 };
 
+export const addWorkerWithCompensation = async (workerData) => {
+  try {
+    // Handle photo upload if it's a file
+    if (workerData.photo && workerData.photo instanceof File) {
+      const urlResponse = await uploadUtils(workerData.photo);
+      // Only update the photo field if upload was successful
+      if (urlResponse) {
+        workerData.photo = urlResponse;
+      } else {
+        // If upload failed, remove the photo field to keep the existing one
+        delete workerData.photo;
+      }
+    }
+
+    const response = await api.post('/workers', workerData);
+    return response.data;
+  } catch (error) {
+    console.error('Worker creation error:', error.response?.data || error);
+    throw error.response?.data || new Error('Failed to create worker');
+  }
+};
+
+export const updateWorkerCompensation = async (id, workerData) => {
+  try {
+    // Handle photo upload if it's a file
+    if (workerData.photo && workerData.photo instanceof File) {
+      const urlResponse = await uploadUtils(workerData.photo);
+      // Only update the photo field if upload was successful
+      if (urlResponse) {
+        workerData.photo = urlResponse;
+      } else {
+        // If upload failed, remove the photo field to keep the existing one
+        delete workerData.photo;
+      }
+    }
+
+    const response = await api.put(`/workers/${id}`, workerData);
+    return response.data;
+  } catch (error) {
+    console.error('Update Worker Error:', {
+      response: error.response,
+      data: error.response?.data,
+      status: error.response?.status
+    });
+    throw error.response ? error.response.data : new Error('Failed to update worker');
+  }
+};
+
 // Get worker by RFID
 export const getWorkerByRfid = async (rfid) => {
   try {

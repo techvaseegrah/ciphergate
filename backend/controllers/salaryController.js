@@ -5,6 +5,7 @@ const Attendance = require('../models/Attendance');
 const Holiday = require('../models/Holiday');
 const Leave = require('../models/Leave');
 const Settings = require('../models/Settings');
+const DeveloperProject = require('../models/DeveloperProject');
 const { calculateWorkerProductivity } = require('../utils/productivityCalculator');
 
 const giveBonus = asyncHandler(async (req, res) => {
@@ -263,9 +264,265 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     }
 });
 
+// Get compensation report for all workers based on type and class
+const getCompensationReport = asyncHandler(async (req, res) => {
+    const { subdomain } = req.body;
+    const { employeeType, class: classFilter } = req.query;
+
+    try {
+        let query = { subdomain };
+        if (employeeType) query.employeeType = employeeType;
+        if (classFilter) query.class = classFilter;
+
+        const workers = await Worker.find(query)
+            .select('name employeeType class salary finalSalary rfid department')
+            .populate('department', 'name');
+
+        // Calculate compensation details for each worker
+        const compensationReport = workers.map(worker => {
+            let calculatedSalary = worker.salary;
+            if (worker.employeeType === 'developer') {
+                // For developers, we would calculate based on project profit (this is a placeholder)
+                // In a real implementation, this would involve calculating 60% of project profits
+                calculatedSalary = worker.finalSalary; // Using finalSalary as placeholder
+            }
+
+            return {
+                _id: worker._id,
+                name: worker.name,
+                employeeType: worker.employeeType,
+                class: worker.class,
+                baseSalary: worker.salary,
+                calculatedSalary: calculatedSalary,
+                finalSalary: worker.finalSalary,
+                department: worker.department?.name || 'N/A',
+                rfid: worker.rfid
+            };
+        });
+
+        res.status(200).json({
+            message: 'Compensation report generated successfully',
+            report: compensationReport,
+            totalWorkers: compensationReport.length,
+            totalCompensation: compensationReport.reduce((sum, worker) => sum + worker.calculatedSalary, 0)
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to generate compensation report' });
+    }
+});
+
+// Add developer project
+const addDeveloperProject = asyncHandler(async (req, res) => {
+  const { developerId, projectName, projectAmount, projectDate, subdomain, baseSalary, actualSalary } = req.body;
+
+  if (!developerId || !projectName || !projectAmount || !projectDate || !subdomain) {
+    return res.status(400).json({ message: 'All fields are required: developerId, projectName, projectAmount, projectDate, subdomain' });
+  }
+
+  if (isNaN(parseFloat(projectAmount)) || parseFloat(projectAmount) <= 0) {
+    return res.status(400).json({ message: 'Project amount must be a valid positive number' });
+  }
+
+  // Verify developer exists
+  const developer = await Worker.findById(developerId);
+  if (!developer) {
+    return res.status(404).json({ message: 'Developer not found' });
+  }
+
+  const projectAmountNum = parseFloat(projectAmount);
+  const developerEarnings = projectAmountNum * 0.6;
+  
+  // Calculate final profit sharing based on salary deductions
+  let finalProfitSharing = developerEarnings;
+  if (baseSalary && actualSalary) {
+    const deductedAmount = parseFloat(baseSalary) - parseFloat(actualSalary);
+    finalProfitSharing = developerEarnings - deductedAmount;
+  }
+
+  const project = new DeveloperProject({
+    developerId,
+    projectName,
+    projectAmount: projectAmountNum,
+    developerEarnings,
+    projectDate: new Date(projectDate),
+    subdomain,
+    baseSalary: baseSalary ? parseFloat(baseSalary) : undefined,
+    actualSalary: actualSalary ? parseFloat(actualSalary) : undefined
+  });
+
+  await project.save();
+
+  res.status(201).json({
+    message: 'Developer project added successfully',
+    project,
+    calculationDetails: {
+      projectAmount: projectAmountNum,
+      sixtyPercentProfit: developerEarnings,
+      baseSalary: baseSalary ? parseFloat(baseSalary) : 0,
+      actualSalary: actualSalary ? parseFloat(actualSalary) : 0,
+      deductedAmount: baseSalary && actualSalary ? parseFloat(baseSalary) - parseFloat(actualSalary) : 0,
+      finalProfitSharing: finalProfitSharing
+    }
+  });
+});
+
+// Get developer projects by developer ID
+const getDeveloperProjects = asyncHandler(async (req, res) => {
+  const { developerId } = req.params;
+  const { subdomain, month, year } = req.query;
+
+  if (!developerId) {
+    return res.status(400).json({ message: 'Developer ID is required' });
+  }
+
+  let query = { developerId };
+  if (subdomain) {
+    query.subdomain = subdomain;
+  }
+  
+  // If month and year are provided, filter by that month/year
+  if (month && year) {
+    const startDate = new Date(year, parseInt(month) - 1, 1);
+    const endDate = new Date(year, parseInt(month), 1);
+    
+    query.projectDate = {
+      $gte: startDate,
+      $lt: endDate
+    };
+  }
+
+  const projects = await DeveloperProject.find(query).sort({ createdAt: -1 });
+
+  // Calculate totals with profit sharing logic
+  let totalEarnings = 0;
+  let totalProjects = projects.length;
+  let totalFinalProfitSharing = 0;
+  
+  projects.forEach(project => {
+    totalEarnings += project.developerEarnings;
+    
+    // Calculate final profit sharing for each project
+    let finalProfitSharing = project.developerEarnings;
+    if (project.baseSalary && project.actualSalary) {
+      const deductedAmount = project.baseSalary - project.actualSalary;
+      finalProfitSharing = project.developerEarnings - deductedAmount;
+    }
+    totalFinalProfitSharing += finalProfitSharing;
+  });
+
+  res.status(200).json({
+    projects,
+    totalEarnings,
+    totalFinalProfitSharing,
+    totalProjects
+  });
+});
+
+// Delete developer project
+const deleteDeveloperProject = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const project = await DeveloperProject.findByIdAndDelete(id);
+
+  if (!project) {
+    return res.status(404).json({ message: 'Project not found' });
+  }
+
+  res.status(200).json({
+    message: 'Project deleted successfully'
+  });
+});
+
+// Get all developer projects summary for a subdomain
+const getAllDeveloperProjectsSummary = asyncHandler(async (req, res) => {
+  const { subdomain, month, year } = req.query; // Added month and year parameters for filtering
+
+  if (!subdomain) {
+    return res.status(400).json({ message: 'Subdomain is required' });
+  }
+
+  // Build query with optional month/year filtering
+  let query = { subdomain };
+  if (month && year) {
+    // Filter by specific month and year
+    const startDate = new Date(year, parseInt(month) - 1, 1); // month is 1-indexed
+    const endDate = new Date(year, parseInt(month), 1); // Next month start
+    
+    query.projectDate = {
+      $gte: startDate,
+      $lt: endDate
+    };
+  }
+
+  const projects = await DeveloperProject.find(query).populate('developerId', 'name salary');
+
+  // Group projects by developer
+  const projectsByDeveloper = {};
+  projects.forEach(project => {
+    const developerId = project.developerId._id.toString();
+    if (!projectsByDeveloper[developerId]) {
+      projectsByDeveloper[developerId] = {
+        developer: project.developerId,
+        projects: [],
+        totalEarnings: 0,
+        totalFinalProfitSharing: 0, // New field for calculated profit sharing
+        totalProjects: 0,
+        totalBaseSalary: 0,
+        totalActualSalary: 0,
+        totalDeductedAmount: 0
+      };
+    }
+    
+    projectsByDeveloper[developerId].projects.push(project);
+    projectsByDeveloper[developerId].totalEarnings += project.developerEarnings;
+    
+    // Calculate final profit sharing for this project
+    let finalProfitSharing = project.developerEarnings;
+    if (project.baseSalary && project.actualSalary) {
+      const deductedAmount = project.baseSalary - project.actualSalary;
+      finalProfitSharing = project.developerEarnings - deductedAmount;
+      projectsByDeveloper[developerId].totalDeductedAmount += deductedAmount;
+      projectsByDeveloper[developerId].totalBaseSalary += project.baseSalary;
+      projectsByDeveloper[developerId].totalActualSalary += project.actualSalary;
+    }
+    projectsByDeveloper[developerId].totalFinalProfitSharing += finalProfitSharing;
+    
+    projectsByDeveloper[developerId].totalProjects += 1;
+  });
+
+  // Convert to array format
+  const developerSummaries = Object.values(projectsByDeveloper);
+
+  // Calculate overall totals
+  const overallTotalEarnings = developerSummaries.reduce((sum, dev) => sum + dev.totalEarnings, 0);
+  const overallTotalFinalProfitSharing = developerSummaries.reduce((sum, dev) => sum + dev.totalFinalProfitSharing, 0);
+  const overallTotalProjects = developerSummaries.reduce((sum, dev) => sum + dev.totalProjects, 0);
+  const overallTotalBaseSalary = developerSummaries.reduce((sum, dev) => sum + dev.totalBaseSalary, 0);
+  const overallTotalActualSalary = developerSummaries.reduce((sum, dev) => sum + dev.totalActualSalary, 0);
+  const overallTotalDeductedAmount = developerSummaries.reduce((sum, dev) => sum + dev.totalDeductedAmount, 0);
+
+  res.status(200).json({
+    developerSummaries,
+    overallTotalEarnings,
+    overallTotalFinalProfitSharing,
+    overallTotalProjects,
+    overallTotalBaseSalary,
+    overallTotalActualSalary,
+    overallTotalDeductedAmount,
+    totalDevelopers: developerSummaries.length,
+    filter: { subdomain, month, year } // Include filter info in response
+  });
+});
+
 module.exports = {
     giveBonus,
     removeBonus,
     resetSalary,
-    getWorkerSalaryReport
+    getWorkerSalaryReport,
+    getCompensationReport,
+    addDeveloperProject,
+    getDeveloperProjects,
+    deleteDeveloperProject,
+    getAllDeveloperProjectsSummary
 };

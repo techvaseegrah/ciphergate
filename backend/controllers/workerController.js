@@ -30,6 +30,8 @@ const createWorker = asyncHandler(async (req, res) => {
     const photo = req.body.photo ? req.body.photo.trim() : '';
     const batch = req.body.batch ? req.body.batch.trim() : ''; // ADDED THIS
     const faceEmbeddings = req.body.faceEmbeddings ? req.body.faceEmbeddings : []; // ADDED THIS
+    const employeeType = req.body.employeeType ? req.body.employeeType.trim() : 'intern';
+    const classValue = req.body.class ? req.body.class.trim() : 'A';
     let perDaySalary = 0;
 
     if (salary <= 0) {
@@ -97,6 +99,8 @@ const createWorker = asyncHandler(async (req, res) => {
       photo: photo || '',
       batch, // ADDED THIS
       faceEmbeddings: faceEmbeddings || [], // ADDED THIS
+      employeeType,
+      class: classValue,
       totalPoints: 0
     });
 
@@ -112,7 +116,9 @@ const createWorker = asyncHandler(async (req, res) => {
       department: departmentDoc.name,
       photo: worker.photo,
       batch: worker.batch, // ADDED THIS
-      faceEmbeddings: worker.faceEmbeddings // ADDED THIS
+      faceEmbeddings: worker.faceEmbeddings, // ADDED THIS
+      employeeType: worker.employeeType,
+      class: worker.class
     });
 
   } catch (error) {
@@ -196,7 +202,7 @@ const getPublicWorkers = asyncHandler(async (req, res) => {
       : req.body;
       
     const workers = await Worker.find({ subdomain })
-      .select('name username subdomain department photo')
+      .select('name username subdomain department photo employeeType class')
       .populate('department', 'name');
 
     const transformedWorkers = workers.map(worker => ({
@@ -205,7 +211,9 @@ const getPublicWorkers = asyncHandler(async (req, res) => {
       username: worker.username,
       subdomain: worker.subdomain,
       department: worker.department ? worker.department.name : 'Unassigned',
-      photo: worker.photo
+      photo: worker.photo,
+      employeeType: worker.employeeType,
+      class: worker.class
     }));
 
     res.json(transformedWorkers);
@@ -249,7 +257,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    const { name, username, salary, department, password, photo, batch, faceEmbeddings } = req.body; // ADDED faceEmbeddings
+    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue } = req.body; // ADDED faceEmbeddings
     const updateData = {};
 
     // Validate department if provided
@@ -299,6 +307,16 @@ const updateWorker = asyncHandler(async (req, res) => {
         updateData.faceEmbeddings = faceEmbeddings;
     }
 
+    // ADDED: Handle employeeType update
+    if (employeeType) {
+        updateData.employeeType = employeeType;
+    }
+
+    // ADDED: Handle class update
+    if (classValue) {
+        updateData.class = classValue;
+    }
+
     // Update salary-related fields if salary is provided
     if (salary) {
       const numericSalary = Number(salary);
@@ -329,7 +347,9 @@ const updateWorker = asyncHandler(async (req, res) => {
       department: updatedWorker.department.name,
       photo: updatedWorker.photo,
       batch: updatedWorker.batch, // ADDED this to the response
-      faceEmbeddings: updatedWorker.faceEmbeddings // ADDED this to the response
+      faceEmbeddings: updatedWorker.faceEmbeddings, // ADDED this to the response
+      employeeType: updatedWorker.employeeType,
+      class: updatedWorker.class
     });
   } catch (error) {
     console.error('Update Worker Error:', error);
@@ -460,7 +480,9 @@ const getWorkerByRfid = asyncHandler(async (req, res) => {
         rfid: worker.rfid,
         subdomain: worker.subdomain,
         department: worker.department ? worker.department.name : 'N/A',
-        photo: worker.photo
+        photo: worker.photo,
+        employeeType: worker.employeeType,
+        class: worker.class
       }
     });
   } catch (error) {
