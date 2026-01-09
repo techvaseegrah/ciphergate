@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { FaUpload, FaDownload, FaPen } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import axios from 'axios';
+import CertificateHistory from './CertificateHistory';
+import Modal from '../common/Modal';
 
 // Styled fonts and global styles
 const styleTag = document.createElement("style");
@@ -117,20 +120,20 @@ const RelievingLetter = () => {
     headerLine3: 'Email : techvaseegrah@gmail.com  Website : www.techvaseegrah.com',
 
     date: 'Date : 04-11-2025',
-    
+
     // Recipient Details
     recipientName: 'Mr.(name)',
     employeeId: 'JB1192',
     designation: 'Full Stack Developer (Software Developer)',
-    
+
     subject: 'Official Relieving Letter',
-    
+
     // Body Content
     salutation: 'Dear (Name),',
     para1: 'This is to formally confirm that your resignation letter dated 04-10-2025 has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on 04-11-2025, after completion of your notice period from 04-10-2025 to 04-11-2025.',
     para2: 'We hereby acknowledge that you have completed all required handover and clearance formalities. Your full and final settlement will be processed as per company policy.',
     para3: 'We sincerely thank you for your contributions during your tenure with us and wish you success in all your future professional endeavors.',
-    
+
     // Signatory
     forCompany: 'For Tech Vaseegrah,',
     signatoryName: 'Sreekarrthikeyan M',
@@ -140,9 +143,19 @@ const RelievingLetter = () => {
   const [signatures, setSignatures] = useState({ signature: null });
   const [logoSelection, setLogoSelection] = useState('tech');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // History States
+  const [currentCertId, setCurrentCertId] = useState(null);
+  const [refreshHistory, setRefreshHistory] = useState(0);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
   const letterRef = useRef();
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const handleSignatureUpload = (e) => {
+    if (isViewMode) return;
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -153,15 +166,46 @@ const RelievingLetter = () => {
     }
   };
 
-  const downloadPDF = () => {
+  const saveCertificate = async () => {
+    try {
+      const payload = {
+        name: formData.recipientName || 'Untitled Relieving Letter',
+        type: 'Relieving',
+        content: {
+          formData,
+          signatures,
+          logoSelection
+        }
+      };
+
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      if (currentCertId) {
+        await axios.put(`${API_URL}/certificates/${currentCertId}`, payload, config);
+      } else {
+        const res = await axios.post(`${API_URL}/certificates`, payload, config);
+        setCurrentCertId(res.data._id);
+      }
+      setRefreshHistory(prev => prev + 1);
+    } catch (error) {
+      console.error('Error saving certificate:', error);
+    }
+  };
+
+  const downloadPDF = async () => {
+    if (!isViewMode) {
+      await saveCertificate();
+    }
+
     setIsGenerating(true);
     const editableAreas = document.querySelectorAll('.editable-area');
     editableAreas.forEach(inp => inp.style.backgroundColor = 'transparent');
 
-    html2canvas(letterRef.current, { 
-      scale: 2.5, 
+    html2canvas(letterRef.current, {
+      scale: 2.5,
       useCORS: true,
-      scrollY: -window.scrollY 
+      scrollY: -window.scrollY
     }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -177,12 +221,93 @@ const RelievingLetter = () => {
   };
 
   const handleEdit = (field, value) => {
+    if (isViewMode) return;
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleView = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(true);
+    setCurrentCertId(cert._id);
+    setShowHistoryModal(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleEditHistory = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(false);
+    setCurrentCertId(cert._id);
+    setShowHistoryModal(false); // Close modal
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleHistoryDownload = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(true);
+    setShowHistoryModal(false); // Close modal
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      if (window.confirm('Certificate data loaded. Ready to download?')) {
+        downloadPDF();
+      }
+    }, 500);
+  };
+
+  const loadCertificateData = (cert) => {
+    const content = cert.content;
+    setFormData(content.formData);
+    setSignatures(content.signatures);
+    setLogoSelection(content.logoSelection);
+  };
+
+  const handleNew = () => {
+    setFormData({
+      headerLine1: 'Regd. Office : 11, Vijaya Street, Srinivasapuram, Thanjavur - 613009',
+      headerLine2: 'Phone Number : +91 85240 89733',
+      headerLine3: 'Email : techvaseegrah@gmail.com  Website : www.techvaseegrah.com',
+      date: 'Date : 04-11-2025',
+      recipientName: 'Mr.(name)',
+      employeeId: 'JB1192',
+      designation: 'Full Stack Developer (Software Developer)',
+      subject: 'Official Relieving Letter',
+      salutation: 'Dear (Name),',
+      para1: 'This is to formally confirm that your resignation letter dated 04-10-2025 has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on 04-11-2025, after completion of your notice period from 04-10-2025 to 04-11-2025.',
+      para2: 'We hereby acknowledge that you have completed all required handover and clearance formalities. Your full and final settlement will be processed as per company policy.',
+      para3: 'We sincerely thank you for your contributions during your tenure with us and wish you success in all your future professional endeavors.',
+      forCompany: 'For Tech Vaseegrah,',
+      signatoryName: 'Sreekarrthikeyan M',
+      signatoryTitle: 'Founder & CEO',
+    });
+    setSignatures({ signature: null });
+    setLogoSelection('tech');
+    setCurrentCertId(null);
+    setIsViewMode(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 flex flex-col items-center font-sans">
-      
+
+      {/* 0. Mode Indicator / New Button */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col md:flex-row gap-2 items-end">
+        {currentCertId && (
+          <div className={`px-4 py-2 rounded shadow font-bold text-white ${isViewMode ? 'bg-blue-600' : 'bg-yellow-600'}`}>
+            {isViewMode ? 'VIEW MODE' : 'EDIT MODE'}
+          </div>
+        )}
+        <button
+          onClick={() => setShowHistoryModal(true)}
+          className="bg-blue-800 text-white px-4 py-2 rounded shadow hover:bg-blue-900 transition"
+        >
+          History
+        </button>
+        <button
+          onClick={handleNew}
+          className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-black transition"
+        >
+          New Certificate
+        </button>
+      </div>
+
       {/* Helper Text */}
       <div className="flex items-center gap-2 mb-4 text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm text-sm">
         <FaPen className="text-[#4a9d2d] w-3 h-3" />
@@ -190,241 +315,279 @@ const RelievingLetter = () => {
       </div>
 
       {/* --- A4 DOCUMENT --- */}
-      <div ref={letterRef} className="relieving-container a4-size">
-        <div className="page-content flex flex-col h-full relative">
-          
-          {/* 1. Header Section (Logo Left, Contact Right) */}
-          <div className="flex justify-between items-end mb-2">
-            {/* Left: Logo */}
-            <div className="flex items-center">
-              {logoSelection === 'tech' ? (
-                 <div className="flex items-center gap-2">
-                   <img src="/Invoicelogo.png" alt="Logo" className="h-12 object-contain" />
-                 </div>
-              ) : (
-                <img src="/vaseveda.png" alt="Veda Logo" className="h-14 object-contain" />
-              )}
-            </div>
+      <div className="w-full overflow-hidden flex justify-center md:block md:w-auto md:overflow-visible my-4 md:my-0">
+        <div className="transform origin-top scale-[0.45] sm:scale-[0.6] md:scale-100">
+          <div ref={letterRef} className={`relieving-container a4-size ${isViewMode ? 'pointer-events-none' : ''}`}>
+            <div className="page-content flex flex-col h-full relative">
 
-            {/* Right: Contact Info (Moved from Footer) */}
-            <div className="header-contact-info flex flex-col items-end">
-                <div 
-                   contentEditable 
-                   className="editable-area outline-none whitespace-nowrap"
-                   onBlur={(e) => handleEdit('headerLine1', e.target.innerText)}
-                >
-                  {formData.headerLine1}
+              {/* 1. Header Section (Logo Left, Contact Right) */}
+              <div className="flex justify-between items-end mb-2">
+                {/* Left: Logo */}
+                <div className="flex items-center">
+                  {logoSelection === 'tech' ? (
+                    <div className="flex items-center gap-2">
+                      <img src="/Invoicelogo.png" alt="Logo" className="h-12 object-contain" />
+                    </div>
+                  ) : (
+                    <img src="/vaseveda.png" alt="Veda Logo" className="h-14 object-contain" />
+                  )}
                 </div>
-                <div 
-                   contentEditable 
-                   className="editable-area outline-none whitespace-nowrap"
-                   onBlur={(e) => handleEdit('headerLine2', e.target.innerText)}
-                >
-                  {formData.headerLine2}
+
+                {/* Right: Contact Info (Moved from Footer) */}
+                <div className="header-contact-info flex flex-col items-end">
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none whitespace-nowrap"
+                    onBlur={(e) => handleEdit('headerLine1', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.headerLine1}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none whitespace-nowrap"
+                    onBlur={(e) => handleEdit('headerLine2', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.headerLine2}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none whitespace-nowrap"
+                    onBlur={(e) => handleEdit('headerLine3', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.headerLine3}
+                  </div>
                 </div>
-                <div 
-                   contentEditable 
-                   className="editable-area outline-none whitespace-nowrap"
-                   onBlur={(e) => handleEdit('headerLine3', e.target.innerText)}
+              </div>
+
+              {/* 2. Header Separator */}
+              <div className="header-separator-container">
+                <div className="header-thin-line"></div>
+                <div className="header-thick-line"></div>
+              </div>
+
+              {/* 3. Date (Right Aligned, Green) */}
+              <div className="text-right mb-8">
+                <div
+                  contentEditable={!isViewMode}
+                  className="text-[#4a9d2d] font-bold text-sm tracking-wide editable-area outline-none inline-block"
+                  onBlur={(e) => handleEdit('date', e.target.innerText)}
+                  suppressContentEditableWarning={true}
                 >
-                  {formData.headerLine3}
+                  {formData.date}
                 </div>
-            </div>
-          </div>
-
-          {/* 2. Header Separator */}
-          <div className="header-separator-container">
-            <div className="header-thin-line"></div>
-            <div className="header-thick-line"></div>
-          </div>
-
-          {/* 3. Date (Right Aligned, Green) */}
-          <div className="text-right mb-8">
-            <div 
-              contentEditable 
-              className="text-[#4a9d2d] font-bold text-sm tracking-wide editable-area outline-none inline-block"
-              onBlur={(e) => handleEdit('date', e.target.innerText)}
-            >
-              {formData.date}
-            </div>
-          </div>
-
-          {/* 4. Title (Centered, Green, Underlined) */}
-          <div className="text-center mb-10">
-            <h1 className="text-[#4a9d2d] font-bold text-lg underline underline-offset-4 decoration-2">
-              Relieving Letter
-            </h1>
-          </div>
-
-          {/* 5. Content Block */}
-          <div className="flex flex-col gap-6 text-sm text-gray-800">
-            
-            {/* Recipient Details */}
-            <div className="space-y-1">
-              <div className="font-bold text-gray-900">To</div>
-              <div 
-                contentEditable 
-                className="font-medium text-gray-900 editable-area outline-none"
-                onBlur={(e) => handleEdit('recipientName', e.target.innerText)}
-              >
-                {formData.recipientName}
-              </div>
-              <div 
-                contentEditable 
-                className="font-medium text-gray-800 editable-area outline-none"
-                onBlur={(e) => handleEdit('employeeId', e.target.innerText)}
-              >
-                {formData.employeeId}
-              </div>
-              <div 
-                contentEditable 
-                className="font-medium text-gray-800 editable-area outline-none"
-                onBlur={(e) => handleEdit('designation', e.target.innerText)}
-              >
-                {formData.designation}
-              </div>
-            </div>
-
-            {/* Subject */}
-            <div className="mt-4">
-              <span className="font-bold text-gray-900">Subject: </span>
-              <span 
-                contentEditable 
-                className="text-gray-900 editable-area outline-none"
-                onBlur={(e) => handleEdit('subject', e.target.innerText)}
-              >
-                {formData.subject}
-              </span>
-            </div>
-
-            {/* Paragraphs */}
-            <div className="space-y-6 text-justify leading-7">
-              <div 
-                contentEditable 
-                className="editable-area outline-none font-medium"
-                onBlur={(e) => handleEdit('salutation', e.target.innerText)}
-              >
-                {formData.salutation}
               </div>
 
-              <div 
-                contentEditable 
-                className="editable-area outline-none"
-                onBlur={(e) => handleEdit('para1', e.target.innerText)}
-              >
-                {formData.para1}
+              {/* 4. Title (Centered, Green, Underlined) */}
+              <div className="text-center mb-10">
+                <h1 className="text-[#4a9d2d] font-bold text-lg underline underline-offset-4 decoration-2">
+                  Relieving Letter
+                </h1>
               </div>
 
-              <div 
-                contentEditable 
-                className="editable-area outline-none"
-                onBlur={(e) => handleEdit('para2', e.target.innerText)}
-              >
-                {formData.para2}
-              </div>
+              {/* 5. Content Block */}
+              <div className="flex flex-col gap-6 text-sm text-gray-800">
 
-              <div 
-                contentEditable 
-                className="editable-area outline-none"
-                onBlur={(e) => handleEdit('para3', e.target.innerText)}
-              >
-                {formData.para3}
-              </div>
-            </div>
+                {/* Recipient Details */}
+                <div className="space-y-1">
+                  <div className="font-bold text-gray-900">To</div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="font-medium text-gray-900 editable-area outline-none"
+                    onBlur={(e) => handleEdit('recipientName', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.recipientName}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="font-medium text-gray-800 editable-area outline-none"
+                    onBlur={(e) => handleEdit('employeeId', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.employeeId}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="font-medium text-gray-800 editable-area outline-none"
+                    onBlur={(e) => handleEdit('designation', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.designation}
+                  </div>
+                </div>
 
-            {/* Signatory Section (Left Aligned) */}
-            <div className="mt-12">
-              <div 
-                contentEditable 
-                className="text-gray-900 font-medium mb-8 editable-area outline-none"
-                onBlur={(e) => handleEdit('forCompany', e.target.innerText)}
-              >
-                {formData.forCompany}
-              </div>
-              
-              {/* Signature Image Area - Increased Height and Max Width */}
-              <div className="h-28 mb-2 flex items-center">
-                 {signatures.signature && (
-                   <img src={signatures.signature} alt="Sign" className="max-h-full max-w-[300px] object-contain" />
-                 )}
-              </div>
+                {/* Subject */}
+                <div className="mt-4">
+                  <span className="font-bold text-gray-900">Subject: </span>
+                  <span
+                    contentEditable={!isViewMode}
+                    className="text-gray-900 editable-area outline-none"
+                    onBlur={(e) => handleEdit('subject', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.subject}
+                  </span>
+                </div>
 
-              <div 
-                contentEditable 
-                className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
-                onBlur={(e) => handleEdit('signatoryName', e.target.innerText)}
-              >
-                {formData.signatoryName}
-              </div>
-              <div 
-                contentEditable 
-                className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
-                onBlur={(e) => handleEdit('signatoryTitle', e.target.innerText)}
-              >
-                {formData.signatoryTitle}
+                {/* Paragraphs */}
+                <div className="space-y-6 text-justify leading-7">
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none font-medium"
+                    onBlur={(e) => handleEdit('salutation', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.salutation}
+                  </div>
+
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none"
+                    onBlur={(e) => handleEdit('para1', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.para1}
+                  </div>
+
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none"
+                    onBlur={(e) => handleEdit('para2', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.para2}
+                  </div>
+
+                  <div
+                    contentEditable={!isViewMode}
+                    className="editable-area outline-none"
+                    onBlur={(e) => handleEdit('para3', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.para3}
+                  </div>
+                </div>
+
+                {/* Signatory Section (Left Aligned) */}
+                <div className="mt-12">
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-gray-900 font-medium mb-8 editable-area outline-none"
+                    onBlur={(e) => handleEdit('forCompany', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.forCompany}
+                  </div>
+
+                  {/* Signature Image Area - Increased Height and Max Width */}
+                  <div className="h-28 mb-2 flex items-center">
+                    {signatures.signature && (
+                      <img src={signatures.signature} alt="Sign" className="max-h-full max-w-[300px] object-contain" />
+                    )}
+                  </div>
+
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
+                    onBlur={(e) => handleEdit('signatoryName', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.signatoryName}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
+                    onBlur={(e) => handleEdit('signatoryTitle', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.signatoryTitle}
+                  </div>
+                </div>
+
               </div>
             </div>
 
-          </div>
-        </div>
-
-        {/* 6. Footer (Empty Green Stripe) */}
-        <div className="relative pb-4">
-           {/* The image shows no text in footer, just clean space. 
+            {/* 6. Footer (Empty Green Stripe) */}
+            <div className="relative pb-4">
+              {/* The image shows no text in footer, just clean space. 
                We keep the green stripe for branding consistency */}
-           <div className="green-footer-stripe"></div>
+              <div className="green-footer-stripe"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* --- BOTTOM ACTION BAR (UNCHANGED) --- */}
-      <div className="w-full max-w-[210mm] mt-8 mb-12 action-bar-container bg-white border border-gray-200 rounded-xl shadow-lg p-5 flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
-        
+      <div className="w-full max-w-[90%] md:max-w-[210mm] mt-8 mb-12 action-bar-container bg-white border border-gray-200 rounded-xl shadow-lg p-5 flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
+
         {/* Header Options */}
-        <div className="flex flex-col gap-2 w-full md:w-auto">
+        <div className={`flex flex-col gap-2 w-full md:w-auto ${isViewMode ? 'opacity-50 pointer-events-none' : ''}`}>
           <span className="text-gray-500 font-bold text-[10px] tracking-widest uppercase">SELECT HEADER:</span>
           <div className="flex gap-4">
-             <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'tech' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="logo" checked={logoSelection === 'tech'} onChange={() => setLogoSelection('tech')} className="hidden"/>
-                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'tech' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
-                  {logoSelection === 'tech' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
-                </div>
-                <span className={`text-sm font-semibold ${logoSelection === 'tech' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Tech Vaseegrah</span>
-             </label>
+            <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'tech' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <input type="radio" name="logo" checked={logoSelection === 'tech'} onChange={() => setLogoSelection('tech')} className="hidden" />
+              <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'tech' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
+                {logoSelection === 'tech' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
+              </div>
+              <span className={`text-sm font-semibold ${logoSelection === 'tech' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Tech Vaseegrah</span>
+            </label>
 
-             <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'veda' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="logo" checked={logoSelection === 'veda'} onChange={() => setLogoSelection('veda')} className="hidden"/>
-                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'veda' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
-                  {logoSelection === 'veda' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
-                </div>
-                <span className={`text-sm font-semibold ${logoSelection === 'veda' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Vaseegrah Veda</span>
-             </label>
+            <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'veda' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <input type="radio" name="logo" checked={logoSelection === 'veda'} onChange={() => setLogoSelection('veda')} className="hidden" />
+              <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'veda' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
+                {logoSelection === 'veda' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
+              </div>
+              <span className={`text-sm font-semibold ${logoSelection === 'veda' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Vaseegrah Veda</span>
+            </label>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-           <label className="cursor-pointer group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-[#4a9d2d] hover:shadow-md transition-all">
-             <FaUpload className="text-gray-500 group-hover:text-[#4a9d2d] transition-colors" />
-             <span className="text-sm font-bold text-gray-700 group-hover:text-[#4a9d2d]">SIGNATURE</span>
-             <input type="file" className="hidden" onChange={handleSignatureUpload} accept="image/*" />
-           </label>
+          <label className={`cursor-pointer group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-[#4a9d2d] hover:shadow-md transition-all ${isViewMode ? 'opacity-50 pointer-events-none' : ''}`}>
+            <FaUpload className="text-gray-500 group-hover:text-[#4a9d2d] transition-colors" />
+            <span className="text-sm font-bold text-gray-700 group-hover:text-[#4a9d2d]">SIGNATURE</span>
+            <input type="file" className="hidden" onChange={handleSignatureUpload} accept="image/*" />
+          </label>
 
-           <button 
-             onClick={downloadPDF} 
-             disabled={isGenerating}
-             className="flex items-center gap-2 px-6 py-2.5 bg-[#4a9d2d] text-white rounded-lg shadow-md hover:bg-[#3d8524] hover:shadow-lg active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100"
-           >
-             {isGenerating ? (
-               <span className="text-sm font-bold animate-pulse">GENERATING...</span>
-             ) : (
-               <>
-                 <FaDownload />
-                 <span className="text-sm font-bold">DOWNLOAD PDF</span>
-               </>
-             )}
-           </button>
+          <button
+            onClick={downloadPDF}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#4a9d2d] text-white rounded-lg shadow-md hover:bg-[#3d8524] hover:shadow-lg active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100"
+          >
+            {isGenerating ? (
+              <span className="text-sm font-bold animate-pulse">GENERATING...</span>
+            ) : (
+              <>
+                <FaDownload />
+                <span className="text-sm font-bold">{isViewMode ? 'DOWNLOAD' : 'SAVE & DOWNLOAD'}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        title="Relieving Letter History"
+        onClose={() => setShowHistoryModal(false)}
+        size="xl"
+      >
+        <div className="w-full">
+          <CertificateHistory
+            type="Relieving"
+            onView={handleView}
+            onEdit={handleEditHistory}
+            onDelete={() => handleNew()}
+            onDownload={handleHistoryDownload}
+            refreshTrigger={refreshHistory}
+          />
+        </div>
+      </Modal>
 
     </div>
   );

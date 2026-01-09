@@ -11,7 +11,8 @@ import {
   FaRegBell,
   FaClipboardList,
   FaBook,
-  FaGraduationCap
+  FaGraduationCap,
+  FaCommentDots
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyLeaves } from '../../services/leaveService';
@@ -131,6 +132,11 @@ const WorkerLayout = ({ children }) => {
       icon: <FaComments />,
       label: 'Comments',
       badge: newComments > 0 ? newComments : null
+    },
+    {
+      to: '/worker/communication',
+      icon: <FaCommentDots />,
+      label: 'Communication'
     },
     {
       to: '/worker/invoices',

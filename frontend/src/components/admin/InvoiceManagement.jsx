@@ -19,7 +19,7 @@ const InvoiceManagement = () => {
   // Load invoices from backend on component mount
   useEffect(() => {
     fetchInvoices();
-    
+
     // Update admin last viewed timestamp to reset notification count
     updateAdminLastViewed();
   }, []);
@@ -44,10 +44,10 @@ const InvoiceManagement = () => {
   const handleInvoiceSave = async (invoiceData) => {
     try {
       let response;
-      
+
       // Check if invoice already exists (by invoiceNo)
       const existingInvoice = invoices.find(inv => inv.invoiceNo === invoiceData.invoiceNo);
-      
+
       if (existingInvoice) {
         // Update existing invoice
         response = await updateInvoice(existingInvoice._id, invoiceData);
@@ -55,7 +55,7 @@ const InvoiceManagement = () => {
         // Create new invoice
         response = await createInvoice(invoiceData);
       }
-      
+
       if (response.success) {
         // Refresh invoices list
         await fetchInvoices();
@@ -85,7 +85,7 @@ const InvoiceManagement = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Invoice Management</h1>
-        <button 
+        <button
           onClick={() => {
             setEditingInvoice(null);
             setActiveTab('advanced-invoice');
@@ -116,41 +116,37 @@ const InvoiceManagement = () => {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('advanced-invoice')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'advanced-invoice'
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'advanced-invoice'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Advanced Invoice
           </button>
           <button
             onClick={() => setActiveTab('invoice-history')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'invoice-history'
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'invoice-history'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Invoice History
           </button>
           <button
             onClick={() => setActiveTab('unified-history')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'unified-history'
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'unified-history'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             All Invoices
           </button>
           <button
             onClick={() => setActiveTab('delete-history')}
-            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'delete-history'
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'delete-history'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Delete History
           </button>
@@ -160,20 +156,20 @@ const InvoiceManagement = () => {
       {/* Content based on active tab */}
       <div className="mt-6">
         {activeTab === 'advanced-invoice' && (
-          <AdvancedInvoice 
-            onInvoiceSave={handleInvoiceSave} 
+          <AdvancedInvoice
+            onInvoiceSave={handleInvoiceSave}
             initialData={editingInvoice}
           />
         )}
         {activeTab === 'invoice-history' && (
-          <InvoiceHistory 
-            invoices={invoices} 
+          <InvoiceHistory
+            invoices={invoices}
             onEditInvoice={handleEditInvoice}
             onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />
         )}
         {activeTab === 'unified-history' && (
-          <UnifiedInvoiceHistory 
+          <UnifiedInvoiceHistory
             onEditInvoice={handleEditInvoice}
             onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />

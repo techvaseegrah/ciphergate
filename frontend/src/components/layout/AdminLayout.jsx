@@ -20,7 +20,8 @@ import {
   FaChartBar,
   FaAsterisk,
   FaWhatsapp,
-  FaAward
+  FaAward,
+  FaCommentDots
 } from 'react-icons/fa';
 import { IoMdSettings } from 'react-icons/io';
 
@@ -49,6 +50,7 @@ import EmployeeCompensation from '../admin/EmployeeCompensation'; // Add this im
 import DeveloperCompensation from '../admin/DeveloperCompensation'; // Add this import
 import GoWhatsIntegration from '../admin/GoWhatsIntegration';
 import HolidayManagement from '../admin/HolidayManagement';
+import Communication from '../../pages/Communication';
 import Settings from '../admin/Settings';
 import WorkerAttendance from '../admin/WorkerAttendance';
 import InvoiceManagement from '../admin/InvoiceManagement'; 
@@ -234,6 +236,11 @@ const AdminLayout = () => {
       label: 'GoWhats',
     },
     {
+      to: '/admin/communication',
+      icon: <FaCommentDots />,
+      label: 'Communication'
+    },
+    {
       to: '/admin/holidays',
       icon: <FaAsterisk />,
       label: 'Holidays'
@@ -317,6 +324,7 @@ const AdminLayout = () => {
             <Route path="notifications" element={<NotificationManagement />} />
             <Route path="settings" element={<Settings />} />
             <Route path="gowhats" element={<GoWhatsIntegration />} />
+            <Route path="communication" element={<Communication />} />
             <Route path="invoices" element={<InvoiceManagement />} />
             <Route path="intern-certificate" element={<InternCertificate />} />
             <Route path="offer-letter" element={<OfferLetter />} />

@@ -11,6 +11,7 @@ import Table from '../common/Table';
 import Spinner from '../common/Spinner';
 import { Link } from 'react-router-dom';
 import FaceAttendance from './FaceAttendance';
+import api from '../../services/api';
 
 const AttendanceManagement = () => {
     const [worker, setWorker] = useState({ rfid: "" });
@@ -26,14 +27,15 @@ const AttendanceManagement = () => {
     const webcamRef = useRef(null);
     const inputRef = useRef(null);
     const [isPunching, setIsPunching] = useState(false);
-    
+
     // New state variables for pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
-    
+
     const { subdomain } = useContext(appContext);
     const [confirmAction, setConfirmAction] = useState(null);
+    const [accessControl, setAccessControl] = useState({ addAttendance: true, faceAttendance: true });
 
     const uniqueRfids = React.useMemo(() => {
         const rfids = attendanceData.map(record => record.rfid).filter(rfid => rfid && rfid.trim() !== '');
@@ -45,17 +47,17 @@ const AttendanceManagement = () => {
 
     const fetchAttendanceData = async (page = 1, append = false) => {
         if (!subdomain || subdomain === 'main') return;
-        
+
         try {
             if (append) {
                 setIsFetchingMore(true);
             } else {
                 setIsLoading(true);
             }
-            
+
             const data = await getPaginatedAttendance({ subdomain, page, limit: 2 });
             const rawData = Array.isArray(data.attendance) ? data.attendance : [];
-            
+
             if (append) {
                 // Append new data to existing data
                 setAttendanceData(prevData => [...prevData, ...rawData]);
@@ -63,7 +65,7 @@ const AttendanceManagement = () => {
                 // Replace existing data
                 setAttendanceData(rawData);
             }
-            
+
             setHasMore(data.hasMore);
             setCurrentPage(page);
         } catch (error) {
@@ -79,6 +81,15 @@ const AttendanceManagement = () => {
     useEffect(() => {
         if (subdomain && subdomain !== 'main') {
             fetchAttendanceData(1, false);
+
+            // Fetch access control settings
+            api.get(`/settings/${subdomain}`)
+                .then(res => {
+                    if (res.data?.attendanceAccessControl?.admin) {
+                        setAccessControl(res.data.attendanceAccessControl.admin);
+                    }
+                })
+                .catch(err => console.error("Failed to fetch settings:", err));
         }
     }, [subdomain]);
 
@@ -92,11 +103,11 @@ const AttendanceManagement = () => {
     // Function to refresh the latest attendance records (for real-time updates)
     const refreshLatestAttendance = useCallback(async () => {
         if (!subdomain || subdomain === 'main') return;
-        
+
         try {
             const data = await getPaginatedAttendance({ subdomain, page: 1, limit: 2 });
             const rawData = Array.isArray(data.attendance) ? data.attendance : [];
-            
+
             // Update only the first page of data to show latest records at the top
             setAttendanceData(prevData => {
                 // Get existing data that's not part of the first page
@@ -105,7 +116,7 @@ const AttendanceManagement = () => {
                     // which records belong to which date groups
                     return !rawData.some(newRecord => newRecord._id === record._id);
                 });
-                
+
                 // Combine new first page with existing other pages
                 return [...rawData, ...existingOtherPages];
             });
@@ -117,107 +128,107 @@ const AttendanceManagement = () => {
     const handleSubmit = e => {
         e.preventDefault();
         if (!subdomain || subdomain === 'main') {
-          toast.error('Subdomain not found, check the URL.');
-          return;
+            toast.error('Subdomain not found, check the URL.');
+            return;
         }
         if (!worker.rfid.trim()) {
-          toast.error('Enter the RFID');
-          return;
+            toast.error('Enter the RFID');
+            return;
         }
-        
+
         console.log("All attendance data:", attendanceData);
         console.log("Filtering for RFID:", worker.rfid);
-        
+
         // Determine next punch type based on count (new logic)
         // Odd count (1, 3, 5, ...) = IN punch
         // Even count (0, 2, 4, 6, ...) = OUT punch
         let next = 'Punch In';
         const recs = attendanceData.filter(r => r.rfid === worker.rfid);
         console.log("Filtered records:", recs);
-        
+
         if (recs.length) {
-          // Get today's date in the same format as stored in the database
-          const today = new Date();
-          const todayFormatted = today.toLocaleDateString('en-CA', { 
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-          });
-          
-          console.log("Today's date (formatted):", todayFormatted);
-          
-          // Filter records for today only
-          const todayRecs = recs.filter(r => r.date === todayFormatted);
-          console.log("Today's records:", todayRecs);
-          
-          // Count today's punches
-          const todayPunchCount = todayRecs.length;
-          console.log("Today's punch count:", todayPunchCount);
-          
-          // Determine next action based on count
-          // If count is even (0, 2, 4, ...), next should be IN
-          // If count is odd (1, 3, 5, ...), next should be OUT
-          next = (todayPunchCount % 2 === 0) ? 'Punch In' : 'Punch Out';
-          console.log(`Determined next action: ${next} (based on count ${todayPunchCount})`);
+            // Get today's date in the same format as stored in the database
+            const today = new Date();
+            const todayFormatted = today.toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            console.log("Today's date (formatted):", todayFormatted);
+
+            // Filter records for today only
+            const todayRecs = recs.filter(r => r.date === todayFormatted);
+            console.log("Today's records:", todayRecs);
+
+            // Count today's punches
+            const todayPunchCount = todayRecs.length;
+            console.log("Today's punch count:", todayPunchCount);
+
+            // Determine next action based on count
+            // If count is even (0, 2, 4, ...), next should be IN
+            // If count is odd (1, 3, 5, ...), next should be OUT
+            next = (todayPunchCount % 2 === 0) ? 'Punch In' : 'Punch Out';
+            console.log(`Determined next action: ${next} (based on count ${todayPunchCount})`);
         } else {
-          console.log("No previous records found, defaulting to Punch In");
+            console.log("No previous records found, defaulting to Punch In");
         }
-        
+
         console.log("Setting confirm action to:", next);
         setConfirmAction(next);
-      };
-      
-      const handleCancel = () => setConfirmAction(null);
-      
-      // Modified handleConfirm to trigger real-time update
-      const handleConfirm = () => {
+    };
+
+    const handleCancel = () => setConfirmAction(null);
+
+    // Modified handleConfirm to trigger real-time update
+    const handleConfirm = () => {
         setIsPunching(true);
         console.log("Sending attendance request with RFID:", worker.rfid, "and subdomain:", subdomain);
-        
+
         // Determine what type of punch this will be for logging
         const recs = attendanceData.filter(r => r.rfid === worker.rfid);
         let punchType = 'IN';
         if (recs.length) {
-          // Get today's date in the same format as stored in the database
-          const today = new Date();
-          const todayFormatted = today.toLocaleDateString('en-CA', { 
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-          });
-          
-          // Filter records for today only
-          const todayRecs = recs.filter(r => r.date === todayFormatted);
-          const todayPunchCount = todayRecs.length;
-          
-          // Determine punch type based on count
-          punchType = (todayPunchCount % 2 === 0) ? 'IN' : 'OUT';
+            // Get today's date in the same format as stored in the database
+            const today = new Date();
+            const todayFormatted = today.toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            // Filter records for today only
+            const todayRecs = recs.filter(r => r.date === todayFormatted);
+            const todayPunchCount = todayRecs.length;
+
+            // Determine punch type based on count
+            punchType = (todayPunchCount % 2 === 0) ? 'IN' : 'OUT';
         }
-        
+
         console.log(`This punch will be registered as: ${punchType}`);
-        
+
         putAttendance({ rfid: worker.rfid, subdomain })
-          .then(res => {
-            console.log("Attendance response:", res);
-            toast.success(res.message || 'Attendance marked successfully!');
-            // Refresh the latest attendance data to show the new record
-            setTimeout(() => {
-              refreshLatestAttendance();
-            }, 500);
-          })
-          .catch(err => {
-            console.error("Attendance error:", err);
-            toast.error(err.message || 'Failed to mark attendance.');
-          })
-          .finally(() => {
-            setIsPunching(false);
-            setConfirmAction(null);
-            // Always clear the worker RFID after attempting to punch
-            setWorker({ rfid: '' });
-          });
-      };
+            .then(res => {
+                console.log("Attendance response:", res);
+                toast.success(res.message || 'Attendance marked successfully!');
+                // Refresh the latest attendance data to show the new record
+                setTimeout(() => {
+                    refreshLatestAttendance();
+                }, 500);
+            })
+            .catch(err => {
+                console.error("Attendance error:", err);
+                toast.error(err.message || 'Failed to mark attendance.');
+            })
+            .finally(() => {
+                setIsPunching(false);
+                setConfirmAction(null);
+                // Always clear the worker RFID after attempting to punch
+                setWorker({ rfid: '' });
+            });
+    };
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -228,17 +239,17 @@ const AttendanceManagement = () => {
     }, []);
 
     useEffect(() => {
-              if (isModalOpen && inputRef.current) {
-                inputRef.current.focus();
-              }
-            }, [isModalOpen]);
+        if (isModalOpen && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isModalOpen]);
 
     useEffect(() => {
-              
+
         if (isModalOpen && !confirmAction && inputRef.current) {
             inputRef.current.focus();
         }
-    }, [confirmAction, isModalOpen]);        
+    }, [confirmAction, isModalOpen]);
 
     const scanQRCode = () => {
         if (webcamRef.current) {
@@ -363,7 +374,7 @@ const AttendanceManagement = () => {
                         // Out punch without a preceding IN punch on this day (problematic)
                         isProblematicOut = true;
                     }
-                    
+
                     // Prioritize backend flag if available, otherwise use heuristic
                     dayData.outTimes.push({
                         time: punch.time,
@@ -400,7 +411,7 @@ const AttendanceManagement = () => {
             toast.warning("No attendance data to download");
             return;
         }
-    
+
         const headers = [
             'Name',
             'Employee ID (RFID)',
@@ -410,7 +421,7 @@ const AttendanceManagement = () => {
             'Out Times',
             'Duration'
         ];
-    
+
         const csvRows = processedAttendance.map(record => [
             record?.name || 'Unknown',
             record?.rfid || 'Unknown',
@@ -420,7 +431,7 @@ const AttendanceManagement = () => {
             record.outTimes.map(outTime => outTime.time).join(' | '), // Extract time values
             record.duration || '00:00:00'
         ]);
-    
+
         let csvContent = headers.join(',') + '\n';
         csvRows.forEach(row => {
             const formattedRow = row.map(cell => {
@@ -433,12 +444,12 @@ const AttendanceManagement = () => {
             });
             csvContent += formattedRow.join(',') + '\n';
         });
-    
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-    
+
         const today = new Date();
         const formattedDate = today.toISOString().split('T')[0];
         link.setAttribute('download', `Attendance_Report_${formattedDate}.csv`);
@@ -446,7 +457,7 @@ const AttendanceManagement = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    
+
         toast.success("Attendance report downloaded successfully!");
     };
 
@@ -511,7 +522,7 @@ const AttendanceManagement = () => {
                             className={`flex items-center justify-center ${outPunch.isMissed ? 'text-gray-500' : 'text-red-500'}`}
                         >
                             {/* MODIFIED LINE: Conditionally render the time */}
-                            {outPunch.time !== '-' ? outPunch.time : ''} 
+                            {outPunch.time !== '-' ? outPunch.time : ''}
                             {/* Display triangle icon only if isMissed is true AND it's not just a placeholder hyphen */}
                             {outPunch.isMissed && outPunch.time !== '-' && ( // Ensure icon only shows with a time, not for empty placeholder
                                 <FaExclamationTriangle className="ml-2 text-orange-500" title="Missed Out Punch or Incomplete Pair" />
@@ -534,20 +545,24 @@ const AttendanceManagement = () => {
                 <h1 className="text-2xl font-bold">Attendance Management</h1>
                 {/* Desktop buttons - hidden on mobile */}
                 <div className='hidden md:flex space-x-6 justify-center items-center'>
-                    <Button
-                        variant="primary"
-                        className="flex items-center"
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        <FaPlus className="mr-2" />Attendance
-                    </Button>
-                    <Button
-                        variant="primary"
-                        className="flex items-center"
-                        onClick={() => setIsFaceAttendanceOpen(true)}
-                    >
-                        <FaCamera className="mr-2" />Face Attendance
-                    </Button>
+                    {accessControl.addAttendance && (
+                        <Button
+                            variant="primary"
+                            className="flex items-center"
+                            onClick={() => setIsModalOpen(true)}
+                        >
+                            <FaPlus className="mr-2" />Attendance
+                        </Button>
+                    )}
+                    {accessControl.faceAttendance && (
+                        <Button
+                            variant="primary"
+                            className="flex items-center"
+                            onClick={() => setIsFaceAttendanceOpen(true)}
+                        >
+                            <FaCamera className="mr-2" />Face Attendance
+                        </Button>
+                    )}
                     <Button
                         variant="primary"
                         className="flex items-center"
@@ -561,22 +576,26 @@ const AttendanceManagement = () => {
             {/* Mobile view buttons - visible only on mobile */}
             <div className="md:hidden mb-6">
                 <div className="grid grid-cols-3 gap-2">
-                    <Button
-                        variant="primary"
-                        className="flex flex-col items-center justify-center py-3"
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        <FaPlus className="text-xl mb-1" />
-                        <span className="text-xs">Attendance</span>
-                    </Button>
-                    <Button
-                        variant="primary"
-                        className="flex flex-col items-center justify-center py-3"
-                        onClick={() => setIsFaceAttendanceOpen(true)}
-                    >
-                        <FaCamera className="text-xl mb-1" />
-                        <span className="text-xs">Face</span>
-                    </Button>
+                    {accessControl.addAttendance && (
+                        <Button
+                            variant="primary"
+                            className="flex flex-col items-center justify-center py-3"
+                            onClick={() => setIsModalOpen(true)}
+                        >
+                            <FaPlus className="text-xl mb-1" />
+                            <span className="text-xs">Attendance</span>
+                        </Button>
+                    )}
+                    {accessControl.faceAttendance && (
+                        <Button
+                            variant="primary"
+                            className="flex flex-col items-center justify-center py-3"
+                            onClick={() => setIsFaceAttendanceOpen(true)}
+                        >
+                            <FaCamera className="text-xl mb-1" />
+                            <span className="text-xs">Face</span>
+                        </Button>
+                    )}
                     <Button
                         variant="primary"
                         className="flex flex-col items-center justify-center py-3"
@@ -631,7 +650,7 @@ const AttendanceManagement = () => {
                             data={processedAttendance}
                             noDataMessage="No attendance records found."
                         />
-                        
+
                         {/* Load More Button */}
                         {hasMore && (
                             <div className="flex justify-center mt-6">
@@ -658,90 +677,90 @@ const AttendanceManagement = () => {
                 )}
 
                 <Modal
-                isOpen={isModalOpen}
-                title="RFID Input & QR Scanner"
-                size="md"
-                onClose={() => {
-                    setIsModalOpen(false);
-                    setWorker({ rfid: '' });
-                    setConfirmAction(null);
-                }}
+                    isOpen={isModalOpen}
+                    title="RFID Input & QR Scanner"
+                    size="md"
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setWorker({ rfid: '' });
+                        setConfirmAction(null);
+                    }}
                 >
-                {confirmAction ? (
-                    <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-                        <h2 className="text-xl font-semibold mb-4">
-                        Do you want to{' '}
-                        <span
-                            className={
-                            confirmAction === 'Punch In'
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                        }
-                    >
-                        {confirmAction}
-                    </span>
-                        ?
-                        </h2>
-                        <div className="flex justify-center space-x-4">
-                        <Button variant="secondary" onClick={handleCancel} disabled={isPunching}>
-                            cancel
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleConfirm}
-                            disabled={isPunching}
-                            className="flex items-center justify-center"
-                        >
-                            {isPunching ? <Spinner size="sm" /> : confirmAction}
-                        </Button>
+                    {confirmAction ? (
+                        <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+                            <h2 className="text-xl font-semibold mb-4">
+                                Do you want to{' '}
+                                <span
+                                    className={
+                                        confirmAction === 'Punch In'
+                                            ? 'text-green-600'
+                                            : 'text-red-600'
+                                    }
+                                >
+                                    {confirmAction}
+                                </span>
+                                ?
+                            </h2>
+                            <div className="flex justify-center space-x-4">
+                                <Button variant="secondary" onClick={handleCancel} disabled={isPunching}>
+                                    cancel
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={handleConfirm}
+                                    disabled={isPunching}
+                                    className="flex items-center justify-center"
+                                >
+                                    {isPunching ? <Spinner size="sm" /> : confirmAction}
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                      
+
                     ) : (
                         <form onSubmit={handleSubmit} className="mb-4">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={worker.rfid}
-                            onChange={e => setWorker({ rfid: e.target.value })}
-                            placeholder="RFID"
-                            className="border p-2 mb-2 w-full"
-                             list="rfid-suggestions"
-                        />
-                        <datalist id="rfid-suggestions">
-                            {uniqueRfids.map((rfid, index) => (
-                                <option key={index} value={rfid} />
-                            ))}
-                        </datalist>
-                        <Button type="submit" variant="primary" className="w-full">
-                            Submit
-                        </Button>
-                    </form>
-                )}
-            <Webcam
-                ref={webcamRef}
-                style={{ width: '100%', maxWidth: 400, margin: '0 auto', border: '1px solid #ddd' }}
-                videoConstraints={{ facingMode: 'environment' }}
-            />
-            {qrText && (
-                <div style={{ marginTop: 20 }}>
-                <h1 className="text-lg text-center">RFID: {qrText}</h1>
-                </div>
-            )}
-            </Modal>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={worker.rfid}
+                                onChange={e => setWorker({ rfid: e.target.value })}
+                                placeholder="RFID"
+                                className="border p-2 mb-2 w-full"
+                                list="rfid-suggestions"
+                            />
+                            <datalist id="rfid-suggestions">
+                                {uniqueRfids.map((rfid, index) => (
+                                    <option key={index} value={rfid} />
+                                ))}
+                            </datalist>
+                            <Button type="submit" variant="primary" className="w-full">
+                                Submit
+                            </Button>
+                        </form>
+                    )}
+                    <Webcam
+                        ref={webcamRef}
+                        style={{ width: '100%', maxWidth: 400, margin: '0 auto', border: '1px solid #ddd' }}
+                        videoConstraints={{ facingMode: 'environment' }}
+                    />
+                    {qrText && (
+                        <div style={{ marginTop: 20 }}>
+                            <h1 className="text-lg text-center">RFID: {qrText}</h1>
+                        </div>
+                    )}
+                </Modal>
 
-            {/* Face Attendance Modal */}
-            <FaceAttendance
-                subdomain={subdomain}
-                isOpen={isFaceAttendanceOpen}
-                onClose={() => {
-                    setIsFaceAttendanceOpen(false);
-                }}
-                onAttendanceMarked={refreshLatestAttendance} // Add this callback
-            />
-        </div>
-    </Fragment>
-);
+                {/* Face Attendance Modal */}
+                <FaceAttendance
+                    subdomain={subdomain}
+                    isOpen={isFaceAttendanceOpen}
+                    onClose={() => {
+                        setIsFaceAttendanceOpen(false);
+                    }}
+                    onAttendanceMarked={refreshLatestAttendance} // Add this callback
+                />
+            </div>
+        </Fragment>
+    );
 };
 
 export default AttendanceManagement;
@@ -749,42 +768,42 @@ export default AttendanceManagement;
 // Add the helper function for time conversion (same as backend)
 function convertTo24Hour(time12h) {
     console.log("Converting time:", time12h);
-    
+
     if (!time12h) {
         console.log("Time is null/undefined, returning 00:00:00");
         return '00:00:00';
     }
-    
+
     // Handle different time formats
     if (typeof time12h === 'string' && time12h.includes(' ')) {
         const [time, modifier] = time12h.split(' ');
         console.log("Splitting time and modifier:", time, modifier);
-        
+
         if (!time || !modifier) {
             console.log("Invalid time format, returning as is:", time12h);
             return time12h;
         }
-        
+
         let [hours, minutes, seconds] = time.split(':');
         console.log("Split components:", hours, minutes, seconds);
-        
+
         // Convert to numbers
         let hoursNum = parseInt(hours, 10);
         let minutesNum = parseInt(minutes, 10) || 0;
         let secondsNum = parseInt(seconds, 10) || 0;
-        
+
         if (modifier === 'PM' && hoursNum !== 12) {
             hoursNum += 12;
         }
         if (modifier === 'AM' && hoursNum === 12) {
             hoursNum = 0;
         }
-        
+
         const result = `${hoursNum.toString().padStart(2, '0')}:${minutesNum.toString().padStart(2, '0')}:${secondsNum.toString().padStart(2, '0')}`;
         console.log("Converted to 24-hour format:", result);
         return result;
     }
-    
+
     // If it's already in 24-hour format or unrecognized format, return as is
     console.log("Time already in 24-hour format or unrecognized, returning as is:", time12h);
     return time12h;

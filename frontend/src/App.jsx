@@ -12,6 +12,9 @@ import WorkerLogin from './pages/Worker/WorkerLogin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import WorkerDashboard from './pages/Worker/WorkerDashboard';
 
+// Communication page
+import Communication from './pages/Communication';
+
 // Management Pages
 import WorkerManagement from './components/admin/WorkerManagement';
 import DepartmentManagement from './components/admin/DepartmentManagement';
@@ -170,6 +173,7 @@ function App() {
               <Route path="notifications" element={<NotificationManagement />} />
               <Route path="settings" element={<Settings />} />
               <Route path="gowhats" element={<GoWhatsIntegration />} />
+              <Route path="communication" element={<Communication />} />
               <Route path="intern-certificate" element={<InternCertificate />} />
               <Route path="offer-letter" element={<OfferLetter />} />
               <Route path="acceptance-letter" element={<AcceptanceLetter />} />
@@ -203,7 +207,7 @@ function App() {
 
           {/* Protected Worker routes */}
           <Route element={<PrivateRoute allowedRoles={['worker']} />}>
-            <Route path="/worker/*" element={<WorkerDashboard />}>
+            <Route path="worker/*" element={<WorkerDashboard />}>
               {/* Worker routes are handled inside WorkerDashboard component */}
               <Route path="*" element={<Navigate to="/worker" replace />} />
             </Route>

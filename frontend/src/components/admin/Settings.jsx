@@ -98,6 +98,18 @@ const Settings = () => {
             latitude: 0,
             longitude: 0,
             radius: 100
+        },
+
+        // Attendance Access Control
+        attendanceAccessControl: {
+            admin: {
+                addAttendance: true,
+                faceAttendance: true
+            },
+            employee: {
+                rfidAttendance: true,
+                faceAttendance: true
+            }
         }
     });
 
@@ -197,6 +209,18 @@ const Settings = () => {
                     latitude: fetchedSettings.attendanceLocation?.latitude || 0,
                     longitude: fetchedSettings.attendanceLocation?.longitude || 0,
                     radius: fetchedSettings.attendanceLocation?.radius || 100
+                },
+
+                // Attendance Access Control
+                attendanceAccessControl: {
+                    admin: {
+                        addAttendance: fetchedSettings.attendanceAccessControl?.admin?.addAttendance !== undefined ? fetchedSettings.attendanceAccessControl.admin.addAttendance : true,
+                        faceAttendance: fetchedSettings.attendanceAccessControl?.admin?.faceAttendance !== undefined ? fetchedSettings.attendanceAccessControl.admin.faceAttendance : true
+                    },
+                    employee: {
+                        rfidAttendance: fetchedSettings.attendanceAccessControl?.employee?.rfidAttendance !== undefined ? fetchedSettings.attendanceAccessControl.employee.rfidAttendance : true,
+                        faceAttendance: fetchedSettings.attendanceAccessControl?.employee?.faceAttendance !== undefined ? fetchedSettings.attendanceAccessControl.employee.faceAttendance : true
+                    }
                 }
             }));
 
@@ -343,6 +367,22 @@ const Settings = () => {
             }
         };
         setSettings(updatedSettings);
+        checkLocationChanges(updatedSettings);
+    };
+
+    // Handle Attendance Access Control changes
+    const handleAccessControlChange = (role, field, value) => {
+        const updatedSettings = {
+            ...settings,
+            attendanceAccessControl: {
+                ...settings.attendanceAccessControl,
+                [role]: {
+                    ...settings.attendanceAccessControl[role],
+                    [field]: value
+                }
+            }
+        };
+        setSettings(updatedSettings);
         checkForChanges(updatedSettings);
     };
 
@@ -351,7 +391,7 @@ const Settings = () => {
         try {
             // Import the geolocation service function
             const { getCurrentPosition } = await import('../../services/geolocationService');
-            
+
             const position = await getCurrentPosition();
             // Update both latitude and longitude in a single state update
             const updatedSettings = {
@@ -735,7 +775,7 @@ const Settings = () => {
                         </div>
                     </Card>
                 </div>
-                
+
                 {/* Location Settings */}
                 <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
                     <div className="h-2 bg-gradient-to-r from-teal-400 to-cyan-400" />
@@ -831,7 +871,7 @@ const Settings = () => {
                                             )}
                                         </p>
                                     </div>
-                                    
+
                                     <div className="pt-2 bg-blue-50 p-3 rounded-lg">
                                         <p className="text-xs text-blue-700">
                                             <strong>Tip:</strong> Enable location restriction to ensure workers can only mark attendance when they are physically present at the designated location.
@@ -842,7 +882,87 @@ const Settings = () => {
                         </div>
                     </div>
                 </Card>
-                
+
+                {/* Attendance Access Control Settings */}
+                <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
+                    <div className="h-2 bg-gradient-to-r from-pink-400 to-red-400" />
+                    <div className="p-6">
+                        <h3 className="text-lg font-semibold mb-6 flex items-center text-gray-900">
+                            <div className="p-2 bg-pink-100 rounded-lg mr-3">
+                                <FiToggleLeft className="h-5 w-5 text-pink-600" />
+                            </div>
+                            Attendance Access Control
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Control which attendance buttons are visible to Admins and Employees.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Admin Controls */}
+                            <div className="space-y-4">
+                                <h4 className="text-md font-medium text-gray-800 border-b pb-2">Admin Attendance Page</h4>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">Show "+ Attendance" Button</label>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Controls visibility of manual attendance button for admins
+                                        </p>
+                                    </div>
+                                    <CustomToggle
+                                        checked={settings.attendanceAccessControl?.admin?.addAttendance ?? true}
+                                        onChange={() => handleAccessControlChange('admin', 'addAttendance', !(settings.attendanceAccessControl?.admin?.addAttendance ?? true))}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">Show "Face Attendance" Button</label>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Controls visibility of face attendance button for admins
+                                        </p>
+                                    </div>
+                                    <CustomToggle
+                                        checked={settings.attendanceAccessControl?.admin?.faceAttendance ?? true}
+                                        onChange={() => handleAccessControlChange('admin', 'faceAttendance', !(settings.attendanceAccessControl?.admin?.faceAttendance ?? true))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Employee Controls */}
+                            <div className="space-y-4">
+                                <h4 className="text-md font-medium text-gray-800 border-b pb-2">Employee Dashboard</h4>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">Show "RFID Attendance"</label>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Controls visibility of RFID attendance card for employees
+                                        </p>
+                                    </div>
+                                    <CustomToggle
+                                        checked={settings.attendanceAccessControl?.employee?.rfidAttendance ?? true}
+                                        onChange={() => handleAccessControlChange('employee', 'rfidAttendance', !(settings.attendanceAccessControl?.employee?.rfidAttendance ?? true))}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">Show "Face Attendance"</label>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Controls visibility of face attendance card for employees
+                                        </p>
+                                    </div>
+                                    <CustomToggle
+                                        checked={settings.attendanceAccessControl?.employee?.faceAttendance ?? true}
+                                        onChange={() => handleAccessControlChange('employee', 'faceAttendance', !(settings.attendanceAccessControl?.employee?.faceAttendance ?? true))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
                 {/* Financial Settings */}
                 <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
                     <div className="h-2 bg-gradient-to-r from-emerald-400 to-teal-400" />
@@ -1182,7 +1302,7 @@ const Settings = () => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="bg-white p-4 rounded-lg shadow-sm">
                                 <h4 className="font-medium text-gray-700 mb-3 flex items-center">
                                     <FiMapPin className="mr-2 h-4 w-4" />

@@ -15,7 +15,7 @@ const startServer = async () => {
     console.log('Connecting to database...');
     await connectDB();
     console.log('Database connected successfully');
-    
+
     const app = express();
 
     const corsOptions = {
@@ -100,6 +100,8 @@ const startServer = async () => {
     app.use('/api/holidays', holidayRoutes);
     app.use('/api/fines', fineRoutes); // ADD THIS
     app.use('/api/invoices', invoiceRoutes);
+    app.use('/api/certificates', require('./routes/certificateRoutes'));
+
 
     // Test App routes
     app.use('/api/test/questions', testQuestionRoutes);
@@ -118,11 +120,11 @@ const startServer = async () => {
     // Initialize schedulers and cron jobs
     if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULERS === 'true') {
       console.log('🚀 Starting production schedulers...');
-      
+
       // Initialize food request schedulers
       const { initializeFoodRequestSchedulers } = require('./schedulers/foodRequestScheduler');
       initializeFoodRequestSchedulers();
-      
+
       // Initialize other cron jobs if they exist
       const { startCronJobs } = require('./services/cronJobs');
       startCronJobs();
@@ -148,7 +150,7 @@ const startServer = async () => {
     console.error('4. If using special characters in password, URL encode them');
     console.error('5. Try creating a new database user with a simple password');
     console.error('6. Refer to MONGODB_TROUBLESHOOTING.md for detailed instructions');
-    
+
     // Exit the process as we can't start the server without a database connection
     process.exit(1);
   }

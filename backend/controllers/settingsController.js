@@ -6,23 +6,23 @@ const Settings = require('../models/Settings');
 const getSettings = async (req, res) => {
   try {
     let settings = await Settings.findOne({ subdomain: req.params.subdomain });
-    
+
     // If settings don't exist, create default settings
     if (!settings) {
       // Use req.user._id if available, otherwise create without it
       const settingsData = {
         subdomain: req.params.subdomain
       };
-      
+
       // Only add updatedBy if req.user exists and has an _id
       if (req.user && req.user._id) {
         settingsData.updatedBy = req.user._id;
       }
-      
+
       settings = await Settings.create(settingsData);
       console.log(`Created default settings for subdomain: ${req.params.subdomain}`);
     }
-    
+
     res.json(settings);
   } catch (error) {
     console.error('Error in getSettings:', error);
@@ -36,7 +36,7 @@ const getSettings = async (req, res) => {
 const getSettingsPublic = async (req, res) => {
   try {
     let settings = await Settings.findOne({ subdomain: req.params.subdomain });
-    
+
     // If settings don't exist, create default settings
     if (!settings) {
       settings = await Settings.create({
@@ -44,12 +44,13 @@ const getSettingsPublic = async (req, res) => {
       });
       console.log(`Created default public settings for subdomain: ${req.params.subdomain}`);
     }
-    
+
     // Only return location settings for public access
     const publicSettings = {
-      attendanceLocation: settings.attendanceLocation
+      attendanceLocation: settings.attendanceLocation,
+      attendanceAccessControl: settings.attendanceAccessControl
     };
-    
+
     res.json(publicSettings);
   } catch (error) {
     console.error('Error in getSettingsPublic:', error);
@@ -66,19 +67,19 @@ const updateMealSettings = async (req, res) => {
     const updateData = req.body;
 
     let settings = await Settings.findOne({ subdomain });
-    
+
     // If settings don't exist, create them
     if (!settings) {
       // Use req.user._id if available, otherwise create without it
       const settingsData = {
         subdomain: subdomain
       };
-      
+
       // Only add updatedBy if req.user exists and has an _id
       if (req.user && req.user._id) {
         settingsData.updatedBy = req.user._id;
       }
-      
+
       settings = await Settings.create(settingsData);
       console.log(`Created settings for subdomain: ${subdomain}`);
     }
@@ -106,19 +107,19 @@ const updateSettings = async (req, res) => {
     const updateData = req.body;
 
     let settings = await Settings.findOne({ subdomain });
-    
+
     // If settings don't exist, create them
     if (!settings) {
       // Use req.user._id if available, otherwise create without it
       const settingsData = {
         subdomain: subdomain
       };
-      
+
       // Only add updatedBy if req.user exists and has an _id
       if (req.user && req.user._id) {
         settingsData.updatedBy = req.user._id;
       }
-      
+
       settings = await Settings.create(settingsData);
       console.log(`Created settings for subdomain: ${subdomain}`);
     }
@@ -126,25 +127,25 @@ const updateSettings = async (req, res) => {
     // Validate location settings if provided
     if (updateData.attendanceLocation) {
       const { latitude, longitude, radius } = updateData.attendanceLocation;
-      
+
       // Validate latitude
       if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
-        return res.status(400).json({ 
-          message: 'Latitude must be between -90 and 90 degrees' 
+        return res.status(400).json({
+          message: 'Latitude must be between -90 and 90 degrees'
         });
       }
-      
+
       // Validate longitude
       if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
-        return res.status(400).json({ 
-          message: 'Longitude must be between -180 and 180 degrees' 
+        return res.status(400).json({
+          message: 'Longitude must be between -180 and 180 degrees'
         });
       }
-      
+
       // Validate radius
       if (radius !== undefined && (radius < 10 || radius > 1000)) {
-        return res.status(400).json({ 
-          message: 'Radius must be between 10 and 1000 meters' 
+        return res.status(400).json({
+          message: 'Radius must be between 10 and 1000 meters'
         });
       }
     }
@@ -155,11 +156,11 @@ const updateSettings = async (req, res) => {
     // Use findOneAndUpdate to properly handle nested objects
     // Prepare update object
     const updateObject = { ...updateData };
-    
+
     // Remove protected fields
     delete updateObject.subdomain;
     delete updateObject._id;
-    
+
     // Add metadata
     updateObject.lastUpdated = Date.now();
     if (req.user && req.user._id) {

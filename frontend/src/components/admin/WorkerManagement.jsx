@@ -65,34 +65,34 @@ const WorkerManagement = () => {
     setIsLoadingDepartments(true);
 
     try {
-        const [workersData, departmentsData, settingsData] = await Promise.all([
-            getWorkers({ subdomain }),
-            getDepartments({ subdomain }),
-            getSettings({ subdomain })
-        ]);
+      const [workersData, departmentsData, settingsData] = await Promise.all([
+        getWorkers({ subdomain }),
+        getDepartments({ subdomain }),
+        getSettings({ subdomain })
+      ]);
 
-        const safeWorkersData = Array.isArray(workersData) ? workersData : [];
-        const safeDepartmentsData = Array.isArray(departmentsData) ? departmentsData : [];
-        const safeSettingsData = settingsData || {};
+      const safeWorkersData = Array.isArray(workersData) ? workersData : [];
+      const safeDepartmentsData = Array.isArray(departmentsData) ? departmentsData : [];
+      const safeSettingsData = settingsData || {};
 
-        setWorkers(safeWorkersData);
-        setDepartments(safeDepartmentsData);
-        setBatches(safeSettingsData.batches || []);
+      setWorkers(safeWorkersData);
+      setDepartments(safeDepartmentsData);
+      setBatches(safeSettingsData.batches || []);
     } catch (error) {
-        toast.error('Failed to load data');
-        console.error(error);
-        setWorkers([]);
-        setDepartments([]);
-        setBatches([]);
+      toast.error('Failed to load data');
+      console.error(error);
+      setWorkers([]);
+      setDepartments([]);
+      setBatches([]);
     } finally {
-        setIsLoading(false);
-        setIsLoadingDepartments(false);
+      setIsLoading(false);
+      setIsLoadingDepartments(false);
     }
-};
+  };
 
-useEffect(() => {
+  useEffect(() => {
     loadData();
-}, []);
+  }, []);
 
   const getWorkerId = async () => {
     await getUniqueId()
@@ -119,30 +119,30 @@ useEffect(() => {
         // Check if there's a department filter in the URL
         const urlParams = new URLSearchParams(location.search);
         const departmentFilter = urlParams.get('department');
-        
+
         // Apply department filter if present
-        const matchesDepartment = departmentFilter 
+        const matchesDepartment = departmentFilter
           ? worker.department === departmentFilter || worker.department?._id === departmentFilter
           : true;
-        
+
         // Apply search term filter
         const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()));
-        
+
         return matchesDepartment && matchesSearch;
       }
     )
     : [];
 
-    useEffect(() => {
-          if (isAddModalOpen) {
-            nameInputRef.current?.focus();
-          }
-        }, [isAddModalOpen]);
+  useEffect(() => {
+    if (isAddModalOpen) {
+      nameInputRef.current?.focus();
+    }
+  }, [isAddModalOpen]);
 
   // Open add worker modal
-const openAddModal = () => {
+  const openAddModal = () => {
     setFormData(prev => ({
       ...prev,
       name: '',
@@ -196,30 +196,30 @@ const openAddModal = () => {
   const handleFacesCaptured = async (faces) => {
     const embeddings = faces.map(face => face.embedding);
     setWorkerFaceEmbeddings(embeddings);
-    
+
     // If we're editing an existing worker, update their face embeddings immediately
     if (selectedWorkerForFace) {
       try {
         const updateData = {
           faceEmbeddings: embeddings
         };
-        
+
         const updatedWorker = await updateWorker(selectedWorkerForFace._id, updateData);
-        
+
         // Update the workers list
         setWorkers(prev =>
           prev.map(worker =>
             worker._id === selectedWorkerForFace._id ? updatedWorker : worker
           )
         );
-        
+
         toast.success('Face data captured and saved successfully');
       } catch (error) {
         console.error('Error saving face data:', error);
         toast.error('Failed to save face data');
       }
     }
-    
+
     setShowFaceCapture(false);
   };
 
@@ -236,85 +236,85 @@ const openAddModal = () => {
   };
 
   // Handle add worker
-const handleAddWorker = async (e) => {
-  e.preventDefault();
+  const handleAddWorker = async (e) => {
+    e.preventDefault();
 
-  // FIXED THIS LINE: Convert salary to string before trimming
-  const trimmedName = formData.name.trim();
-  const trimmedUsername = formData.username.trim();
-  const trimmedPassword = formData.password.trim();
-  const trimmedSalary = String(formData.salary).trim(); 
+    // FIXED THIS LINE: Convert salary to string before trimming
+    const trimmedName = formData.name.trim();
+    const trimmedUsername = formData.username.trim();
+    const trimmedPassword = formData.password.trim();
+    const trimmedSalary = String(formData.salary).trim();
 
-  // Validation checks
-  if (!subdomain || subdomain == 'main') {
-    toast.error('Subdomain is missing, check the url');
-    return;
-  }
+    // Validation checks
+    if (!subdomain || subdomain == 'main') {
+      toast.error('Subdomain is missing, check the url');
+      return;
+    }
 
-  if (!trimmedName) {
-    toast.error('Name is required and cannot be empty');
-    return;
-  }
+    if (!trimmedName) {
+      toast.error('Name is required and cannot be empty');
+      return;
+    }
 
-  if (!trimmedUsername) {
-    toast.error('Username is required and cannot be empty');
-    return;
-  }
+    if (!trimmedUsername) {
+      toast.error('Username is required and cannot be empty');
+      return;
+    }
 
-  if (!trimmedSalary || trimmedSalary === '') {
-    toast.error('Salary is required and cannot be empty');
-    return;
-  }
+    if (!trimmedSalary || trimmedSalary === '') {
+      toast.error('Salary is required and cannot be empty');
+      return;
+    }
 
-  if (isNaN(Number(trimmedSalary)) || Number(trimmedSalary) <= 0) {
-    toast.error('Salary must be a positive number');
-    return;
-  }
+    if (isNaN(Number(trimmedSalary)) || Number(trimmedSalary) <= 0) {
+      toast.error('Salary must be a positive number');
+      return;
+    }
 
-  if (!trimmedPassword) {
-    toast.error('Password is required and cannot be empty');
-    return;
-  }
+    if (!trimmedPassword) {
+      toast.error('Password is required and cannot be empty');
+      return;
+    }
 
-  if (!formData.department) {
-    toast.error('Department is required');
-    return;
-  }
+    if (!formData.department) {
+      toast.error('Department is required');
+      return;
+    }
 
-  if (!formData.rfid) {
-    toast.error('Unique ID is required');
-    return;
-  }
-  
-  // ADDED: Check if batch is selected
-  if (!formData.batch) {
+    if (!formData.rfid) {
+      toast.error('Unique ID is required');
+      return;
+    }
+
+    // ADDED: Check if batch is selected
+    if (!formData.batch) {
       toast.error('Batch is required');
       return;
-  }
+    }
 
-  try {
-    const newWorker = await createWorker({
-      ...formData,
-      name: trimmedName,
-      username: trimmedUsername,
-      rfid: formData.rfid,
-      salary: Number(trimmedSalary), // Ensure salary is a number
-      subdomain,
-      password: trimmedPassword,
-      photo: formData.photo || '',
-      batch: formData.batch, // ADDED: Include the batch
-      faceEmbeddings: workerFaceEmbeddings // Include face embeddings
-    });
+    try {
+      const newWorker = await createWorker({
+        ...formData,
+        name: trimmedName,
+        username: trimmedUsername,
+        rfid: formData.rfid,
+        salary: Number(trimmedSalary), // Ensure salary is a number
+        subdomain,
+        password: trimmedPassword,
+        photo: formData.photo || '',
+        batch: formData.batch, // ADDED: Include the batch
+        faceEmbeddings: workerFaceEmbeddings // Include face embeddings
+      });
 
-    generateQRCode(trimmedUsername, formData.rfid);
-    setWorkers(prev => [...prev, newWorker]);
-    setIsAddModalOpen(false);
-    toast.success('Employee added successfully');
-  } catch (error) {
-    console.error('Add Employee Error:', error);
-    toast.error(error.message || 'Failed to add employee');
-  }
-};
+      generateQRCode(trimmedUsername, formData.rfid);
+      setWorkers(prev => [...prev, newWorker]);
+      setIsAddModalOpen(false);
+      toast.success('Employee added successfully');
+    } catch (error) {
+      console.error('Add Employee Error:', error);
+      toast.error(error.message || 'Failed to add employee');
+    }
+  };
 
   // Handle edit worker
   const handleEditWorker = async (e) => {
@@ -425,8 +425,8 @@ const handleAddWorker = async (e) => {
       accessor: 'department',
       render: (record) => (
         <span>
-          {typeof record.department === 'object' 
-            ? record.department.name 
+          {typeof record.department === 'object'
+            ? record.department.name
             : (departments.find(dept => dept._id === record.department)?.name || record.department || 'N/A')}
         </span>
       ),
@@ -438,6 +438,34 @@ const handleAddWorker = async (e) => {
     {
       header: 'RFID',
       accessor: 'rfid',
+    },
+    {
+      header: 'Face Enroll',
+      accessor: 'faceEnroll',
+      render: (record) => {
+        const isCaptured = record.faceEmbeddings && record.faceEmbeddings.length > 0;
+
+        if (isCaptured) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <svg className="-ml-0.5 mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                <circle cx="4" cy="4" r="3" />
+              </svg>
+              Captured
+            </span>
+          );
+        }
+
+        return (
+          <button
+            onClick={() => openFaceCaptureModal(record)}
+            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+          >
+            <FaCamera className="mr-1" />
+            Not Captured
+          </button>
+        );
+      }
     },
     {
       header: 'Actions',
@@ -801,7 +829,7 @@ const handleAddWorker = async (e) => {
           </div>
         </form>
       </Modal>
-      
+
       {/* Face Capture Modal */}
       <Modal
         isOpen={showFaceCapture}
@@ -811,7 +839,7 @@ const handleAddWorker = async (e) => {
       >
         <FaceCapture onFacesCaptured={handleFacesCaptured} />
       </Modal>
-      
+
       {/* Delete Worker Modal */}
       <Modal
         isOpen={isDeleteModalOpen}

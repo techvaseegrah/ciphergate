@@ -25,13 +25,13 @@ const InvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
 
   // Calculate total amount for an invoice
   const calculateTotal = (invoice) => {
-    const subtotal = invoice.items.reduce((sum, item) => 
+    const subtotal = invoice.items.reduce((sum, item) =>
       sum + (item.isTotalOverridden ? item.total : (item.qty * item.rate)), 0);
-    
-    const gstTotal = (invoice.gstEnabled) ? 
-      invoice.items.reduce((sum, item) => 
+
+    const gstTotal = (invoice.gstEnabled) ?
+      invoice.items.reduce((sum, item) =>
         sum + (item.isTotalOverridden ? (item.total * item.gst / 100) : (item.qty * item.rate * item.gst / 100)), 0) : 0;
-    
+
     return subtotal + gstTotal;
   };
 
@@ -44,15 +44,15 @@ const InvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
   // Confirm delete
   const confirmDelete = async () => {
     if (!invoiceToDelete) return;
-    
+
     try {
       const response = await deleteInvoice(invoiceToDelete);
       if (response.success) {
         // Update local state to immediately remove the deleted invoice
-        setLocalInvoices(prevInvoices => 
+        setLocalInvoices(prevInvoices =>
           prevInvoices.filter(invoice => invoice._id !== invoiceToDelete)
         );
-        
+
         // Call the onDeleteInvoice callback if provided
         if (onDeleteInvoice) {
           onDeleteInvoice(invoiceToDelete);
@@ -79,7 +79,7 @@ const InvoiceHistory = ({ invoices, onEditInvoice, onDeleteInvoice }) => {
   return (
     <div className="max-w-6xl mx-auto p-4 bg-white font-sans">
       <h1 className="text-xl font-bold text-gray-800 mb-6">Invoice History</h1>
-      
+
       {localInvoices.length === 0 ? (
         <Card className="p-6 text-center">
           <p className="text-gray-500">No invoices found. Create your first invoice to get started.</p>

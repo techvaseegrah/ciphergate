@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { FaUpload, FaDownload, FaPen } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import axios from 'axios';
+import CertificateHistory from './CertificateHistory';
+import Modal from '../common/Modal';
 
 // Styled fonts and global styles
 const styleTag = document.createElement("style");
@@ -165,9 +168,19 @@ const ExperienceCertificate = () => {
   const [signatures, setSignatures] = useState({ signature: null });
   const [logoSelection, setLogoSelection] = useState('tech');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // History States
+  const [currentCertId, setCurrentCertId] = useState(null);
+  const [refreshHistory, setRefreshHistory] = useState(0);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
   const letterRef = useRef();
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const handleSignatureUpload = (e) => {
+    if (isViewMode) return;
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -178,15 +191,53 @@ const ExperienceCertificate = () => {
     }
   };
 
-  const downloadPDF = () => {
+  const saveCertificate = async () => {
+    try {
+      // Try to extract name from para1 if possible, or give a default
+      let name = 'Untitled Experience Certificate';
+      const match = formData.para1.match(/(?:Mr\.|Ms\.|Mrs\.)\s+([A-Za-z\s]+)(?:\s+was)/);
+      if (match && match[1]) {
+        name = match[1].trim();
+      }
+
+      const payload = {
+        name: name,
+        type: 'Experience',
+        content: {
+          formData,
+          signatures,
+          logoSelection
+        }
+      };
+
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      if (currentCertId) {
+        await axios.put(`${API_URL}/certificates/${currentCertId}`, payload, config);
+      } else {
+        const res = await axios.post(`${API_URL}/certificates`, payload, config);
+        setCurrentCertId(res.data._id);
+      }
+      setRefreshHistory(prev => prev + 1);
+    } catch (error) {
+      console.error('Error saving certificate:', error);
+    }
+  };
+
+  const downloadPDF = async () => {
+    if (!isViewMode) {
+      await saveCertificate();
+    }
+
     setIsGenerating(true);
     const editableAreas = document.querySelectorAll('.editable-area');
     editableAreas.forEach(inp => inp.style.backgroundColor = 'transparent');
 
-    html2canvas(letterRef.current, { 
-      scale: 2.5, 
+    html2canvas(letterRef.current, {
+      scale: 2.5,
       useCORS: true,
-      scrollY: -window.scrollY 
+      scrollY: -window.scrollY
     }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -202,12 +253,91 @@ const ExperienceCertificate = () => {
   };
 
   const handleEdit = (field, value) => {
+    if (isViewMode) return;
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleView = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(true);
+    setCurrentCertId(cert._id);
+    setShowHistoryModal(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleEditHistory = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(false);
+    setCurrentCertId(cert._id);
+    setShowHistoryModal(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleHistoryDownload = (cert) => {
+    loadCertificateData(cert);
+    setIsViewMode(true);
+    setShowHistoryModal(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      if (window.confirm('Certificate data loaded. Ready to download?')) {
+        downloadPDF();
+      }
+    }, 500);
+  };
+
+  const loadCertificateData = (cert) => {
+    const content = cert.content;
+    setFormData(content.formData);
+    setSignatures(content.signatures);
+    setLogoSelection(content.logoSelection);
+  };
+
+  const handleNew = () => {
+    setFormData({
+      companyName: 'TECH VASEEGRAH',
+      date: '15 DECEMBER 2025',
+      title: 'TO WHOMSOEVER IT MAY CONCERN',
+      para1: 'This is to certify that Mr. Parthasarathi T was employed at Tech Vaseegrah as a Product Designer from 10th February 2025 to 15th December 2025.',
+      para2: 'During his tenure, he provided effective design support across projects, contributing positively to both development workflows and client deliverables. His performance and conduct were consistently satisfactory throughout the employment period.',
+      para3: 'We wish him continued success in all his future professional endeavors.',
+      closing: 'For Tech Vaseegrah',
+      signatoryName: 'Sreekarrthikeyan M',
+      signatoryTitle: 'Founder & CEO',
+      footerAddress: 'Regd. Office : 11, Vijaya Street, Srinivasapuram, Thanjavur - 613009',
+      footerPhone: 'Phone Number : +91 85240 89733',
+      footerEmail: 'Email : techvaseegrah@gmail.com',
+      footerWeb: 'Website : www.techvaseegrah.com'
+    });
+    setSignatures({ signature: null });
+    setLogoSelection('tech');
+    setCurrentCertId(null);
+    setIsViewMode(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 flex flex-col items-center font-sans">
-      
+
+      {/* 0. Mode Indicator / New Button */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col md:flex-row gap-2 items-end">
+        {currentCertId && (
+          <div className={`px-4 py-2 rounded shadow font-bold text-white ${isViewMode ? 'bg-blue-600' : 'bg-yellow-600'}`}>
+            {isViewMode ? 'VIEW MODE' : 'EDIT MODE'}
+          </div>
+        )}
+        <button
+          onClick={() => setShowHistoryModal(true)}
+          className="bg-blue-800 text-white px-4 py-2 rounded shadow hover:bg-blue-900 transition"
+        >
+          History
+        </button>
+        <button
+          onClick={handleNew}
+          className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-black transition"
+        >
+          New Certificate
+        </button>
+      </div>
+
       {/* Helper Text */}
       <div className="flex items-center gap-2 mb-4 text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm text-sm">
         <FaPen className="text-[#4a9d2d] w-3 h-3" />
@@ -215,205 +345,236 @@ const ExperienceCertificate = () => {
       </div>
 
       {/* --- A4 DOCUMENT --- */}
-      <div ref={letterRef} className="experience-container a4-size">
-        
-        {/* Background Watermark */}
-        <div className="watermark-container">
-           {logoSelection === 'tech' ? (
-             <img src="/Invoicelogo.png" alt="Watermark" className="watermark-img" />
-           ) : (
-             <img src="/vaseveda.png" alt="Watermark" className="watermark-img" />
-           )}
-        </div>
+      <div className="w-full overflow-hidden flex justify-center md:block md:w-auto md:overflow-visible my-4 md:my-0">
+        <div className="transform origin-top scale-[0.45] sm:scale-[0.6] md:scale-100">
+          <div ref={letterRef} className={`experience-container a4-size ${isViewMode ? 'pointer-events-none' : ''}`}>
 
-        <div className="page-content flex flex-col h-full relative">
-          
-          {/* 1. Header Section */}
-          <div className="flex justify-between items-center mb-1">
-            {/* Logo + Text */}
-            <div className="flex items-center gap-3">
+            {/* Background Watermark */}
+            <div className="watermark-container">
               {logoSelection === 'tech' ? (
-                 <div className="flex items-center gap-2">
-                   <img src="/Invoicelogo.png" alt="Logo" className="h-12 object-contain" />
-                   <div className="text-[#4a9d2d] font-bold text-xl uppercase tracking-wide">
-                     {/* Removed Heading Text as per previous request */}
-                   </div>
-                 </div>
+                <img src="/Invoicelogo.png" alt="Watermark" className="watermark-img" />
               ) : (
-                <img src="/vaseveda.png" alt="Veda Logo" className="h-14 object-contain" />
+                <img src="/vaseveda.png" alt="Watermark" className="watermark-img" />
               )}
             </div>
-          </div>
 
-          {/* 2. Header Line Separator */}
-          <div className="w-full h-[2px] bg-[#9ca3af] my-4"></div>
+            <div className="page-content flex flex-col h-full relative">
 
-          {/* 3. Date (Right Aligned) */}
-          <div className="text-right mb-12">
-            <div 
-              contentEditable 
-              className="text-[#4a9d2d] font-bold text-sm uppercase tracking-wide editable-area outline-none inline-block"
-              onBlur={(e) => handleEdit('date', e.target.innerText)}
-            >
-              {formData.date}
-            </div>
-          </div>
-
-          {/* 4. Title (Centered) */}
-          <div className="text-center mb-12">
-            <h1 
-              contentEditable
-              className="text-[#4a9d2d] font-bold text-lg uppercase tracking-wide editable-area outline-none inline-block"
-              onBlur={(e) => handleEdit('title', e.target.innerText)}
-            >
-              {formData.title}
-            </h1>
-          </div>
-
-          {/* 5. Body Content */}
-          <div className="flex flex-col gap-6 text-[15px] text-gray-800 tracking-wide text-justify">
-            
-            <div 
-              contentEditable 
-              className="editable-area outline-none leading-8"
-              onBlur={(e) => handleEdit('para1', e.target.innerText)}
-              dangerouslySetInnerHTML={{ __html: formData.para1.replace(/Mr\. Parthasarathi T/g, '<b>Mr. Parthasarathi T</b>').replace(/Product Designer/g, '<b>Product Designer</b>') }} 
-            />
-
-            <div 
-              contentEditable 
-              className="editable-area outline-none leading-8"
-              onBlur={(e) => handleEdit('para2', e.target.innerText)}
-            >
-              {formData.para2}
-            </div>
-
-            <div 
-              contentEditable 
-              className="editable-area outline-none leading-8"
-              onBlur={(e) => handleEdit('para3', e.target.innerText)}
-            >
-              {formData.para3}
-            </div>
-
-            {/* Signatory Section (Left Aligned) */}
-            <div className="mt-16">
-              <div 
-                contentEditable 
-                className="text-[#4a9d2d] font-bold mb-10 editable-area outline-none"
-                onBlur={(e) => handleEdit('closing', e.target.innerText)}
-              >
-                {formData.closing}
-              </div>
-              
-              {/* Signature Image Area - Increased size for larger appearance */}
-              <div className="h-32 mb-2 flex items-center">
-                 {signatures.signature && (
-                   <img src={signatures.signature} alt="Sign" className="max-h-full max-w-[350px] object-contain" />
-                 )}
+              {/* 1. Header Section */}
+              <div className="flex justify-between items-center mb-1">
+                {/* Logo + Text */}
+                <div className="flex items-center gap-3">
+                  {logoSelection === 'tech' ? (
+                    <div className="flex items-center gap-2">
+                      <img src="/Invoicelogo.png" alt="Logo" className="h-12 object-contain" />
+                      <div className="text-[#4a9d2d] font-bold text-xl uppercase tracking-wide">
+                        {/* Removed Heading Text as per previous request */}
+                      </div>
+                    </div>
+                  ) : (
+                    <img src="/vaseveda.png" alt="Veda Logo" className="h-14 object-contain" />
+                  )}
+                </div>
               </div>
 
-              <div 
-                contentEditable 
-                className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
-                onBlur={(e) => handleEdit('signatoryName', e.target.innerText)}
-              >
-                {formData.signatoryName}
+              {/* 2. Header Line Separator */}
+              <div className="w-full h-[2px] bg-[#9ca3af] my-4"></div>
+
+              {/* 3. Date (Right Aligned) */}
+              <div className="text-right mb-12">
+                <div
+                  contentEditable={!isViewMode}
+                  className="text-[#4a9d2d] font-bold text-sm uppercase tracking-wide editable-area outline-none inline-block"
+                  onBlur={(e) => handleEdit('date', e.target.innerText)}
+                  suppressContentEditableWarning={true}
+                >
+                  {formData.date}
+                </div>
               </div>
-              <div 
-                contentEditable 
-                className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
-                onBlur={(e) => handleEdit('signatoryTitle', e.target.innerText)}
-              >
-                {formData.signatoryTitle}
+
+              {/* 4. Title (Centered) */}
+              <div className="text-center mb-12">
+                <h1
+                  contentEditable={!isViewMode}
+                  className="text-[#4a9d2d] font-bold text-lg uppercase tracking-wide editable-area outline-none inline-block"
+                  onBlur={(e) => handleEdit('title', e.target.innerText)}
+                  suppressContentEditableWarning={true}
+                >
+                  {formData.title}
+                </h1>
+              </div>
+
+              {/* 5. Body Content */}
+              <div className="flex flex-col gap-6 text-[15px] text-gray-800 tracking-wide text-justify">
+
+                <div
+                  contentEditable={!isViewMode}
+                  className="editable-area outline-none leading-8"
+                  onBlur={(e) => handleEdit('para1', e.target.innerText)}
+                  suppressContentEditableWarning={true}
+                  dangerouslySetInnerHTML={{ __html: formData.para1.replace(/Mr\. Parthasarathi T/g, '<b>Mr. Parthasarathi T</b>').replace(/Product Designer/g, '<b>Product Designer</b>') }}
+                />
+
+                <div
+                  contentEditable={!isViewMode}
+                  className="editable-area outline-none leading-8"
+                  onBlur={(e) => handleEdit('para2', e.target.innerText)}
+                  suppressContentEditableWarning={true}
+                >
+                  {formData.para2}
+                </div>
+
+                <div
+                  contentEditable={!isViewMode}
+                  className="editable-area outline-none leading-8"
+                  onBlur={(e) => handleEdit('para3', e.target.innerText)}
+                  suppressContentEditableWarning={true}
+                >
+                  {formData.para3}
+                </div>
+
+                {/* Signatory Section (Left Aligned) */}
+                <div className="mt-16">
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-[#4a9d2d] font-bold mb-10 editable-area outline-none"
+                    onBlur={(e) => handleEdit('closing', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.closing}
+                  </div>
+
+                  {/* Signature Image Area - Increased size for larger appearance */}
+                  <div className="h-32 mb-2 flex items-center">
+                    {signatures.signature && (
+                      <img src={signatures.signature} alt="Sign" className="max-h-full max-w-[350px] object-contain" />
+                    )}
+                  </div>
+
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
+                    onBlur={(e) => handleEdit('signatoryName', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.signatoryName}
+                  </div>
+                  <div
+                    contentEditable={!isViewMode}
+                    className="text-[#4a9d2d] font-bold text-sm editable-area outline-none"
+                    onBlur={(e) => handleEdit('signatoryTitle', e.target.innerText)}
+                    suppressContentEditableWarning={true}
+                  >
+                    {formData.signatoryTitle}
+                  </div>
+                </div>
+
               </div>
             </div>
 
-          </div>
-        </div>
-
-        {/* 6. Footer (Centered Address + Green Stripe) */}
-        <div className="relative pb-6 pt-4">
-           <div className="w-[90%] mx-auto border-t border-[#4a9d2d] mb-3"></div>
-           <div className="flex flex-col items-center justify-center footer-text">
-              <div className="flex flex-wrap justify-center gap-1">
-                 <span className="text-[#4a9d2d] font-bold">{formData.footerAddress.split(':')[0]} :</span>
-                 <span contentEditable onBlur={(e) => handleEdit('footerAddress', e.target.innerText)} className="editable-area outline-none text-gray-600">
+            {/* 6. Footer (Centered Address + Green Stripe) */}
+            <div className="relative pb-6 pt-4">
+              <div className="w-[90%] mx-auto border-t border-[#4a9d2d] mb-3"></div>
+              <div className="flex flex-col items-center justify-center footer-text">
+                <div className="flex flex-wrap justify-center gap-1">
+                  <span className="text-[#4a9d2d] font-bold">{formData.footerAddress.split(':')[0]} :</span>
+                  <span contentEditable={!isViewMode} onBlur={(e) => handleEdit('footerAddress', e.target.innerText)} className="editable-area outline-none text-gray-600" suppressContentEditableWarning={true}>
                     {formData.footerAddress.split(':')[1]}
-                 </span>
-                 <span className="mx-1">|</span>
-                 <span className="text-[#4a9d2d] font-bold">{formData.footerPhone.split(':')[0]} :</span>
-                 <span contentEditable onBlur={(e) => handleEdit('footerPhone', e.target.innerText)} className="editable-area outline-none text-gray-600">
+                  </span>
+                  <span className="mx-1">|</span>
+                  <span className="text-[#4a9d2d] font-bold">{formData.footerPhone.split(':')[0]} :</span>
+                  <span contentEditable={!isViewMode} onBlur={(e) => handleEdit('footerPhone', e.target.innerText)} className="editable-area outline-none text-gray-600" suppressContentEditableWarning={true}>
                     {formData.footerPhone.split(':')[1]}
-                 </span>
-              </div>
-              <div className="flex flex-wrap justify-center gap-1 mt-1">
-                 <span className="text-[#4a9d2d] font-bold">{formData.footerEmail.split(':')[0]} :</span>
-                 <span contentEditable onBlur={(e) => handleEdit('footerEmail', e.target.innerText)} className="editable-area outline-none text-gray-600">
+                  </span>
+                </div>
+                <div className="flex flex-wrap justify-center gap-1 mt-1">
+                  <span className="text-[#4a9d2d] font-bold">{formData.footerEmail.split(':')[0]} :</span>
+                  <span contentEditable={!isViewMode} onBlur={(e) => handleEdit('footerEmail', e.target.innerText)} className="editable-area outline-none text-gray-600" suppressContentEditableWarning={true}>
                     {formData.footerEmail.split(':')[1]}
-                 </span>
-                 <span className="mx-1">|</span>
-                 <span className="text-[#4a9d2d] font-bold">{formData.footerWeb.split(':')[0]} :</span>
-                 <span contentEditable onBlur={(e) => handleEdit('footerWeb', e.target.innerText)} className="editable-area outline-none text-gray-600">
+                  </span>
+                  <span className="mx-1">|</span>
+                  <span className="text-[#4a9d2d] font-bold">{formData.footerWeb.split(':')[0]} :</span>
+                  <span contentEditable={!isViewMode} onBlur={(e) => handleEdit('footerWeb', e.target.innerText)} className="editable-area outline-none text-gray-600" suppressContentEditableWarning={true}>
                     {formData.footerWeb.split(':')[1]}
-                 </span>
+                  </span>
+                </div>
               </div>
-           </div>
-           <div className="green-footer-stripe"></div>
+              <div className="green-footer-stripe"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* --- BOTTOM ACTION BAR (UNCHANGED) --- */}
-      <div className="w-full max-w-[210mm] mt-8 mb-12 action-bar-container bg-white border border-gray-200 rounded-xl shadow-lg p-5 flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
-        
+      <div className="w-full max-w-[90%] md:max-w-[210mm] mt-8 mb-12 action-bar-container bg-white border border-gray-200 rounded-xl shadow-lg p-5 flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
+
         {/* Header Options */}
-        <div className="flex flex-col gap-2 w-full md:w-auto">
+        <div className={`flex flex-col gap-2 w-full md:w-auto ${isViewMode ? 'opacity-50 pointer-events-none' : ''}`}>
           <span className="text-gray-500 font-bold text-[10px] tracking-widest uppercase">SELECT HEADER:</span>
           <div className="flex gap-4">
-             {/* Option 1 */}
-             <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'tech' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="logo" checked={logoSelection === 'tech'} onChange={() => setLogoSelection('tech')} className="hidden"/>
-                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'tech' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
-                  {logoSelection === 'tech' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
-                </div>
-                <span className={`text-sm font-semibold ${logoSelection === 'tech' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Tech Vaseegrah</span>
-             </label>
+            {/* Option 1 */}
+            <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'tech' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <input type="radio" name="logo" checked={logoSelection === 'tech'} onChange={() => setLogoSelection('tech')} className="hidden" />
+              <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'tech' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
+                {logoSelection === 'tech' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
+              </div>
+              <span className={`text-sm font-semibold ${logoSelection === 'tech' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Tech Vaseegrah</span>
+            </label>
 
-             {/* Option 2 */}
-             <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'veda' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="logo" checked={logoSelection === 'veda'} onChange={() => setLogoSelection('veda')} className="hidden"/>
-                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'veda' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
-                  {logoSelection === 'veda' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
-                </div>
-                <span className={`text-sm font-semibold ${logoSelection === 'veda' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Vaseegrah Veda</span>
-             </label>
+            {/* Option 2 */}
+            <label className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${logoSelection === 'veda' ? 'border-[#4a9d2d] bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <input type="radio" name="logo" checked={logoSelection === 'veda'} onChange={() => setLogoSelection('veda')} className="hidden" />
+              <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${logoSelection === 'veda' ? 'border-[#4a9d2d]' : 'border-gray-400'}`}>
+                {logoSelection === 'veda' && <div className="w-1.5 h-1.5 rounded-full bg-[#4a9d2d]"></div>}
+              </div>
+              <span className={`text-sm font-semibold ${logoSelection === 'veda' ? 'text-[#4a9d2d]' : 'text-gray-600'}`}>Vaseegrah Veda</span>
+            </label>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-           <label className="cursor-pointer group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-[#4a9d2d] hover:shadow-md transition-all">
-             <FaUpload className="text-gray-500 group-hover:text-[#4a9d2d] transition-colors" />
-             <span className="text-sm font-bold text-gray-700 group-hover:text-[#4a9d2d]">SIGNATURE</span>
-             <input type="file" className="hidden" onChange={handleSignatureUpload} accept="image/*" />
-           </label>
+          <label className={`cursor-pointer group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-[#4a9d2d] hover:shadow-md transition-all ${isViewMode ? 'opacity-50 pointer-events-none' : ''}`}>
+            <FaUpload className="text-gray-500 group-hover:text-[#4a9d2d] transition-colors" />
+            <span className="text-sm font-bold text-gray-700 group-hover:text-[#4a9d2d]">SIGNATURE</span>
+            <input type="file" className="hidden" onChange={handleSignatureUpload} accept="image/*" />
+          </label>
 
-           <button 
-             onClick={downloadPDF} 
-             disabled={isGenerating}
-             className="flex items-center gap-2 px-6 py-2.5 bg-[#4a9d2d] text-white rounded-lg shadow-md hover:bg-[#3d8524] hover:shadow-lg active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100"
-           >
-             {isGenerating ? (
-               <span className="text-sm font-bold animate-pulse">GENERATING...</span>
-             ) : (
-               <>
-                 <FaDownload />
-                 <span className="text-sm font-bold">DOWNLOAD PDF</span>
-               </>
-             )}
-           </button>
+          <button
+            onClick={downloadPDF}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#4a9d2d] text-white rounded-lg shadow-md hover:bg-[#3d8524] hover:shadow-lg active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100"
+          >
+            {isGenerating ? (
+              <span className="text-sm font-bold animate-pulse">GENERATING...</span>
+            ) : (
+              <>
+                <FaDownload />
+                <span className="text-sm font-bold">{isViewMode ? 'DOWNLOAD' : 'SAVE & DOWNLOAD'}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        title="Experience Certificate History"
+        onClose={() => setShowHistoryModal(false)}
+        size="xl"
+      >
+        <div className="w-full">
+          <CertificateHistory
+            type="Experience"
+            onView={handleView}
+            onEdit={handleEditHistory}
+            onDelete={() => handleNew()}
+            onDownload={handleHistoryDownload}
+            refreshTrigger={refreshHistory}
+          />
+        </div>
+      </Modal>
 
     </div>
   );

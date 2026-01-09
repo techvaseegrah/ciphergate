@@ -50,13 +50,13 @@ const UnifiedInvoiceHistory = ({ onEditInvoice, onDeleteInvoice }) => {
 
   // Calculate total amount for an invoice
   const calculateTotal = (invoice) => {
-    const subtotal = invoice.items.reduce((sum, item) => 
+    const subtotal = invoice.items.reduce((sum, item) =>
       sum + (item.isTotalOverridden ? item.total : (item.qty * item.rate)), 0);
-    
-    const gstTotal = (invoice.gstEnabled) ? 
-      invoice.items.reduce((sum, item) => 
+
+    const gstTotal = (invoice.gstEnabled) ?
+      invoice.items.reduce((sum, item) =>
         sum + (item.isTotalOverridden ? (item.total * item.gst / 100) : (item.qty * item.rate * item.gst / 100)), 0) : 0;
-    
+
     return subtotal + gstTotal;
   };
 
@@ -69,20 +69,20 @@ const UnifiedInvoiceHistory = ({ onEditInvoice, onDeleteInvoice }) => {
   // Confirm delete
   const confirmDelete = async () => {
     if (!invoiceToDelete) return;
-    
+
     try {
       const response = await deleteInvoice(invoiceToDelete);
       if (response.success) {
         // Update local state to immediately remove the deleted invoice
-        setLocalInvoices(prevInvoices => 
+        setLocalInvoices(prevInvoices =>
           prevInvoices.filter(invoice => invoice._id !== invoiceToDelete)
         );
-        
+
         // Also update the main invoices state
-        setInvoices(prevInvoices => 
+        setInvoices(prevInvoices =>
           prevInvoices.filter(invoice => invoice._id !== invoiceToDelete)
         );
-        
+
         // Call the onDeleteInvoice callback if provided
         if (onDeleteInvoice) {
           onDeleteInvoice(invoiceToDelete);
@@ -109,7 +109,7 @@ const UnifiedInvoiceHistory = ({ onEditInvoice, onDeleteInvoice }) => {
   return (
     <div className="max-w-6xl mx-auto p-4 bg-white font-sans">
       <h1 className="text-xl font-bold text-gray-800 mb-6">All Invoices</h1>
-      
+
       {loading && (
         <div className="text-center py-4">
           <p>Loading invoices...</p>
@@ -159,11 +159,10 @@ const UnifiedInvoiceHistory = ({ onEditInvoice, onDeleteInvoice }) => {
                       ₹{calculateTotal(invoice).toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700 border-b">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        invoice.source === 'admin' 
-                          ? 'bg-purple-100 text-purple-800' 
+                      <span className={`px-2 py-1 text-xs rounded-full ${invoice.source === 'admin'
+                          ? 'bg-purple-100 text-purple-800'
                           : 'bg-green-100 text-green-800'
-                      }`}>
+                        }`}>
                         {invoice.source === 'admin' ? 'Admin' : 'Worker'}
                       </span>
                     </td>

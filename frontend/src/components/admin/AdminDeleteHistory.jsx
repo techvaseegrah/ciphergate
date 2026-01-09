@@ -1,280 +1,247 @@
-import React, { useState, useRef } from 'react';
-import { FaUpload, FaDownload } from 'react-icons/fa';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { FaTrash, FaHistory, FaSearch, FaFileInvoiceDollar, FaEye } from 'react-icons/fa';
+import Modal from '../common/Modal';
+import AdvancedInvoice from './AdvancedInvoice';
 
-// Styled fonts and global styles
-const styleTag = document.createElement("style");
-styleTag.innerHTML = `
-  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cinzel:wght@400;500;700&family=Montserrat:wght@300;400&display=swap');
-  
-  .cert-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    text-align: center;
-    width: 100%;
-    padding: 2px;
-    font-family: inherit;
-    color: inherit;
-    transition: background 0.2s;
-  }
-  .cert-input:hover {
-    background: rgba(166, 124, 82, 0.05);
-  }
-  .certificate-outer {
-    background-color: #fdfaf5;
-    border: 15px solid #a67c52; /* Thick outer bronze border */
-    padding: 6px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-  }
-  .certificate-inner {
-    border: 2px solid #a67c52; /* Inner border line */
-    height: 100%;
-    width: 100%;
-    position: relative;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-`;
-document.head.appendChild(styleTag);
+const AdminDeleteHistory = () => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-// UPDATED: Exact Vintage Baroque Corner Ornament from your reference
-const CornerOrnament = ({ className, style }) => (
-  <svg 
-    className={`absolute w-40 h-40 text-[#d4af37] pointer-events-none ${className}`} 
-    viewBox="0 0 100 100" 
-    fill="currentColor"
-    style={style}
-  >
-    {/* Main Scrollwork Body */}
-    <path d="M2,2 L2,35 C2,35 5,25 15,20 C25,15 35,15 35,15 L35,15 
-             C35,15 45,20 40,35 C35,50 15,55 15,55 C15,55 5,55 5,75 L5,90
-             C5,90 8,80 12,75 C16,70 25,70 25,70 C25,70 45,70 55,50 
-             C65,30 50,10 50,10 C50,10 65,15 75,12 C85,9 90,2 90,2 L2,2 Z" opacity="0.9"/>
-    
-    {/* Detailed Floral Accents & Swirls */}
-    <path d="M90,2 C90,2 75,15 65,25 C55,35 55,45 65,55 C75,65 85,60 85,60 
-             C85,60 75,60 70,70 C65,80 70,90 70,90
-             M2,90 C2,90 10,75 25,70 M45,45 C45,45 55,55 45,65 C35,75 25,65 25,65" 
-             fill="none" stroke="currentColor" strokeWidth="1.5" />
-             
-    {/* The distinctive Fan/Flower at the very corner vertex */}
-    <path d="M2,2 L25,25 M2,15 L15,2 M15,15 L30,30" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
-    <circle cx="5" cy="5" r="2" fill="currentColor" />
-  </svg>
-);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const InternCertificate = () => {
-  const [formData, setFormData] = useState({
-    fullName: 'YOUR NAME HERE',
-    registerNumber: '24PCS5308', 
-    collegeName: 'Raja Serfoji Government College',
-    courseDegree: 'Master of Science in Computer Science',
-    fromDate: '19-05-2025',
-    toDate: '28-05-2025',
-  });
+  useEffect(() => {
+    fetchDeleteHistory();
+  }, []);
 
-  const [signatures, setSignatures] = useState({ sig1: null, sig2: null });
-  const [isGenerating, setIsGenerating] = useState(false);
-  const certificateRef = useRef();
+  const fetchDeleteHistory = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+      const response = await axios.get(`${API_URL}/invoices/delete-history/admin`, config);
 
-  const handleSignatureUpload = (e, key) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setSignatures(prev => ({ ...prev, [key]: reader.result }));
-      reader.readAsDataURL(file);
+      if (response.data.success) {
+        setHistory(response.data.data);
+      } else {
+        setError('Failed to fetch delete history');
+      }
+    } catch (err) {
+      console.error('Error fetching delete history:', err);
+      setError(err.response?.data?.message || 'Error fetching delete history');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const downloadPDF = async () => {
-    const input = certificateRef.current;
-    setIsGenerating(true);
-    
-    // Ensure fonts are loaded before capturing
-    await document.fonts.ready;
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    // If it's already a formatted string like 'DD-MM-YYYY', return it
+    if (dateString.includes('-') && dateString.length === 10) return dateString;
 
-    html2canvas(input, {
-      scale: 3, 
-      useCORS: true, 
-      backgroundColor: '#fdfaf5',
-      scrollY: -window.scrollY, 
-      onclone: (clonedDoc) => {
-        // Convert Inputs to Spans for perfect PDF rendering
-        const inputs = clonedDoc.querySelectorAll('input');
-        inputs.forEach((inp) => {
-          const span = clonedDoc.createElement('span');
-          span.innerText = inp.value;
-          const computedStyle = window.getComputedStyle(inp);
-          span.style.fontFamily = computedStyle.fontFamily;
-          span.style.fontSize = computedStyle.fontSize;
-          span.style.fontWeight = computedStyle.fontWeight;
-          span.style.color = computedStyle.color;
-          span.style.letterSpacing = computedStyle.letterSpacing;
-          span.style.width = computedStyle.width;
-          span.style.textAlign = 'center';
-          span.style.display = 'inline-block';
-          if(inp.parentNode) {
-            inp.parentNode.replaceChild(span, inp);
-          }
-        });
-      }
-    }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Internship_Certificate_${formData.registerNumber}.pdf`);
-      setIsGenerating(false);
-    }).catch(err => {
-      console.error("PDF Generation Error:", err);
-      setIsGenerating(false);
-    });
+    // Otherwise try to parse it as a date object
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-300 py-12 flex flex-col items-center">
-      
-      {/* Controls */}
-      <div className="w-[210mm] flex justify-between items-center mb-8 px-4">
-        <div className="flex gap-3">
-            <label className="cursor-pointer bg-white px-4 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold transition-colors">
-                <FaUpload className="text-amber-700"/> VIJAYA'S SIGN
-                <input type="file" className="hidden" onChange={(e) => handleSignatureUpload(e, 'sig1')} accept="image/*" />
-            </label>
-            <label className="cursor-pointer bg-white px-4 py-2 rounded shadow-sm border hover:bg-gray-50 flex items-center gap-2 text-xs font-bold transition-colors">
-                <FaUpload className="text-amber-700"/> SREEKAR'S SIGN
-                <input type="file" className="hidden" onChange={(e) => handleSignatureUpload(e, 'sig2')} accept="image/*" />
-            </label>
-        </div>
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount || 0);
+  };
 
-        <button 
-          onClick={downloadPDF} 
-          disabled={isGenerating}
-          className="bg-amber-700 hover:bg-amber-800 text-white px-6 py-2 rounded shadow-sm flex items-center gap-2 text-sm font-bold transition-colors disabled:bg-gray-400"
-        >
-          {isGenerating ? 'GENERATING...' : (
-            <>
-              <FaDownload /> DOWNLOAD PDF
-            </>
-          )}
-        </button>
+  const handleView = (invoice) => {
+    setSelectedInvoice(invoice.originalInvoiceData);
+    setShowPreviewModal(true);
+  };
+
+  const filteredHistory = history.filter(item =>
+    item.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.deletedByName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FaHistory className="text-red-600" /> Deleted Invoice History
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            View logs of all deleted invoices from Admin and Employees
+          </p>
+        </div>
       </div>
 
-      {/* Main Certificate Content */}
-      <div className="shadow-2xl"> 
-        <div ref={certificateRef} className="certificate-outer w-[210mm] h-[297mm] box-border mx-auto bg-[#fdfaf5]">
-          <div className="certificate-inner relative overflow-hidden">
-            
-            {/* UPDATED: The 4 Corners positioned precisely to merge with the border */}
-            {/* Top Left */}
-            <CornerOrnament className="top-0 left-0" />
-            {/* Top Right - Flipped Horizontal */}
-            <CornerOrnament className="top-0 right-0 transform -scale-x-100" />
-            {/* Bottom Left - Flipped Vertical */}
-            <CornerOrnament className="bottom-0 left-0 transform -scale-y-100" />
-            {/* Bottom Right - Rotated 180 */}
-            <CornerOrnament className="bottom-0 right-0 transform rotate-180" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-red-50 text-red-600 rounded-lg">
+            <FaTrash size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Deleted</p>
+            <h3 className="text-2xl font-bold text-gray-800">{history.length}</h3>
+          </div>
+        </div>
 
-            {/* 1. Logo */}
-            <div className="mt-12 mb-4">
-              <img src="/Invoicelogo.png" alt="Tech Vaseegrah" className="h-16 w-auto object-contain" crossOrigin="anonymous" />
-            </div>
-
-            {/* 2. Main Labels */}
-            <h3 className="mt-2 text-2xl tracking-[0.4em] font-semibold text-gray-800" style={{ fontFamily: 'Cinzel, serif' }}>
-              INTERNSHIP
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+            <FaFileInvoiceDollar size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Value Deleted</p>
+            <h3 className="text-2xl font-bold text-gray-800">
+              {formatCurrency(history.reduce((sum, item) => sum + (item.totalAmount || 0), 0))}
             </h3>
-            
-            <h1 className="text-[78px] mt-2 mb-6 text-gray-900 leading-tight" style={{ fontFamily: 'Dancing Script, cursive', fontWeight: 500 }}>
-              Certificate of Completion
-            </h1>
-
-            <p className="text-xl text-gray-700 mb-6 italic" style={{ fontFamily: 'EB Garamond, serif', letterSpacing: '0.05em' }}>
-              This certificate is proudly awarded to
-            </p>
-
-            {/* 3. Name Field */}
-            <div className="w-[85%] border-b border-[#a67c52] mb-8">
-              <input
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className="cert-input text-5xl font-medium py-3 tracking-wide"
-                style={{ fontFamily: 'EB Garamond, serif' }}
-              />
-            </div>
-
-            {/* 5. Details Section */}
-            <div className="text-center space-y-3 text-gray-800 max-w-[90%] text-xl" style={{ fontFamily: 'EB Garamond, serif' }}>
-              
-              <p className="font-bold text-lg mb-2 italic">
-                (REG NO <input name="registerNumber" value={formData.registerNumber} onChange={handleInputChange} className="cert-input w-36 font-bold inline-block" />)
-              </p>
-
-              <p className="italic text-2xl">
-                A student of <input name="collegeName" value={formData.collegeName} onChange={handleInputChange} className="cert-input inline-block w-auto px-1 italic" style={{ width: '380px' }} />, pursuing
-              </p>
-              
-              <div className="font-bold text-3xl py-1">
-                <input name="courseDegree" value={formData.courseDegree} onChange={handleInputChange} className="cert-input font-bold" />
-              </div>
-
-              <p className="pt-2 text-2xl">Successfully completed their internship at Tech Vaseegrah</p>
-              
-              <p className="italic pt-6 text-xl font-medium" style={{ fontFamily: 'EB Garamond, serif' }}>Period</p>
-              
-              <div className="flex items-center justify-center gap-3 text-2xl mt-1" style={{ fontStyle: 'italic' }}>
-                 <input name="fromDate" value={formData.fromDate} onChange={handleInputChange} className="cert-input w-36" />
-                 <span className="text-lg normal-case">to</span>
-                 <input name="toDate" value={formData.toDate} onChange={handleInputChange} className="cert-input w-36" />
-              </div>
-            </div>
-
-            {/* 6. Footer Signatories */}
-            <div className="absolute bottom-20 w-full px-20 flex justify-between">
-              
-              {/* Left Signature */}
-              <div className="text-center w-64">
-                <div className="h-24 flex items-end justify-center pb-2">
-                  {signatures.sig1 ? (
-                    <img src={signatures.sig1} alt="Sig" className="h-20 object-contain" />
-                  ) : null}
-                </div>
-                <div className="border-t-2 border-gray-900 pt-3">
-                  <p className="font-bold text-xl text-gray-900" style={{ fontFamily: 'EB Garamond, serif' }}>Vijaya Mahadevan</p>
-                  <p className="text-base text-gray-700 italic font-medium">Proprietrix</p>
-                </div>
-              </div>
-
-              {/* Right Signature */}
-              <div className="text-center w-64">
-                <div className="h-24 flex items-end justify-center pb-2">
-                  {signatures.sig2 ? (
-                    <img src={signatures.sig2} alt="Sig" className="h-20 object-contain" />
-                  ) : null}
-                </div>
-                <div className="border-t-2 border-gray-900 pt-3">
-                  <p className="font-bold text-xl text-gray-900" style={{ fontFamily: 'EB Garamond, serif' }}>Sreekarrthikeyan</p>
-                  <p className="text-base text-gray-700 italic font-medium">Program Director</p>
-                </div>
-              </div>
-
-            </div>
           </div>
         </div>
       </div>
+
+      {/* Search Bar */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+        <div className="relative">
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by Invoice No, Customer, or User..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+          />
+        </div>
+      </div>
+
+      {/* History Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-gray-500">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            Loading history...
+          </div>
+        ) : error ? (
+          <div className="p-12 text-center text-red-500 bg-red-50">
+            <p>{error}</p>
+            <button
+              onClick={fetchDeleteHistory}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="p-12 text-center text-gray-400 flex flex-col items-center">
+            <FaHistory size={48} className="mb-4 opacity-20" />
+            <p className="text-lg font-medium">No deleted invoices found</p>
+            <p className="text-sm">Invoices deleted by you or your employees will appear here.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4">Invoice No</th>
+                  <th className="px-6 py-4">Status & Date</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4 text-right">Amount</th>
+                  <th className="px-6 py-4">Deleted By</th>
+                  <th className="px-6 py-4">Deleted On</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredHistory.map((item) => (
+                  <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-gray-800">#{item.invoiceNo}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded w-fit mb-1">
+                          DELETED
+                        </span>
+                        <span className="text-xs text-gray-500">{formatDate(item.invoiceDate)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <spn className="font-medium text-gray-700">{item.customerName || 'N/A'}</spn>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="font-bold text-gray-800">{formatCurrency(item.totalAmount)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-800">{item.deletedByName}</span>
+                        <span className="text-xs text-gray-500 capitalize">{item.deletedByRole}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 text-sm">
+                      {new Date(item.deletedAt).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleView(item)}
+                        className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 p-2 rounded transition-colors"
+                        title="View Invoice Preview"
+                      >
+                        <FaEye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Invoice Preview Modal */}
+      {showPreviewModal && selectedInvoice && (
+        <Modal
+          isOpen={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          title={`Preview Deleted Invoice #${selectedInvoice.invoiceNo}`}
+          size="xl"
+          footer={
+            <button
+              onClick={() => setShowPreviewModal(false)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded transition"
+            >
+              Close
+            </button>
+          }
+        >
+          <div className="overflow-y-auto max-h-[70vh]">
+            <AdvancedInvoice
+              initialData={selectedInvoice}
+              isPreviewMode={true}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
 
-export default InternCertificate;
+export default AdminDeleteHistory;
