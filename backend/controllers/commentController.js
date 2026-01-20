@@ -21,10 +21,10 @@ const getMyComments = asyncHandler(async (req, res) => {
 
   // Mark all comments and replies as read
   for (const comment of comments) {
-    comment.isNew = false;
+    comment.isNewComment = false;
     if (comment.replies && comment.replies.length > 0) {
       comment.replies.forEach(reply => {
-        reply.isNew = false;
+        reply.isNewComment = false;
       });
     }
     await comment.save();
@@ -147,7 +147,7 @@ const addReply = asyncHandler(async (req, res) => {
     comment.lastReplyTimestamp = new Date();
   }
 
-  comment.isNew = true;
+  comment.isNewComment = true;
 
   await comment.save();
 
@@ -166,11 +166,11 @@ const markCommentAsRead = asyncHandler(async (req, res) => {
     throw new Error('Comment not found');
   }
 
-  comment.isNew = false;
+  comment.isNewComment = false;
 
   if (comment.replies && comment.replies.length > 0) {
     comment.replies.forEach(reply => {
-      reply.isNew = false;
+      reply.isNewComment = false;
     });
   }
 

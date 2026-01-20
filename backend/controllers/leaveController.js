@@ -95,7 +95,16 @@ const createLeave = asyncHandler(async (req, res) => {
         if (result.success) {
           console.log(`✅ Leave notification sent successfully. Summary: ${result.summary}`);
         } else {
-          console.error(`❌ Failed to send leave notification: ${result.error}`);
+          console.error(`❌ Failed to send leave notification:`, result.error || 'Unknown error');
+          
+          // Log detailed results if available
+          if (result.results && Array.isArray(result.results)) {
+            result.results.forEach((res, index) => {
+              if (!res.success) {
+                console.error(`❌ Failed to send to number ${res.number || 'unknown'}:`, res.error || 'Unknown error');
+              }
+            });
+          }
         }
       })
       .catch(error => {

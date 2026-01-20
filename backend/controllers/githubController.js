@@ -175,7 +175,7 @@ const getDashboardData = async (req, res) => {
                     owner: repo.owner.login,
                     repo: repo.name,
                     author: username, // Filter by the requested username (usually the auth user)
-                    per_page: 50
+                    per_page: 5
                 });
 
                 return commits.map(commit => ({
@@ -192,6 +192,20 @@ const getDashboardData = async (req, res) => {
                     files: [{ filename: 'mock.js' }]
                 }));
             } catch (e) {
+                console.error(`GET /repos/${repo.owner.login}/${repo.name}/commits - ${e.status || 'unknown'} with id ${e.headers?.['x-github-request-id'] || 'unknown'} in ${e.request?.requestMs || 'unknown'}ms`);
+                console.error(`[GitHub API Error] Status: ${e.status}, Message: ${e.message}, Repo: ${repo.owner.login}/${repo.name}`);
+                
+                // Handle specific GitHub API errors
+                if (e.status === 409) {
+                    console.warn(`[GitHub API] Repository ${repo.owner.login}/${repo.name} is empty or has no commits, skipping.`);
+                    return [];
+                } else if (e.status === 403) {
+                    console.warn(`[GitHub API] Forbidden access to ${repo.owner.login}/${repo.name}, may need additional permissions.`);
+                    return [];
+                } else if (e.status === 404) {
+                    console.warn(`[GitHub API] Repository ${repo.owner.login}/${repo.name} not found or inaccessible.`);
+                    return [];
+                }
                 return [];
             }
         };
@@ -539,7 +553,20 @@ const getLiveLeaderboard = async (req, res) => {
                 const [branchesRes, contributorsRes, commitsRes, pullsRes] = await Promise.all([
                     octokit.rest.repos.listBranches({ owner, repo: repoName, per_page: 20 }).catch(() => ({ data: [] })),
                     octokit.rest.repos.listContributors({ owner, repo: repoName, per_page: 10 }).catch(() => ({ data: [] })),
-                    octokit.rest.repos.listCommits({ owner, repo: repoName, per_page: 5 }).catch(() => ({ data: [] })), // Reduced per_page
+                    octokit.rest.repos.listCommits({ owner, repo: repoName, per_page: 5 }).catch((e) => {
+                        console.error(`GET /repos/${owner}/${repoName}/commits - ${e.status || 'unknown'} with id ${e.headers?.['x-github-request-id'] || 'unknown'} in ${e.request?.requestMs || 'unknown'}ms`);
+                        console.error(`[GitHub API Error] Status: ${e.status}, Message: ${e.message}, Repo: ${owner}/${repoName}`);
+                        
+                        // Handle specific GitHub API errors
+                        if (e.status === 409) {
+                            console.warn(`[GitHub API] Repository ${owner}/${repoName} is empty or has no commits, skipping.`);
+                        } else if (e.status === 403) {
+                            console.warn(`[GitHub API] Forbidden access to ${owner}/${repoName}, may need additional permissions.`);
+                        } else if (e.status === 404) {
+                            console.warn(`[GitHub API] Repository ${owner}/${repoName} not found or inaccessible.`);
+                        }
+                        return { data: [] };
+                    }), // Reduced per_page
                     octokit.rest.pulls.list({ owner, repo: repoName, state: 'all', per_page: 5 }).catch(() => ({ data: [] }))
                 ]);
 

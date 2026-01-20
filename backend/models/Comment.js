@@ -9,7 +9,7 @@ const replySchema = mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isNew: {
+  isNewComment: {
     type: Boolean,
     default: true
   },
@@ -41,7 +41,7 @@ const commentSchema = mongoose.Schema({
     data: String
   },
   replies: [replySchema],
-  isNew: {
+  isNewComment: {
     type: Boolean,
     default: true
   },

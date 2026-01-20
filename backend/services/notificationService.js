@@ -23,6 +23,9 @@ const sendWhatsAppTemplateMessage = async (subdomain, templateName, recipientNum
       return { success: false, error: 'Configuration not found or incomplete' };
     }
 
+    // Format phone number properly for WhatsApp (should be in international format without + or leading zeros)
+    const formattedRecipientNumber = formatPhoneNumber(recipientNumber);
+    
     const { apiKey, phoneNumberId } = config;
     const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
 
@@ -49,7 +52,7 @@ const sendWhatsAppTemplateMessage = async (subdomain, templateName, recipientNum
 
     const messageData = {
       messaging_product: 'whatsapp',
-      to: recipientNumber,
+      to: formattedRecipientNumber,
       type: 'template',
       template: {
         name: templateName,
@@ -61,7 +64,7 @@ const sendWhatsAppTemplateMessage = async (subdomain, templateName, recipientNum
     console.log('[WhatsApp] Sending template message payload:', JSON.stringify(messageData, null, 2));
     const response = await axios.post(url, messageData, { headers });
 
-    console.log(`[WhatsApp Success] Message sent successfully to ${recipientNumber}`);
+    console.log(`[WhatsApp Success] Message sent successfully to ${formattedRecipientNumber}`);
     return { success: true, messageId: response.data.messages[0].id };
 
   } catch (error) {
@@ -69,9 +72,107 @@ const sendWhatsAppTemplateMessage = async (subdomain, templateName, recipientNum
       error.response.data.error.message :
       error.message;
 
+    // Check specifically for template not found error (code 132001)
+    if (error.response?.data?.error?.code === 132001) {
+      console.warn(`[WhatsApp] Template '${templateName}' does not exist, falling back to text message`);
+      
+      try {
+        // Fall back to sending a text message instead of template
+        const config = await GowhatsConfig.findOne({ subdomain });
+        if (!config || !config.apiKey || !config.phoneNumberId) {
+          return { success: false, error: 'Configuration not found or incomplete' };
+        }
+        
+        const formattedRecipientNumber = formatPhoneNumber(recipientNumber);
+        
+        const { apiKey, phoneNumberId } = config;
+        const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+        
+        const headers = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        };
+        
+        const textMessageData = {
+          messaging_product: 'whatsapp',
+          to: formattedRecipientNumber,
+          type: 'text',
+          text: {
+            body: formatFallbackMessage(templateName, headerParams, bodyParams)
+          }
+        };
+        
+        console.log('[WhatsApp] Sending fallback text message');
+        const response = await axios.post(url, textMessageData, { headers });
+        
+        console.log(`[WhatsApp Success] Fallback text message sent successfully to ${formattedRecipientNumber}`);
+        return { success: true, messageId: response.data.messages[0].id };
+      } catch (fallbackError) {
+        const fallbackErrorMessage = fallbackError.response ?
+          fallbackError.response.data.error.message :
+          fallbackError.message;
+        console.error(`[WhatsApp Error] Failed to send fallback text message:`, fallbackErrorMessage);
+        return { success: false, error: fallbackErrorMessage };
+      }
+    }
+    
+    // Check for common WhatsApp API errors
+    if (error.response?.data?.error?.code === 131047) {
+      console.error(`[WhatsApp Error] Recipient must have initiated conversation first: ${errorMessage}`);
+      return { success: false, error: 'Recipient must have initiated conversation first. This is a WhatsApp Business API restriction.' };
+    } else if (error.response?.data?.error?.code === 132000) {
+      console.error(`[WhatsApp Error] Message blocked by recipient: ${errorMessage}`);
+      return { success: false, error: 'Message blocked by recipient or business.' };
+    } else if (error.response?.data?.error?.code === 130038) {
+      console.error(`[WhatsApp Error] Invalid phone number: ${errorMessage}`);
+      return { success: false, error: 'Invalid phone number format.' };
+    }
+    
     console.error(`[WhatsApp Error] Failed to send message:`, errorMessage);
     return { success: false, error: errorMessage };
   }
+};
+
+// Helper function to format phone number for WhatsApp API
+const formatPhoneNumber = (phoneNumber) => {
+  // Remove all non-digit characters
+  let cleanedNumber = phoneNumber.replace(/\D/g, '');
+  
+  // Handle Indian numbers that start with 91 or 0
+  if (cleanedNumber.startsWith('91')) {
+    // Already in international format
+    return cleanedNumber;
+  } else if (cleanedNumber.startsWith('0')) {
+    // Remove leading zero and add country code
+    return '91' + cleanedNumber.substring(1);
+  } else if (cleanedNumber.length === 10) {
+    // Assume it's an Indian number without country code
+    return '91' + cleanedNumber;
+  } else {
+    // Return as is if already in international format
+    return cleanedNumber;
+  }
+};
+
+// Helper function to format fallback text message
+const formatFallbackMessage = (templateName, headerParams, bodyParams) => {
+  if (templateName === 'leave_request' && bodyParams && bodyParams.length >= 8) {
+    // Format the leave request message as a readable text
+    return `🔔 NEW LEAVE REQUEST ALERT 🔔\n\n` +
+           `Employee: ${bodyParams[0]?.text || 'N/A'}\n` +
+           `Leave Type: ${bodyParams[1]?.text || 'N/A'}\n` +
+           `Start Date: ${bodyParams[2]?.text || 'N/A'}\n` +
+           `End Date: ${bodyParams[3]?.text || 'N/A'}\n` +
+           `Start Time: ${bodyParams[4]?.text || 'N/A'}\n` +
+           `End Time: ${bodyParams[5]?.text || 'N/A'}\n` +
+           `Total Days: ${bodyParams[6]?.text || 'N/A'}\n` +
+           `Reason: ${bodyParams[7]?.text || 'N/A'}\n\n` +
+           `Please review and approve/reject this request.`;
+  }
+  
+  // Generic fallback for other templates
+  return `Notification: A new ${templateName.replace('_', ' ')} notification has been triggered. ` +
+         `Parameters: ${JSON.stringify(bodyParams || [])}`;
 };
 
 
@@ -151,5 +252,6 @@ const sendNewLeaveRequestNotification = async (leave) => {
 };
 
 module.exports = {
-  sendNewLeaveRequestNotification
+  sendNewLeaveRequestNotification,
+  sendWhatsAppTemplateMessage
 };
