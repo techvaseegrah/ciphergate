@@ -14,8 +14,8 @@ const fs = require('fs');
 const createWorker = asyncHandler(async (req, res) => {
   try {
     // Handle both object and string formats for subdomain
-    const subdomain = typeof req.body === 'object' && req.body.subdomain 
-      ? req.body.subdomain.trim() 
+    const subdomain = typeof req.body === 'object' && req.body.subdomain
+      ? req.body.subdomain.trim()
       : '';
 
     // Trim and validate name with extra checks
@@ -168,39 +168,39 @@ const generateId = asyncHandler(async (req, res) => {
 // @route   GET /api/workers
 // @access  Private/Admin
 const getWorkers = asyncHandler(async (req, res) => {
-    try {
-        // Handle both object and string formats for subdomain
-        const subdomain = typeof req.body === 'object' && req.body.subdomain 
-          ? req.body.subdomain 
-          : req.body;
+  try {
+    // Handle both object and string formats for subdomain
+    const subdomain = typeof req.body === 'object' && req.body.subdomain
+      ? req.body.subdomain
+      : req.body;
 
-        const workers = await Worker.find({ subdomain })
-            .select('-password')
-            .populate('department', 'name');
+    const workers = await Worker.find({ subdomain })
+      .select('-password')
+      .populate('department', 'name');
 
-        // Transform workers to include department name and full photo URL
-        const transformedWorkers = workers.map(worker => ({
-            ...worker.toObject(),
-            department: worker.department ? worker.department.name : 'N/A',
-            photoUrl: worker.photo
-                ? `/uploads/${worker.photo}`
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}`
-        }));
+    // Transform workers to include department name and full photo URL
+    const transformedWorkers = workers.map(worker => ({
+      ...worker.toObject(),
+      department: worker.department ? worker.department.name : 'N/A',
+      photoUrl: worker.photo
+        ? `/uploads/${worker.photo}`
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}`
+    }));
 
-        res.json(transformedWorkers);
-    } catch (error) {
-        console.error('Get Workers Error:', error);
-        res.status(500);
-        throw new Error('Failed to retrieve workers');
-    }
+    res.json(transformedWorkers);
+  } catch (error) {
+    console.error('Get Workers Error:', error);
+    res.status(500);
+    throw new Error('Failed to retrieve workers');
+  }
 });
 const getPublicWorkers = asyncHandler(async (req, res) => {
   try {
     // Handle both object and string formats for subdomain
-    const subdomain = typeof req.body === 'object' && req.body.subdomain 
-      ? req.body.subdomain 
+    const subdomain = typeof req.body === 'object' && req.body.subdomain
+      ? req.body.subdomain
       : req.body;
-      
+
     const workers = await Worker.find({ subdomain })
       .select('name username subdomain department photo employeeType class')
       .populate('department', 'name');
@@ -296,25 +296,25 @@ const updateWorker = asyncHandler(async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(password, salt);
     }
-    
+
     // ADDED: Handle batch update
     if (batch) {
-        updateData.batch = batch;
+      updateData.batch = batch;
     }
 
     // ADDED: Handle face embeddings update
-    if (faceEmbeddings) {
-        updateData.faceEmbeddings = faceEmbeddings;
+    if (faceEmbeddings && faceEmbeddings.length > 0) {
+      updateData.faceEmbeddings = faceEmbeddings;
     }
 
     // ADDED: Handle employeeType update
     if (employeeType) {
-        updateData.employeeType = employeeType;
+      updateData.employeeType = employeeType;
     }
 
     // ADDED: Handle class update
     if (classValue) {
-        updateData.class = classValue;
+      updateData.class = classValue;
     }
 
     // Update salary-related fields if salary is provided

@@ -21,7 +21,8 @@ import {
   FaAsterisk,
   FaWhatsapp,
   FaAward,
-  FaCommentDots
+  FaCommentDots,
+  FaGithub
 } from 'react-icons/fa';
 import { IoMdSettings } from 'react-icons/io';
 
@@ -46,15 +47,15 @@ import CustomTasks from '../admin/CustomTasks';
 import AttendanceManagement from '../admin/AttendanceManagement';
 import NotificationManagement from '../admin/NotificationManagement';
 import SalaryManagement from '../admin/SalaryManagement';
-import EmployeeCompensation from '../admin/EmployeeCompensation'; // Add this import
-import DeveloperCompensation from '../admin/DeveloperCompensation'; // Add this import
+import EmployeeCompensation from '../admin/EmployeeCompensation';
+import DeveloperCompensation from '../admin/DeveloperCompensation';
 import GoWhatsIntegration from '../admin/GoWhatsIntegration';
 import HolidayManagement from '../admin/HolidayManagement';
 import Communication from '../../pages/Communication';
 import Settings from '../admin/Settings';
 import WorkerAttendance from '../admin/WorkerAttendance';
-import InvoiceManagement from '../admin/InvoiceManagement'; 
-import AdminDashboard from '../../pages/Admin/AdminDashboard'; 
+import InvoiceManagement from '../admin/InvoiceManagement';
+import AdminDashboard from '../../pages/Admin/AdminDashboard';
 import InternCertificate from '../admin/InternCertificate';
 import OfferLetter from '../admin/OfferLetter';
 import AcceptanceLetter from '../admin/AcceptanceLetter';
@@ -67,14 +68,17 @@ const QuestionHistory = React.lazy(() => import('../admin/QuestionHistory'));
 const EmployeeScores = React.lazy(() => import('../admin/EmployeeScores'));
 const GlobalScoreboard = React.lazy(() => import('../admin/GlobalScoreboard'));
 
+// Lazy load GitHub Tracker
+const GitHubDashboard = React.lazy(() => import('../github-tracker/GitHubDashboard'));
+
 const AdminLayout = () => {
   const { user, logout } = useAuth();
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [newComments, setNewComments] = useState(0);
   const [newInvoices, setNewInvoices] = useState(0);
-  
+
   const [showGlobalTracker] = useState(false);
-  
+
   const navigate = useNavigate();
   const { subdomain } = useContext(appContext);
 
@@ -173,6 +177,11 @@ const AdminLayout = () => {
       label: 'Food Requests'
     },
     {
+      to: '/admin/github-tracker',
+      icon: <FaGithub />,
+      label: 'GitHub Tracker'
+    },
+    {
       label: 'Certificate',
       isDropdown: true,
       icon: <FaAward />,
@@ -257,7 +266,7 @@ const AdminLayout = () => {
       label: 'Comments',
       badge: newComments > 0 ? newComments : null
     },
-    
+
     // Test Management Dropdown Section
     {
       label: 'Test Management',
@@ -320,6 +329,11 @@ const AdminLayout = () => {
             <Route path="comments" element={<CommentManagement />} />
             <Route path="topics" element={<TopicManagement />} />
             <Route path="food-requests" element={<FoodRequestManagement />} />
+            <Route path="github-tracker" element={
+              <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
+                <GitHubDashboard />
+              </Suspense>
+            } />
             <Route path="custom-tasks" element={<CustomTasks />} />
             <Route path="notifications" element={<NotificationManagement />} />
             <Route path="settings" element={<Settings />} />
@@ -331,7 +345,7 @@ const AdminLayout = () => {
             <Route path="acceptance-letter" element={<AcceptanceLetter />} />
             <Route path="relieving-letter" element={<RelievingLetter />} />
             <Route path="experience-certificate" element={<ExperienceCertificate />} />
-            
+
             {/* Test Management Routes */}
             <Route path="test/generate-questions" element={
               <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
@@ -353,15 +367,15 @@ const AdminLayout = () => {
                 <GlobalScoreboard />
               </Suspense>
             } />
-            
+
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>
       </div>
-      
+
       <QuestionGenerationTracker
         isVisible={showGlobalTracker}
-        onClose={() => {}}
+        onClose={() => { }}
         generationData={null}
         isGenerating={false}
       />
