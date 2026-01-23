@@ -20,6 +20,7 @@ import api from '../../services/api';
 // Import the attendance components
 import FaceAttendance from '../admin/FaceAttendance';
 import RFIDAttendancePopup from './RFIDAttendancePopup'; // We'll create this component
+import MyFines from '../dashboard/MyFines'; // Import MyFines component
 
 const Dashboard = () => {
   const { subdomain } = useContext(appContext);
@@ -334,6 +335,9 @@ const Dashboard = () => {
           </Card>
         )
       }
+
+      {/* My Fines Section */}
+      <MyFines />
 
       <Card className="mb-6">
         <h2 className="text-xl font-bold mb-4 flex items-center">

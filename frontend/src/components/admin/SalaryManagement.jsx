@@ -12,10 +12,11 @@ import Modal from '../common/Modal';
 import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
 import { giveBonusAmount, removeBonusAmount, resetSalaryAmount, getSalaryReport } from '../../services/salaryService';
-import { addFine, deleteFine } from '../../services/fineService'; // UPDATE THIS
-import { getAllHolidays } from '../../services/holidayService'; // Add this import
+import { deleteFine, getAllFines } from '../../services/fineService';
+import { getAllHolidays } from '../../services/holidayService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import AddFineModal from './modals/AddFineModal';
 
 const SalaryManagement = () => {
     const [workers, setWorkers] = useState([]);
@@ -36,7 +37,7 @@ const SalaryManagement = () => {
         fromDate: new Date().toISOString().slice(0, 10),
         toDate: new Date().toISOString().slice(0, 10)
     });
-    
+
     // Add state for month selection
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // Default to current month
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // Default to current year
@@ -48,15 +49,15 @@ const SalaryManagement = () => {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [workerToDelete, setWorkerToDelete] = useState(null);
 
-    // ADD FINE STATES
+    // ADD FINE STATE
     const [isFineModalOpen, setIsFineModalOpen] = useState(false);
-    const [fineFormData, setFineFormData] = useState({
-        amount: '',
-        date: new Date().toISOString().slice(0, 10),
-        reason: ''
-    });
-    const [fineSearchTerm, setFineSearchTerm] = useState('');
-    const [selectedFineWorker, setSelectedFineWorker] = useState(null);
+    
+    // State for fine filter
+    const [isFineFilterOpen, setIsFineFilterOpen] = useState(false);
+    const [selectedFineMonth, setSelectedFineMonth] = useState('');
+    const [selectedFineYear, setSelectedFineYear] = useState('');
+    const [finesData, setFinesData] = useState([]);
+    const [isLoadingFines, setIsLoadingFines] = useState(false);
 
     // NEW: State for bulk salary report
     const [isBulkReportModalOpen, setIsBulkReportModalOpen] = useState(false);
@@ -108,29 +109,20 @@ const SalaryManagement = () => {
         )
         : [];
 
-    // ADD FILTERED WORKERS FOR FINE MODAL
-    const filteredFineWorkers = Array.isArray(workers)
-        ? workers.filter(
-            worker =>
-                worker.name.toLowerCase().includes(fineSearchTerm.toLowerCase()) ||
-                (worker.department && worker.department.toLowerCase().includes(fineSearchTerm.toLowerCase()))
-        )
-        : [];
-
     // ADD FUNCTION TO CALCULATE MONTHLY FINES
     const calculateMonthlyFines = (worker, month, year) => {
         if (!worker.fines || !Array.isArray(worker.fines) || worker.fines.length === 0) {
             return 0;
         }
-        
+
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth() + 1;
         const currentYear = currentDate.getFullYear();
-        
+
         // If no specific month/year provided, use current month/year
         const targetMonth = month || currentMonth;
         const targetYear = year || currentYear;
-        
+
         return worker.fines
             .filter(fine => {
                 // Make sure fine.date is a valid date
@@ -163,20 +155,20 @@ const SalaryManagement = () => {
             toast.error('Bonus amount must be a non-negative number.');
             return;
         }
-        
+
         // Validate date range
         if (!formData.fromDate || !formData.toDate) {
             toast.error('Please select a date range for bonus calculation.');
             return;
         }
-        
+
         if (new Date(formData.fromDate) > new Date(formData.toDate)) {
             toast.error('From date must be before to date.');
             return;
         }
 
-        await giveBonusAmount({ 
-            id: selectedWorker._id, 
+        await giveBonusAmount({
+            id: selectedWorker._id,
             amount: bonusAmount,
             fromDate: formData.fromDate,
             toDate: formData.toDate
@@ -203,19 +195,6 @@ const SalaryManagement = () => {
                 setFormData(prev => ({ ...prev, [name]: value }));
             }
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
-    };
-
-    // ADD HANDLE FINE CHANGE
-    const handleFineChange = (e) => {
-        const { name, value } = e.target;
-        if (name === 'amount') {
-            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                setFineFormData(prev => ({ ...prev, [name]: value }));
-            }
-        } else {
-            setFineFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
@@ -231,94 +210,48 @@ const SalaryManagement = () => {
             });
     }
 
-    // ADD HANDLE FINE SUBMIT
-    const handleFineSubmit = async (e) => {
-        e.preventDefault();
-        const fineAmount = parseFloat(fineFormData.amount);
-        
-        if (isNaN(fineAmount) || fineAmount <= 0) {
-            toast.error('Fine amount must be a positive number.');
-            return;
-        }
-        
-        if (!fineFormData.date) {
-            toast.error('Please select a date.');
-            return;
-        }
-        
-        if (!fineFormData.reason || fineFormData.reason.trim().length === 0) {
-            toast.error('Please provide a reason for the fine.');
-            return;
-        }
-        
-        if (!selectedFineWorker) {
-            toast.error('Please select a worker.');
-            return;
-        }
-
-        try {
-            const response = await addFine(selectedFineWorker._id, {
-                amount: fineAmount,
-                date: fineFormData.date,
-                reason: fineFormData.reason.trim()
-            });
-            
-            toast.success(response.message);
-            loadData();
-            setFineFormData({
-                amount: '',
-                date: new Date().toISOString().slice(0, 10),
-                reason: ''
-            });
-            setIsFineModalOpen(false);
-            setSelectedFineWorker(null);
-        } catch (error) {
-            toast.error(error.message || 'Failed to add fine');
-        }
-    };
-
     const handleReportDateChange = (e) => {
         setReportDateRange(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
-    
+
     // Add function to handle month/year selection
     const handleMonthChange = (e) => {
         setSelectedMonth(parseInt(e.target.value));
     };
-    
+
     const handleYearChange = (e) => {
         setSelectedYear(parseInt(e.target.value));
     };
-    
+
     // Add function to toggle between month selection and date range
     const toggleDateSelection = () => {
         setUseMonthSelection(!useMonthSelection);
     };
-    
+
     // Add function to set date range based on selected month
     const setMonthDateRange = () => {
         const year = selectedYear;
         const month = selectedMonth; // 1-12 (August = 8)
-        
+
         // Format dates as YYYY-MM-DD strings
         const formatDate = (date) => {
             const d = new Date(date);
             let month = '' + (d.getMonth() + 1);
             let day = '' + d.getDate();
             const year = d.getFullYear();
-        
+
             if (month.length < 2) month = '0' + month;
             if (day.length < 2) day = '0' + day;
-        
+
             return [year, month, day].join('-');
         };
-        
+
         // Create first day of the month
         const firstDay = new Date(year, month - 1, 1);
-        
+
         // Create last day of the month
         const lastDay = new Date(year, month, 0);
-        
+
         setReportDateRange({
             fromDate: formatDate(firstDay),
             toDate: formatDate(lastDay)
@@ -338,7 +271,7 @@ const SalaryManagement = () => {
         if (useMonthSelection) {
             setMonthDateRange();
         }
-        
+
         if (!reportDateRange.fromDate || !reportDateRange.toDate) {
             toast.error('Please select a date range.');
             return;
@@ -366,7 +299,7 @@ const SalaryManagement = () => {
         doc.text(`Salary Report for ${selectedWorker.name}`, 14, startY);
         doc.setFontSize(12);
         doc.text('Summary', 14, startY + 15);
-        
+
         // Prepare summary data including bonus and fine information
         // Fix currency formatting to ensure clean, professional appearance
         // Updated to use "Rs." instead of "₹" symbol as per requirements
@@ -383,7 +316,7 @@ const SalaryManagement = () => {
             // If it's a number, format it properly
             return `Rs. ${Number(amount).toFixed(2)}`;
         };
-        
+
         const summaryData = [
             ['Employee Name', selectedWorker?.name], // Added Employee Name to match UI
             ['Employee ID', selectedWorker?.rfid],
@@ -408,28 +341,28 @@ const SalaryManagement = () => {
             ['Attendance Rate', `${Number(reportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
             ['Per Minute Salary', `Rs. ${Number(reportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
         ];
-        
+
         // Add bonus information if available
         if (reportData.totalBonusAmount > 0) {
             summaryData.push(['Bonus Amount Applied', formatCurrencyForPDF(reportData.totalBonusAmount)]);
-            
+
             // Add details of each bonus
             reportData.bonuses.forEach((bonus, index) => {
                 summaryData.push([`Bonus Period ${index + 1}`, `${new Date(bonus.fromDate).toLocaleDateString()} to ${new Date(bonus.toDate).toLocaleDateString()}`]);
             });
         }
-        
+
         // Set font properties to prevent spacing issues
         doc.setFont('helvetica');
         doc.setFontSize(9);
-        
+
         autoTable(doc, {
             startY: startY + 20,
             head: [['Metric', 'Value']],
             body: summaryData,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { 
+            styles: {
                 fontSize: 9,
                 font: 'helvetica',
                 cellPadding: 2
@@ -438,13 +371,13 @@ const SalaryManagement = () => {
                 1: { cellWidth: 50 } // Fixed width for value column
             }
         });
-        
+
         // Add bonus period details if there are bonuses
         if (reportData.totalBonusAmount > 0 && reportData.bonuses && reportData.bonuses.length > 0) {
             doc.addPage();
             doc.setFontSize(18);
             doc.text('Bonus Details', 14, 20);
-            
+
             const bonusColumns = ['Period', 'From Date', 'To Date', 'Amount'];
             const bonusRows = reportData.bonuses.map((bonus, index) => [
                 `Bonus Period ${index + 1}`,
@@ -452,7 +385,7 @@ const SalaryManagement = () => {
                 new Date(bonus.toDate).toLocaleDateString(),
                 formatCurrencyForPDF(bonus.amount)
             ]);
-            
+
             doc.setFontSize(12);
             autoTable(doc, {
                 startY: 30,
@@ -460,14 +393,14 @@ const SalaryManagement = () => {
                 body: bonusRows,
                 theme: 'striped',
                 headStyles: { fillColor: [52, 73, 94] },
-                styles: { 
+                styles: {
                     fontSize: 9,
                     font: 'helvetica',
                     cellPadding: 2
                 }
             });
         }
-        
+
         // Add detailed fines table if there are fines
         if (reportData.worker?.fines && reportData.worker.fines.length > 0) {
             const filteredFines = reportData.worker.fines.filter(fine => {
@@ -476,19 +409,19 @@ const SalaryManagement = () => {
                 const toDate = new Date(reportDateRange.toDate);
                 return fineDate >= fromDate && fineDate <= toDate;
             });
-            
+
             if (filteredFines.length > 0) {
                 doc.addPage();
                 doc.setFontSize(18);
                 doc.text('Fines', 14, 20);
-                
+
                 const finesColumns = ['Date', 'Amount', 'Reason'];
                 const finesRows = filteredFines.map(fine => [
                     new Date(fine.date).toLocaleDateString(),
                     formatCurrencyForPDF(fine.amount),
                     fine.reason
                 ]);
-                
+
                 doc.setFontSize(12);
                 autoTable(doc, {
                     startY: 30,
@@ -496,7 +429,7 @@ const SalaryManagement = () => {
                     body: finesRows,
                     theme: 'striped',
                     headStyles: { fillColor: [52, 73, 94] },
-                    styles: { 
+                    styles: {
                         fontSize: 9,
                         font: 'helvetica',
                         cellPadding: 2
@@ -504,7 +437,7 @@ const SalaryManagement = () => {
                 });
             }
         }
-        
+
         doc.addPage();
         doc.setFontSize(18);
         doc.text('Daily Breakdown', 14, 20);
@@ -513,7 +446,7 @@ const SalaryManagement = () => {
             'Date', 'Status', 'In Time', 'Out Time',
             'Delay Time', 'Delay Deduction', 'Total Salary'
         ];
-        
+
         // Fix formatting for daily breakdown table
         // Format Delay Deduction and Total Salary with "Rs" instead of "₹" for PDF
         const tableRows = reportData.report.report.map(row => [
@@ -525,18 +458,18 @@ const SalaryManagement = () => {
             row.deductionAmount.replace('₹', 'Rs '), // Replace ₹ with Rs for Delay Deduction
             row.totalSalary.replace('₹', 'Rs ') // Replace ₹ with Rs for Total Salary
         ]);
-        
+
         // Set font properties for daily breakdown table
         doc.setFont('helvetica');
         doc.setFontSize(8);
-        
+
         autoTable(doc, {
             startY: 30,
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { 
+            styles: {
                 fontSize: 8,
                 font: 'helvetica',
                 cellPadding: 1.5
@@ -558,7 +491,7 @@ const SalaryManagement = () => {
     // Add function to handle the actual bonus removal
     const confirmRemoveBonus = async () => {
         if (!workerToDelete) return;
-        
+
         try {
             const response = await removeBonusAmount(workerToDelete._id);
             toast.success(response.message);
@@ -578,24 +511,6 @@ const SalaryManagement = () => {
         setWorkerToDelete(null);
     };
 
-    // ADD OPEN FINE MODAL FUNCTION
-    const openFineModal = () => {
-        setIsFineModalOpen(true);
-        setFineFormData({
-            amount: '',
-            date: new Date().toISOString().slice(0, 10),
-            reason: ''
-        });
-        setSelectedFineWorker(null);
-        setFineSearchTerm('');
-    };
-
-    // ADD SELECT FINE WORKER FUNCTION
-    const selectFineWorker = (worker) => {
-        setSelectedFineWorker(worker);
-        setFineSearchTerm('');
-    };
-
     // ADD DELETE FINE FUNCTION
     const handleDeleteFine = async (workerId, fineId) => {
         if (window.confirm('Are you sure you want to delete this fine?')) {
@@ -607,9 +522,46 @@ const SalaryManagement = () => {
                 if (isReportModalOpen && selectedWorker) {
                     fetchReport();
                 }
+                // Also refresh fines data if fine filter is open
+                if (isFineFilterOpen) {
+                    fetchFinesData();
+                }
             } catch (error) {
                 toast.error(error.message || 'Failed to delete fine');
             }
+        }
+    };
+
+    // Function to fetch all fines
+    const fetchFinesData = async () => {
+        setIsLoadingFines(true);
+        try {
+            const params = {};
+            if (selectedFineMonth) params.month = selectedFineMonth;
+            if (selectedFineYear) params.year = selectedFineYear;
+            
+            const response = await getAllFines(params);
+            setFinesData(response.fines);
+        } catch (error) {
+            toast.error(error.message || 'Failed to fetch fines');
+            setFinesData([]);
+        } finally {
+            setIsLoadingFines(false);
+        }
+    };
+
+    // Function to handle fine filter submission
+    const handleFineFilterSubmit = async (e) => {
+        e.preventDefault();
+        await fetchFinesData();
+    };
+
+    // Function to toggle fine filter panel
+    const toggleFineFilterPanel = () => {
+        setIsFineFilterOpen(!isFineFilterOpen);
+        if (!isFineFilterOpen) {
+            // Fetch data when opening the filter panel
+            fetchFinesData();
         }
     };
 
@@ -652,25 +604,25 @@ const SalaryManagement = () => {
                 // Calculate the date range for the selected month
                 const year = selectedYear;
                 const month = selectedMonth;
-                
+
                 const formatDate = (date) => {
                     const d = new Date(date);
                     let month = '' + (d.getMonth() + 1);
                     let day = '' + d.getDate();
                     const year = d.getFullYear();
-                
+
                     if (month.length < 2) month = '0' + month;
                     if (day.length < 2) day = '0' + day;
-                
+
                     return [year, month, day].join('-');
                 };
-                
+
                 // Create first day of the month
                 const firstDay = new Date(year, month - 1, 1);
-                
+
                 // Create last day of the month
                 const lastDay = new Date(year, month, 0);
-                
+
                 const fromDate = formatDate(firstDay);
                 const toDate = formatDate(lastDay);
 
@@ -712,30 +664,30 @@ const SalaryManagement = () => {
         setSelectedIndividualWorker(worker);
         setIsIndividualReportModalOpen(true);
         setIsIndividualReportLoading(true);
-        
+
         try {
             // Calculate the date range for the selected month
             const year = selectedYear;
             const month = selectedMonth;
-            
+
             const formatDate = (date) => {
                 const d = new Date(date);
                 let month = '' + (d.getMonth() + 1);
                 let day = '' + d.getDate();
                 const year = d.getFullYear();
-            
+
                 if (month.length < 2) month = '0' + month;
                 if (day.length < 2) day = '0' + day;
-            
+
                 return [year, month, day].join('-');
             };
-            
+
             // Create first day of the month
             const firstDay = new Date(year, month - 1, 1);
-            
+
             // Create last day of the month
             const lastDay = new Date(year, month, 0);
-            
+
             const fromDate = formatDate(firstDay);
             const toDate = formatDate(lastDay);
 
@@ -754,14 +706,14 @@ const SalaryManagement = () => {
             toast.error("No report data available to download.");
             return;
         }
-        
+
         const doc = new jsPDF();
         const startY = 20;
         doc.setFontSize(18);
         doc.text(`Salary Report for ${selectedIndividualWorker.name}`, 14, startY);
         doc.setFontSize(12);
         doc.text('Summary', 14, startY + 15);
-        
+
         // Prepare summary data including bonus and fine information
         const formatCurrencyForPDF = (amount) => {
             // Handle different input types
@@ -776,7 +728,7 @@ const SalaryManagement = () => {
             // If it's a number, format it properly
             return `Rs. ${Number(amount).toFixed(2)}`;
         };
-        
+
         const summaryData = [
             ['Employee Name', selectedIndividualWorker?.name], // Added Employee Name to match UI
             ['Employee ID', workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'],
@@ -801,28 +753,28 @@ const SalaryManagement = () => {
             ['Attendance Rate', `${Number(individualReportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
             ['Per Minute Salary', `Rs. ${Number(individualReportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
         ];
-        
+
         // Add bonus information if available
         if (individualReportData.totalBonusAmount > 0) {
             summaryData.push(['Bonus Amount Applied', formatCurrencyForPDF(individualReportData.totalBonusAmount)]);
-            
+
             // Add details of each bonus
             individualReportData.bonuses.forEach((bonus, index) => {
                 summaryData.push([`Bonus Period ${index + 1}`, `${new Date(bonus.fromDate).toLocaleDateString()} to ${new Date(bonus.toDate).toLocaleDateString()}`]);
             });
         }
-        
+
         // Set font properties to prevent spacing issues
         doc.setFont('helvetica');
         doc.setFontSize(9);
-        
+
         autoTable(doc, {
             startY: startY + 20,
             head: [['Metric', 'Value']],
             body: summaryData,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { 
+            styles: {
                 fontSize: 9,
                 font: 'helvetica',
                 cellPadding: 2
@@ -831,13 +783,13 @@ const SalaryManagement = () => {
                 1: { cellWidth: 50 } // Fixed width for value column
             }
         });
-        
+
         // Add bonus period details if there are bonuses
         if (individualReportData.totalBonusAmount > 0 && individualReportData.bonuses && individualReportData.bonuses.length > 0) {
             doc.addPage();
             doc.setFontSize(18);
             doc.text('Bonus Details', 14, 20);
-            
+
             const bonusColumns = ['Period', 'From Date', 'To Date', 'Amount'];
             const bonusRows = individualReportData.bonuses.map((bonus, index) => [
                 `Bonus Period ${index + 1}`,
@@ -845,7 +797,7 @@ const SalaryManagement = () => {
                 new Date(bonus.toDate).toLocaleDateString(),
                 formatCurrencyForPDF(bonus.amount)
             ]);
-            
+
             doc.setFontSize(12);
             autoTable(doc, {
                 startY: 30,
@@ -853,14 +805,14 @@ const SalaryManagement = () => {
                 body: bonusRows,
                 theme: 'striped',
                 headStyles: { fillColor: [52, 73, 94] },
-                styles: { 
+                styles: {
                     fontSize: 9,
                     font: 'helvetica',
                     cellPadding: 2
                 }
             });
         }
-        
+
         // Add detailed fines table if there are fines
         if (individualReportData.worker?.fines && individualReportData.worker.fines.length > 0) {
             const filteredFines = individualReportData.worker.fines.filter(fine => {
@@ -869,19 +821,19 @@ const SalaryManagement = () => {
                 const toDate = new Date(reportDateRange.toDate);
                 return fineDate >= fromDate && fineDate <= toDate;
             });
-            
+
             if (filteredFines.length > 0) {
                 doc.addPage();
                 doc.setFontSize(18);
                 doc.text('Fines', 14, 20);
-                
+
                 const finesColumns = ['Date', 'Amount', 'Reason'];
                 const finesRows = filteredFines.map(fine => [
                     new Date(fine.date).toLocaleDateString(),
                     formatCurrencyForPDF(fine.amount),
                     fine.reason
                 ]);
-                
+
                 doc.setFontSize(12);
                 autoTable(doc, {
                     startY: 30,
@@ -889,7 +841,7 @@ const SalaryManagement = () => {
                     body: finesRows,
                     theme: 'striped',
                     headStyles: { fillColor: [52, 73, 94] },
-                    styles: { 
+                    styles: {
                         fontSize: 9,
                         font: 'helvetica',
                         cellPadding: 2
@@ -897,7 +849,7 @@ const SalaryManagement = () => {
                 });
             }
         }
-        
+
         doc.addPage();
         doc.setFontSize(18);
         doc.text('Daily Breakdown', 14, 20);
@@ -906,7 +858,7 @@ const SalaryManagement = () => {
             'Date', 'Status', 'In Time', 'Out Time',
             'Delay Time', 'Delay Deduction', 'Total Salary'
         ];
-        
+
         // Fix formatting for daily breakdown table
         // Format Delay Deduction and Total Salary with "Rs" instead of "₹" for PDF
         const tableRows = individualReportData.report.report.map(row => [
@@ -918,18 +870,18 @@ const SalaryManagement = () => {
             row.deductionAmount.replace('₹', 'Rs '), // Replace ₹ with Rs for Delay Deduction
             row.totalSalary.replace('₹', 'Rs ') // Replace ₹ with Rs for Total Salary
         ]);
-        
+
         // Set font properties for daily breakdown table
         doc.setFont('helvetica');
         doc.setFontSize(8);
-        
+
         autoTable(doc, {
             startY: 30,
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',
             headStyles: { fillColor: [52, 73, 94] },
-            styles: { 
+            styles: {
                 fontSize: 8,
                 font: 'helvetica',
                 cellPadding: 1.5
@@ -1027,32 +979,210 @@ const SalaryManagement = () => {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                 <h1 className="text-2xl font-bold">Salary Management</h1>
-                <div className="flex space-x-2">
+                {/* MOBILE BUTTONS: Show only on mobile */}
+                <div className="md:hidden flex flex-col space-y-2">
                     <Button
                         variant="secondary"
-                        className='flex items-center'
+                        className='flex items-center justify-center'
                         onClick={openBulkReportModal}
                     >
                         <FaList className="mr-2" /> View All Reports
                     </Button>
                     <Button
                         variant="secondary"
-                        className='flex items-center'
-                        onClick={openFineModal}
+                        className='flex items-center justify-center'
+                        onClick={() => setIsFineModalOpen(true)}
                     >
                         Fine
                     </Button>
                     <Button
                         variant="primary"
-                        className='flex items-center'
+                        className='flex items-center justify-center'
                         onClick={handleSalaryReset}
                     >
                         <FiRefreshCcw className="mr-2" /> Reset Salary
                     </Button>
                 </div>
             </div>
+            
+            {/* DESKTOP BUTTONS: Show only on desktop */}
+            <div className="hidden md:flex justify-end items-center mb-6 space-x-2">
+                <Button
+                    variant="secondary"
+                    className='flex items-center'
+                    onClick={openBulkReportModal}
+                >
+                    <FaList className="mr-2" /> View All Reports
+                </Button>
+                <Button
+                    variant="secondary"
+                    className='flex items-center'
+                    onClick={() => setIsFineModalOpen(true)}
+                >
+                    Fine
+                </Button>
+                <Button
+                    variant="primary"
+                    className='flex items-center'
+                    onClick={handleSalaryReset}
+                >
+                    <FiRefreshCcw className="mr-2" /> Reset Salary
+                </Button>
+            </div>
+            {/* FINE FILTER PANEL */}
+            <Card className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-semibold">Fine Filter</h3>
+                    <button
+                        onClick={toggleFineFilterPanel}
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                        {isFineFilterOpen ? 'Hide Fine Filter' : 'Show Fine Filter'}
+                    </button>
+                </div>
+                
+                {isFineFilterOpen && (
+                    <div className="mt-4">
+                        <form onSubmit={handleFineFilterSubmit}>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                                    <select
+                                        value={selectedFineMonth}
+                                        onChange={(e) => setSelectedFineMonth(e.target.value)}
+                                        className="form-input"
+                                    >
+                                        <option value="">All Months</option>
+                                        <option value={1}>January</option>
+                                        <option value={2}>February</option>
+                                        <option value={3}>March</option>
+                                        <option value={4}>April</option>
+                                        <option value={5}>May</option>
+                                        <option value={6}>June</option>
+                                        <option value={7}>July</option>
+                                        <option value={8}>August</option>
+                                        <option value={9}>September</option>
+                                        <option value={10}>October</option>
+                                        <option value={11}>November</option>
+                                        <option value={12}>December</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                                    <select
+                                        value={selectedFineYear}
+                                        onChange={(e) => setSelectedFineYear(e.target.value)}
+                                        className="form-input"
+                                    >
+                                        <option value="">All Years</option>
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary w-full"
+                                        disabled={isLoadingFines}
+                                    >
+                                        {isLoadingFines ? 'Loading...' : 'Apply Filter'}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        {finesData.length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-md font-medium mb-2">Fines Summary</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                    <div className="bg-blue-50 p-3 rounded">
+                                        <p className="text-sm text-gray-600">Total Fines</p>
+                                        <p className="text-xl font-bold text-blue-700">{finesData.length}</p>
+                                    </div>
+                                    <div className="bg-red-50 p-3 rounded">
+                                        <p className="text-sm text-gray-600">Total Amount</p>
+                                        <p className="text-xl font-bold text-red-700">
+                                            ₹{finesData.reduce((sum, fine) => sum + fine.amount, 0).toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-yellow-50 p-3 rounded">
+                                        <p className="text-sm text-gray-600">Unique Workers</p>
+                                        <p className="text-xl font-bold text-yellow-700">
+                                            {[...new Set(finesData.map(fine => fine.workerId))].length}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <h4 className="text-md font-medium mb-2">Recent Fines</h4>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {finesData.slice(0, 5).map((fine) => (
+                                                <tr key={`${fine.workerId}-${fine._id}`}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            {fine.photo && (
+                                                                <img
+                                                                    src={fine.photo
+                                                                        ? fine.photo
+                                                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(fine.workerName)}`}
+                                                                    alt="Employee"
+                                                                    className="w-8 h-8 rounded-full mr-2"
+                                                                />
+                                                            )}
+                                                            <div>
+                                                                <div className="font-medium">{fine.workerName}</div>
+                                                                <div className="text-sm text-gray-500">{fine.employeeId}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {new Date(fine.date).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-red-600 font-medium">
+                                                        ₹{fine.amount.toFixed(2)}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {fine.reason}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <button
+                                                            onClick={() => handleDeleteFine(fine.workerId, fine._id)}
+                                                            className="text-red-600 hover:text-red-900"
+                                                            title="Delete Fine"
+                                                        >
+                                                            <FaTrash />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {finesData.length > 5 && (
+                                    <p className="text-sm text-gray-500 mt-2">Showing first 5 of {finesData.length} fines</p>
+                                )}
+                            </div>
+                        )}
+                        
+                        {finesData.length === 0 && !isLoadingFines && (
+                            <p className="text-gray-500 text-center py-4">No fines found for the selected criteria.</p>
+                        )}
+                    </div>
+                )}
+            </Card>
             <Card>
                 <div className="mb-4">
                     <input
@@ -1137,125 +1267,13 @@ const SalaryManagement = () => {
                 </form>
             </Modal>
             {/* ADD FINE MODAL */}
-            <Modal
+            <AddFineModal
                 isOpen={isFineModalOpen}
-                onClose={() => {
-                    setIsFineModalOpen(false);
-                    setSelectedFineWorker(null);
-                }}
-                title={'Add Fine'}
-                size="lg"
-            >
-                {!selectedFineWorker ? (
-                    <div>
-                        <div className="form-group mb-4">
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Search employees..."
-                                value={fineSearchTerm}
-                                onChange={(e) => setFineSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="max-h-96 overflow-y-auto">
-                            {filteredFineWorkers.length > 0 ? (
-                                filteredFineWorkers.map(worker => (
-                                    <div 
-                                        key={worker._id}
-                                        className="p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer flex items-center"
-                                        onClick={() => selectFineWorker(worker)}
-                                    >
-                                        <div className="flex items-center">
-                                            {worker?.photo && (
-                                                <img
-                                                    src={worker.photo
-                                                        ? worker.photo
-                                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}`}
-                                                    alt="Employee"
-                                                    className="w-8 h-8 rounded-full mr-2"
-                                                />
-                                            )}
-                                            <div>
-                                                <div className="font-medium">{worker.name}</div>
-                                                <div className="text-sm text-gray-500">{worker.department?.name || worker.department}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-4 text-gray-500">
-                                    No employees found
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <form onSubmit={handleFineSubmit}>
-                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                            <div className="font-medium">{selectedFineWorker.name}</div>
-                            <div className="text-sm text-gray-500">{selectedFineWorker.department?.name || selectedFineWorker.department}</div>
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="date" className="form-label">Date</label>
-                            <input
-                                type="date"
-                                id="date"
-                                name="date"
-                                className="form-input"
-                                value={fineFormData.date}
-                                onChange={handleFineChange}
-                                required
-                            />
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="amount" className="form-label">Fine Amount</label>
-                            <input
-                                type="text"
-                                id="amount"
-                                name="amount"
-                                className="form-input"
-                                value={fineFormData.amount}
-                                onChange={handleFineChange}
-                                required
-                                pattern="^\d*\.?\d*$"
-                                title="Please enter a valid number (e.g., 100 or 50.50)"
-                            />
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="reason" className="form-label">Reason</label>
-                            <textarea
-                                id="reason"
-                                name="reason"
-                                className="form-input"
-                                value={fineFormData.reason}
-                                onChange={handleFineChange}
-                                required
-                                rows="3"
-                            />
-                        </div>
-                        
-                        <div className="flex justify-end mt-6 space-x-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setSelectedFineWorker(null)}
-                            >
-                                Back
-                            </Button>
-                            <Button
-                                type="submit"
-                                variant="primary"
-                            >
-                                Add Fine
-                            </Button>
-                        </div>
-                    </form>
-                )}
-            </Modal>
-            
+                onClose={() => setIsFineModalOpen(false)}
+                preloadedWorkers={workers}
+                onFineAdded={loadData}
+            />
+
             {/* BULK REPORT MODAL */}
             <Modal
                 isOpen={isBulkReportModalOpen}
@@ -1293,13 +1311,13 @@ const SalaryManagement = () => {
                                 onChange={handleYearChange}
                                 className="form-input"
                             >
-                                {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                                     <option key={year} value={year}>{year}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
-                    
+
                     <div className="mb-4">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="text-lg font-medium">Select Employees</h3>
@@ -1313,7 +1331,7 @@ const SalaryManagement = () => {
                         </div>
                         <div className="max-h-96 overflow-y-auto border rounded-lg">
                             {filteredWorkers.map(worker => (
-                                <div 
+                                <div
                                     key={worker._id}
                                     className={`p-3 border-b flex items-center ${selectedWorkersForReport.includes(worker._id) ? 'bg-blue-50' : ''}`}
                                 >
@@ -1342,7 +1360,7 @@ const SalaryManagement = () => {
                             ))}
                         </div>
                     </div>
-                    
+
                     <div className="flex justify-end">
                         <Button
                             variant="primary"
@@ -1352,7 +1370,7 @@ const SalaryManagement = () => {
                             {isBulkReportLoading ? <Spinner size="sm" /> : 'View Reports'}
                         </Button>
                     </div>
-                    
+
                     {bulkReportData.length > 0 && (
                         <div className="mt-6">
                             <h3 className="text-lg font-medium mb-4">Selected Employees Report</h3>
@@ -1394,7 +1412,7 @@ const SalaryManagement = () => {
                     )}
                 </div>
             </Modal>
-            
+
             {/* INDIVIDUAL REPORT MODAL */}
             <Modal
                 isOpen={isIndividualReportModalOpen}
@@ -1423,7 +1441,7 @@ const SalaryManagement = () => {
                                 <p><strong>Final Salary:</strong> ₹{selectedIndividualWorker.totalFinalSalary.toFixed(2)}</p>
                             </div>
                         </div>
-                        
+
                         <Card className="mb-6">
                             <h3 className="text-xl font-semibold mb-4">Summary</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -1599,7 +1617,7 @@ const SalaryManagement = () => {
                     </div>
                 )}
             </Modal>
-            
+
             <Modal
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
@@ -1615,7 +1633,7 @@ const SalaryManagement = () => {
                             {useMonthSelection ? 'Switch to Date Range' : 'Switch to Month Selection'}
                         </button>
                     </div>
-                    
+
                     {useMonthSelection ? (
                         <div className="flex space-x-4 mb-4 items-end">
                             <div>
@@ -1646,7 +1664,7 @@ const SalaryManagement = () => {
                                     onChange={handleYearChange}
                                     className="form-input"
                                 >
-                                    {Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                                         <option key={year} value={year}>{year}</option>
                                     ))}
                                 </select>
@@ -1679,7 +1697,7 @@ const SalaryManagement = () => {
                             </Button>
                         </div>
                     )}
-                    
+
                     {isReportLoading && !reportData && (
                         <div className="flex justify-center py-8">
                             <Spinner size="lg" />

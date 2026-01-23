@@ -1,10 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { FaUpload, FaDownload, FaPen } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import CertificateHistory from './CertificateHistory';
 import Modal from '../common/Modal';
+import { getWorkers } from '../../services/workerService';
+import appContext from '../../context/AppContext';
 
 // Styled fonts and global styles
 const styleTag = document.createElement("style");
@@ -113,6 +116,7 @@ styleTag.innerHTML = `
 document.head.appendChild(styleTag);
 
 const RelievingLetter = () => {
+  const { subdomain } = useContext(appContext);
   const [formData, setFormData] = useState({
     // Header Info
     headerLine1: 'Regd. Office : 11, Vijaya Street, Srinivasapuram, Thanjavur - 613009',
@@ -122,9 +126,9 @@ const RelievingLetter = () => {
     date: 'Date : 04-11-2025',
 
     // Recipient Details
-    recipientName: 'Mr.(name)',
-    employeeId: 'JB1192',
-    designation: 'Full Stack Developer (Software Developer)',
+    recipientName: '',
+    employeeId: '',
+    designation: '',
 
     subject: 'Official Relieving Letter',
 
@@ -166,32 +170,7 @@ const RelievingLetter = () => {
     }
   };
 
-  const saveCertificate = async () => {
-    try {
-      const payload = {
-        name: formData.recipientName || 'Untitled Relieving Letter',
-        type: 'Relieving',
-        content: {
-          formData,
-          signatures,
-          logoSelection
-        }
-      };
 
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-
-      if (currentCertId) {
-        await axios.put(`${API_URL}/certificates/${currentCertId}`, payload, config);
-      } else {
-        const res = await axios.post(`${API_URL}/certificates`, payload, config);
-        setCurrentCertId(res.data._id);
-      }
-      setRefreshHistory(prev => prev + 1);
-    } catch (error) {
-      console.error('Error saving certificate:', error);
-    }
-  };
 
   const downloadPDF = async () => {
     if (!isViewMode) {
@@ -200,7 +179,13 @@ const RelievingLetter = () => {
 
     setIsGenerating(true);
     const editableAreas = document.querySelectorAll('.editable-area');
-    editableAreas.forEach(inp => inp.style.backgroundColor = 'transparent');
+    editableAreas.forEach(inp => {
+      inp.style.backgroundColor = 'transparent';
+      // Remove border for inputs during capture to clear text obstruction
+      if (inp.tagName === 'INPUT') {
+        inp.style.borderBottom = 'none';
+      }
+    });
 
     html2canvas(letterRef.current, {
       scale: 2.5,
@@ -214,9 +199,22 @@ const RelievingLetter = () => {
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Relieving_Letter_${formData.recipientName.replace(/\s+/g, '_')}.pdf`);
       setIsGenerating(false);
+
+      // Restore styles
+      editableAreas.forEach(inp => {
+        if (inp.tagName === 'INPUT') {
+          inp.style.borderBottom = '';
+        }
+      });
     }).catch(err => {
       console.error("PDF Error:", err);
       setIsGenerating(false);
+      // Restore styles on error too
+      editableAreas.forEach(inp => {
+        if (inp.tagName === 'INPUT') {
+          inp.style.borderBottom = '';
+        }
+      });
     });
   };
 
@@ -260,18 +258,91 @@ const RelievingLetter = () => {
     setLogoSelection(content.logoSelection);
   };
 
+  /* New State for Employee Search */
+  const [workers, setWorkers] = useState([]);
+  const [filteredWorkers, setFilteredWorkers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedWorkerId, setSelectedWorkerId] = useState(null);
+
+  // Fetch workers on mount
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      try {
+        // console.log("Fetching workers for subdomain:", subdomain);
+        const response = await getWorkers({ subdomain });
+        // Assuming getWorkers handles the API call. 
+        // If response is array:
+        if (Array.isArray(response)) {
+          setWorkers(response.filter(w => w.status !== 'Relieved'));
+        } else if (response && response.users) { // fallback if structure is { users: [] }
+          setWorkers(response.users.filter(w => w.status !== 'Relieved'));
+        }
+      } catch (e) {
+        console.error("Error fetching workers:", e);
+      }
+    };
+    if (subdomain) {
+      fetchWorkers();
+    }
+  }, [subdomain]);
+
+  // ... existing code ...
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setFormData(prev => ({ ...prev, recipientName: value }));
+
+    if (value.trim() === '') {
+      // Show all active workers if search is empty? Or just 10?
+      setFilteredWorkers(workers.slice(0, 10)); // Show top 10
+      setShowDropdown(true);
+      return;
+    }
+
+    const filtered = workers.filter(w =>
+      w.name.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredWorkers(filtered);
+    setShowDropdown(true);
+  };
+
+  const handleFocus = () => {
+    // On focus, show list even if empty search
+    if (searchTerm.trim() === '') {
+      setFilteredWorkers(workers.slice(0, 10));
+      setShowDropdown(true);
+    } else {
+      setShowDropdown(true);
+    }
+  };
+
+  const selectWorker = (worker) => {
+    setFormData(prev => ({
+      ...prev,
+      recipientName: worker.name,
+      employeeId: worker.rfid || worker.username, // Use RFID or Username as ID
+      designation: worker.designation || 'Employee', // Assuming designation exists, or default
+    }));
+    setSearchTerm(worker.name);
+    setSelectedWorkerId(worker._id);
+    setShowDropdown(false);
+  };
+
   const handleNew = () => {
+    // ... existing reset logic ...
     setFormData({
       headerLine1: 'Regd. Office : 11, Vijaya Street, Srinivasapuram, Thanjavur - 613009',
       headerLine2: 'Phone Number : +91 85240 89733',
       headerLine3: 'Email : techvaseegrah@gmail.com  Website : www.techvaseegrah.com',
-      date: 'Date : 04-11-2025',
-      recipientName: 'Mr.(name)',
-      employeeId: 'JB1192',
-      designation: 'Full Stack Developer (Software Developer)',
+      date: `Date : ${new Date().toLocaleDateString('en-GB')}`, // Dynamic date
+      recipientName: '', // Empty for search
+      employeeId: '',
+      designation: '',
       subject: 'Official Relieving Letter',
       salutation: 'Dear (Name),',
-      para1: 'This is to formally confirm that your resignation letter dated 04-10-2025 has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on 04-11-2025, after completion of your notice period from 04-10-2025 to 04-11-2025.',
+      para1: 'This is to formally confirm that your resignation letter dated DA-TE-YEAR has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on DA-TE-YEAR, after completion of your notice period from DA-TE-YEAR to DA-TE-YEAR.',
       para2: 'We hereby acknowledge that you have completed all required handover and clearance formalities. Your full and final settlement will be processed as per company policy.',
       para3: 'We sincerely thank you for your contributions during your tenure with us and wish you success in all your future professional endeavors.',
       forCompany: 'For Tech Vaseegrah,',
@@ -282,6 +353,47 @@ const RelievingLetter = () => {
     setLogoSelection('tech');
     setCurrentCertId(null);
     setIsViewMode(false);
+    setSelectedWorkerId(null);
+    setSearchTerm('');
+  };
+
+  // Modified saveCertificate
+  const saveCertificate = async () => {
+    if (!currentCertId && selectedWorkerId) {
+      if (!window.confirm("Are you sure you want to mark this employee as relieved? This action cannot be undone.")) {
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        name: formData.recipientName || 'Untitled Relieving Letter',
+        type: 'Relieving',
+        content: {
+          formData,
+          signatures,
+          logoSelection
+        },
+        workerId: selectedWorkerId // Add workerId to payload
+      };
+
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      if (currentCertId) {
+        await axios.put(`${API_URL}/certificates/${currentCertId}`, payload, config);
+        // Updating existing certificate doesn't need to re-trigger relieving logic usually, 
+        // but back-end could handle it.
+      } else {
+        const res = await axios.post(`${API_URL}/certificates`, payload, config);
+        setCurrentCertId(res.data._id);
+        toast.success("Certificate Saved & Employee Marked as Relieved (if applicable)");
+      }
+      setRefreshHistory(prev => prev + 1);
+    } catch (error) {
+      console.error('Error saving certificate:', error);
+      toast.error('Failed to save details');
+    }
   };
 
   return (
@@ -393,13 +505,41 @@ const RelievingLetter = () => {
                 {/* Recipient Details */}
                 <div className="space-y-1">
                   <div className="font-bold text-gray-900">To</div>
-                  <div
-                    contentEditable={!isViewMode}
-                    className="font-medium text-gray-900 editable-area outline-none"
-                    onBlur={(e) => handleEdit('recipientName', e.target.innerText)}
-                    suppressContentEditableWarning={true}
-                  >
-                    {formData.recipientName}
+                  <div className="relative">
+                    {!isViewMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={formData.recipientName}
+                          onChange={handleSearchChange}
+                          onFocus={handleFocus}
+                          placeholder="Search Employee..."
+                          className="font-medium text-gray-900 editable-area outline-none bg-transparent w-full placeholder-gray-400 border-b border-gray-300 focus:border-green-500 transition-colors"
+                        />
+                        {showDropdown && (
+                          <ul className="absolute z-50 bg-white border border-gray-300 shadow-lg w-full max-h-48 overflow-y-auto mt-1 rounded text-left left-0">
+                            {filteredWorkers.length > 0 ? (
+                              filteredWorkers.map(worker => (
+                                <li
+                                  key={worker._id}
+                                  onClick={() => selectWorker(worker)}
+                                  className="px-3 py-2 hover:bg-green-50 cursor-pointer text-sm text-gray-700 border-b last:border-0"
+                                >
+                                  <div className="font-semibold">{worker.name}</div>
+                                  <div className="text-xs text-gray-500">{worker.designation || 'Employee'}</div>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="px-3 py-2 text-sm text-gray-500 italic">No employees found</li>
+                            )}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <div className="font-medium text-gray-900">
+                        {formData.recipientName}
+                      </div>
+                    )}
                   </div>
                   <div
                     contentEditable={!isViewMode}

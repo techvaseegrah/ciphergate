@@ -101,6 +101,8 @@ const createWorker = asyncHandler(async (req, res) => {
       faceEmbeddings: faceEmbeddings || [], // ADDED THIS
       employeeType,
       class: classValue,
+      original_certificate_status: req.body.original_certificate_status || 'not_submitted', // ADDED
+      certificate_notes: req.body.certificate_notes || '', // ADDED
       totalPoints: 0
     });
 
@@ -118,7 +120,8 @@ const createWorker = asyncHandler(async (req, res) => {
       batch: worker.batch, // ADDED THIS
       faceEmbeddings: worker.faceEmbeddings, // ADDED THIS
       employeeType: worker.employeeType,
-      class: worker.class
+      class: worker.class,
+      status: worker.status
     });
 
   } catch (error) {
@@ -317,6 +320,15 @@ const updateWorker = asyncHandler(async (req, res) => {
       updateData.class = classValue;
     }
 
+    // ADDED: Certificate Tracking Logic
+    if (req.body.original_certificate_status) {
+      updateData.original_certificate_status = req.body.original_certificate_status;
+    }
+
+    if (req.body.certificate_notes !== undefined) {
+      updateData.certificate_notes = req.body.certificate_notes;
+    }
+
     // Update salary-related fields if salary is provided
     if (salary) {
       const numericSalary = Number(salary);
@@ -349,7 +361,8 @@ const updateWorker = asyncHandler(async (req, res) => {
       batch: updatedWorker.batch, // ADDED this to the response
       faceEmbeddings: updatedWorker.faceEmbeddings, // ADDED this to the response
       employeeType: updatedWorker.employeeType,
-      class: updatedWorker.class
+      class: updatedWorker.class,
+      status: updatedWorker.status
     });
   } catch (error) {
     console.error('Update Worker Error:', error);

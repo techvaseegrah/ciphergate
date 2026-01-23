@@ -1,10 +1,21 @@
 const Certificate = require('../models/Certificate');
+const Worker = require('../models/Worker');
 
 exports.createCertificate = async (req, res) => {
     try {
-        const { name, type, content } = req.body;
-        const newCertificate = new Certificate({ name, type, content });
+        const { name, type, content, workerId } = req.body;
+        const newCertificate = new Certificate({ name, type, content, worker: workerId });
         await newCertificate.save();
+
+        // If it's a Relieving Letter and workerId is provided, update worker status
+        if (type === 'Relieving' && workerId) {
+            await Worker.findByIdAndUpdate(workerId, {
+                status: 'Relieved',
+                relievedAt: new Date(),
+                relievingLetterId: newCertificate._id
+            });
+        }
+
         res.status(201).json(newCertificate);
     } catch (error) {
         res.status(500).json({ message: 'Error creating certificate', error: error.message });

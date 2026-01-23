@@ -18,6 +18,11 @@ const certificateSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    worker: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Worker',
+        required: false
+    }
 });
 
 module.exports = mongoose.model('Certificate', certificateSchema);

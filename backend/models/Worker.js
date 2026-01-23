@@ -24,7 +24,7 @@ const workerSchema = mongoose.Schema({
     type: String,
     required: [true, 'Please add a password']
   },
-    batch: { // ADD THIS
+  batch: { // ADD THIS
     type: String
   },
   department: {
@@ -98,6 +98,27 @@ const workerSchema = mongoose.Schema({
     type: String,
     enum: ['A', 'B', 'C'],
     default: 'A'
+  },
+  status: {
+    type: String,
+    enum: ['Active', 'Relieved'],
+    default: 'Active'
+  },
+  relievedAt: {
+    type: Date
+  },
+  original_certificate_status: {
+    type: String,
+    enum: ['not_submitted', 'submitted', 'returned'],
+    default: 'not_submitted'
+  },
+  certificate_notes: {
+    type: String,
+    default: ''
+  },
+  relievingLetterId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Certificate'
   }
 }, {
   timestamps: true

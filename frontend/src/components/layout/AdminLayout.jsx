@@ -61,6 +61,7 @@ import OfferLetter from '../admin/OfferLetter';
 import AcceptanceLetter from '../admin/AcceptanceLetter';
 import RelievingLetter from '../admin/RelievingLetter';
 import ExperienceCertificate from '../admin/ExperienceCertificate';
+import CommunityFund from '../admin/CommunityFund'; // ADD THIS
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -159,6 +160,11 @@ const AdminLayout = () => {
       icon: <FaDollarSign />,
       label: 'Invoices',
       badge: newInvoices > 0 ? newInvoices : null
+    },
+    {
+      to: '/admin/community-fund',
+      icon: <FaDollarSign />, // Or a more specific icon if available like FaHandHoldingUsd but importing FaDollarSign is safe
+      label: 'Community Fund'
     },
     {
       to: '/admin/attendance',
@@ -367,6 +373,8 @@ const AdminLayout = () => {
                 <GlobalScoreboard />
               </Suspense>
             } />
+
+            <Route path="community-fund" element={<CommunityFund />} /> {/* ADD THIS */}
 
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>

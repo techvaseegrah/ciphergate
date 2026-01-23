@@ -53,6 +53,7 @@ const WorkerManagement = () => {
     confirmPassword: '',
     department: '',
     photo: '',
+    original_certificate_status: 'not_submitted', // ADDED
     faceEmbeddings: [] // Add face embeddings to form data
   });
 
@@ -174,6 +175,7 @@ const WorkerManagement = () => {
       password: '',
       confirmPassword: '',
       batch: worker.batch || '', // ADDED: Set the worker's current batch
+      original_certificate_status: worker.original_certificate_status || 'not_submitted', // ADDED
       faceEmbeddings: worker.faceEmbeddings || [] // Set existing face embeddings
     });
     setIsEditModalOpen(true);
@@ -343,6 +345,7 @@ const WorkerManagement = () => {
         name: formData.name,
         username: formData.username,
         department: formData.department, // Always include department
+        original_certificate_status: formData.original_certificate_status, // ADDED
         faceEmbeddings: workerFaceEmbeddings // Include face embeddings
       };
 
@@ -468,30 +471,80 @@ const WorkerManagement = () => {
       }
     },
     {
+      header: 'Status',
+      accessor: 'status',
+      render: (record) => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'Relieved'
+          ? 'bg-red-100 text-red-800'
+          : 'bg-green-100 text-green-800'
+          }`}>
+          {record.status || 'Active'}
+        </span>
+      ),
+    },
+    {
+      header: 'Original Cert. Status',
+      accessor: 'original_certificate_status',
+      render: (record) => {
+        let statusText = 'Not Submitted';
+        let statusColor = 'bg-gray-100 text-gray-800';
+
+        switch (record.original_certificate_status) {
+          case 'submitted':
+            statusText = 'Submitted';
+            statusColor = 'bg-blue-100 text-blue-800';
+            break;
+          case 'returned':
+            statusText = 'Returned';
+            statusColor = 'bg-green-100 text-green-800';
+            break;
+          case 'not_submitted':
+          default:
+            statusText = 'Not Submitted';
+            statusColor = 'bg-yellow-100 text-yellow-800';
+            break;
+        }
+
+        return (
+          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}`}>
+            {statusText}
+          </span>
+        );
+      }
+    },
+    {
       header: 'Actions',
       accessor: 'actions',
-      render: (record) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => openEditModal(record)}
-            className="text-blue-500 hover:text-blue-700"
-          >
-            <FaEdit />
-          </button>
-          <button
-            onClick={() => openDeleteModal(record)}
-            className="text-red-500 hover:text-red-700"
-          >
-            <FaTrash />
-          </button>
-          <button
-            onClick={() => openFaceCaptureModal(record)}
-            className="text-green-500 hover:text-green-700"
-          >
-            <FaCamera />
-          </button>
-        </div>
-      ),
+      render: (record) => {
+        const isRelieved = record.status === 'Relieved';
+        return (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => !isRelieved && openEditModal(record)}
+              className={`text-blue-500 hover:text-blue-700 ${isRelieved ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isRelieved}
+              title={isRelieved ? "Relieved Employee" : "Edit"}
+            >
+              <FaEdit />
+            </button>
+            <button
+              onClick={() => openDeleteModal(record)}
+              className="text-red-500 hover:text-red-700"
+              title="Delete"
+            >
+              <FaTrash />
+            </button>
+            <button
+              onClick={() => !isRelieved && openFaceCaptureModal(record)}
+              className={`text-green-500 hover:text-green-700 ${isRelieved ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isRelieved}
+              title={isRelieved ? "Relieved Employee" : "Capture Face"}
+            >
+              <FaCamera />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -806,6 +859,20 @@ const WorkerManagement = () => {
                 min="0"
                 step="0.01"
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Original Certificate Status</label>
+              <select
+                name="original_certificate_status"
+                className="form-input"
+                value={formData.original_certificate_status}
+                onChange={handleChange}
+              >
+                <option value="not_submitted">Not Submitted</option>
+                <option value="submitted">Submitted </option>
+                <option value="returned">Returned to Employee</option>
+              </select>
             </div>
 
             <div className="form-group md:col-span-2">
