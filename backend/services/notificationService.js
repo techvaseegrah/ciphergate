@@ -66,15 +66,21 @@ const sendWhatsAppTemplateMessage = async (subdomain, templateName, recipientNum
 
     console.log(`[WhatsApp Success] Message sent successfully to ${formattedRecipientNumber}`);
     return { success: true, messageId: response.data.messages[0].id };
-
   } catch (error) {
     const errorMessage = error.response ?
       error.response.data.error.message :
       error.message;
 
-    // Check specifically for template not found error (code 132001)
-    if (error.response?.data?.error?.code === 132001) {
-      console.warn(`[WhatsApp] Template '${templateName}' does not exist, falling back to text message`);
+    console.log('[WhatsApp Error Details]', {
+      statusCode: error.response?.status,
+      errorCode: error.response?.data?.error?.code,
+      errorDetails: error.response?.data?.error,
+      message: errorMessage
+    });
+
+    // Check specifically for template not found error (code 132001) or other common errors
+    if (error.response?.data?.error?.code === 132001 || error.response?.data?.error?.code === 131047 || error.response?.data?.error?.code === 130038) {
+      console.warn(`[WhatsApp] Template error (code ${error.response?.data?.error?.code}), falling back to text message`);
       
       try {
         // Fall back to sending a text message instead of template
@@ -184,10 +190,22 @@ const formatFallbackMessage = (templateName, headerParams, bodyParams) => {
  */
 const sendNewLeaveRequestNotification = async (leave) => {
   try {
+    console.log('[WhatsApp Debug] Processing leave notification:', {
+      subdomain: leave.subdomain,
+      workerId: leave.worker,
+      leaveType: leave.leaveType,
+      startDate: leave.startDate,
+      endDate: leave.endDate,
+      totalDays: leave.totalDays,
+      reason: leave.reason
+    });
+    
     // Destructure all required fields from the leave object
     const { subdomain, worker: workerId, leaveType, startDate, endDate, totalDays, reason, startTime, endTime } = leave;
 
     const config = await GowhatsConfig.findOne({ subdomain });
+    console.log('[WhatsApp Debug] Config found:', !!config, 'Admin numbers:', config?.adminWhatsappNumbers);
+    
     if (!config || !config.adminWhatsappNumbers || config.adminWhatsappNumbers.length === 0) {
       console.error(`[WhatsApp Error] Admin WhatsApp numbers not configured for ${subdomain}`);
       return { success: false, error: 'Admin numbers not configured' };
@@ -222,8 +240,10 @@ const sendNewLeaveRequestNotification = async (leave) => {
     ];
 
     // Send the notification to all configured admin numbers
+    console.log(`[WhatsApp] Attempting to send notifications to ${config.adminWhatsappNumbers.length} admin numbers`);
     const results = [];
     for (const adminNumber of config.adminWhatsappNumbers) {
+      console.log(`[WhatsApp] Sending notification to admin number: ${adminNumber}`);
       const result = await sendWhatsAppTemplateMessage(
         subdomain,
         'leave_request', // Ensure this matches your template name in WhatsApp Manager
@@ -231,6 +251,7 @@ const sendNewLeaveRequestNotification = async (leave) => {
         null, // No header parameters
         bodyParameters
       );
+      console.log(`[WhatsApp] Result for ${adminNumber}:`, result);
       results.push({ number: adminNumber, ...result });
     }
 

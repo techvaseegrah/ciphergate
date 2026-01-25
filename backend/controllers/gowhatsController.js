@@ -13,7 +13,7 @@ const getConfig = asyncHandler(async (req, res) => {
       apiKey: '',
       phoneNumberId: '',
       businessAccountId: '',
-      adminWhatsappNumber: '', // Add this field
+      adminWhatsappNumbers: [''],
     });
   }
 });

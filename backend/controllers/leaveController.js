@@ -90,26 +90,31 @@ const createLeave = asyncHandler(async (req, res) => {
   if (leave) {
     console.log(`Leave created. Sending WhatsApp notification for leave ID: ${leave._id}`);
     
-    sendNewLeaveRequestNotification(leave)
-      .then(result => {
-        if (result.success) {
-          console.log(`✅ Leave notification sent successfully. Summary: ${result.summary}`);
-        } else {
-          console.error(`❌ Failed to send leave notification:`, result.error || 'Unknown error');
-          
-          // Log detailed results if available
-          if (result.results && Array.isArray(result.results)) {
-            result.results.forEach((res, index) => {
-              if (!res.success) {
-                console.error(`❌ Failed to send to number ${res.number || 'unknown'}:`, res.error || 'Unknown error');
-              }
-            });
+    // Wrap the notification in a try-catch to prevent any errors from affecting the leave creation
+    try {
+      sendNewLeaveRequestNotification(leave)
+        .then(result => {
+          if (result.success) {
+            console.log(`✅ Leave notification sent successfully. Summary: ${result.summary}`);
+          } else {
+            console.error(`❌ Failed to send leave notification:`, result.error || 'Unknown error');
+            
+            // Log detailed results if available
+            if (result.results && Array.isArray(result.results)) {
+              result.results.forEach((res, index) => {
+                if (!res.success) {
+                  console.error(`❌ Failed to send to number ${res.number || 'unknown'}:`, res.error || 'Unknown error');
+                }
+              });
+            }
           }
-        }
-      })
-      .catch(error => {
-        console.error(`❌ An unexpected error occurred while sending notification: ${error.message}`);
-      });
+        })
+        .catch(notificationError => {
+          console.error(`❌ An unexpected error occurred while sending notification:`, notificationError.message);
+        });
+    } catch (syncError) {
+      console.error(`❌ Error initiating notification:`, syncError.message);
+    }
   }
 
   res.status(201).json(leave);
