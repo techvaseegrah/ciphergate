@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
-const ShatteredLogo = ({ 
-  src = '/logo.png', 
+const ShatteredLogo = ({
+  src = '/logo.png',
   alt = 'Logo',
   className = '',
   onComplete,
@@ -10,12 +10,12 @@ const ShatteredLogo = ({
 }) => {
   const [isAnimating, setIsAnimating] = useState(true);
   const [animationKey, setAnimationKey] = useState(0);
-  
+
   // Create pieces with random positions for shattering effect
   const createPieces = () => {
     const pieces = [];
     const pieceCount = 12;
-    
+
     for (let i = 0; i < pieceCount; i++) {
       pieces.push({
         id: i,
@@ -28,12 +28,12 @@ const ShatteredLogo = ({
         delay: Math.random() * 0.3
       });
     }
-    
+
     return pieces;
   };
-  
+
   const [pieces] = useState(createPieces());
-  
+
   useEffect(() => {
     if (triggerAnimation) {
       // Reset animation state to trigger re-render
@@ -41,7 +41,7 @@ const ShatteredLogo = ({
       setAnimationKey(prev => prev + 1);
     }
   }, [triggerAnimation]);
-  
+
   useEffect(() => {
     if (isAnimating) {
       // Notify when animation completes
@@ -49,11 +49,11 @@ const ShatteredLogo = ({
         setIsAnimating(false);
         if (onComplete) onComplete();
       }, 1500); // Reduced duration for better flow
-      
+
       return () => clearTimeout(timer);
     }
   }, [isAnimating, onComplete]);
-  
+
   return (
     <div className={`relative overflow-visible ${className}`}>
       {isAnimating ? (
@@ -83,14 +83,14 @@ const ShatteredLogo = ({
                 ease: "easeOut",
               }}
             >
-              <img 
-                src={src} 
+              <img
+                src={src}
                 alt={`${alt} piece ${piece.id}`}
                 className="w-full h-full object-contain"
               />
             </motion.div>
           ))}
-          
+
           {/* Reassembling logo */}
           <motion.div
             key={`reassemble-${animationKey}`}
@@ -115,8 +115,8 @@ const ShatteredLogo = ({
               ease: "easeOut",
             }}
           >
-            <img 
-              src={src} 
+            <img
+              src={src}
               alt={alt}
               className="w-full h-full object-contain"
             />
@@ -124,8 +124,8 @@ const ShatteredLogo = ({
         </>
       ) : (
         // Static logo after animation completes
-        <img 
-          src={src} 
+        <img
+          src={src}
           alt={alt}
           className="w-full h-full object-contain"
         />

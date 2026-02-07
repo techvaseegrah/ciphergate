@@ -25,7 +25,7 @@ const Sidebar = ({
   const themeColor = "bg-[#0d9488]"; // Teal color from image
   const activeBg = "bg-[#f3f4f6]"; // Light gray background for active item
   const activeText = "text-[#0d9488]"; // Teal text for active item
-  
+
   // Get icon class based on state
   const getIconClass = (isActive, isClicked) => {
     if (isClicked) {
@@ -43,7 +43,7 @@ const Sidebar = ({
     const logoTimer = setTimeout(() => {
       setShowFullLogo(true);
     }, 2000);
-    
+
     return () => clearTimeout(logoTimer);
   }, []);
 
@@ -52,12 +52,12 @@ const Sidebar = ({
     if (isOpen) {
       setTriggerLogoAnimation(prev => !prev);
       setShowFullLogo(false);
-      
+
       // Reset showFullLogo after animation completes
       const resetTimer = setTimeout(() => {
         setShowFullLogo(true);
       }, 2000);
-      
+
       return () => clearTimeout(resetTimer);
     }
   }, [isOpen]);
@@ -134,19 +134,19 @@ const Sidebar = ({
         <div className="flex items-center justify-center h-16 px-4">
           <div className="flex items-center justify-center w-full">
             <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-xl p-1 flex-shrink-0">
-              <ShatteredLogo 
+              <ShatteredLogo
                 triggerAnimation={triggerLogoAnimation}
-                src="/logo.png" 
-                alt="Logo" 
-                className="w-full h-full object-contain" 
+                src="/logo.png"
+                alt="Logo"
+                className="w-full h-full object-contain"
                 onComplete={() => console.log('Shattering animation complete')}
               />
             </div>
-            
+
             <div
               className={`ml-3 overflow-hidden ${showFullLogo ? 'opacity-100' : 'opacity-0'} w-full`}
             >
-              <h1 
+              <h1
                 className="text-lg font-bold text-white truncate"
               >
                 {logoText}
@@ -173,7 +173,7 @@ const Sidebar = ({
                 </div>
               </div>
               <div className="ml-1 flex-shrink-0">
-                {onLogout && <button 
+                {onLogout && <button
                   className="text-white p-1 hover:text-red-200 text-sm"
                   onClick={onLogout}
                 >
@@ -190,7 +190,7 @@ const Sidebar = ({
             // Define variables at the top to avoid scope issues
             const isActive = location.pathname === link.to;
             const isClicked = clickedItem === link.to;
-            
+
             // Handle header items
             if (link.isHeader) {
               return (
@@ -201,21 +201,21 @@ const Sidebar = ({
                 </div>
               );
             }
-            
+
             // Handle dropdown items
             if (link.isDropdown) {
               const dropdownKey = `dropdown-${index}`;
               const isExpanded = expandedDropdowns[dropdownKey];
               const hasActiveChild = isAnyChildActive(link.children || []);
-              
+
               return (
                 <div key={dropdownKey} className="px-4">
                   <button
                     onClick={() => toggleDropdown(dropdownKey)}
                     className={`
                       group flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl
-                      ${hasActiveChild 
-                        ? 'bg-white text-[#0d9488] shadow-md' 
+                      ${hasActiveChild
+                        ? 'bg-white text-[#0d9488] shadow-md'
                         : 'text-white hover:bg-white/10'
                       }
                     `}
@@ -232,10 +232,10 @@ const Sidebar = ({
                       </span>
                     )}
                     <span className={`ml-2 ${isExpanded ? 'rotate-180' : ''}`}>
-                       <FaChevronDown className="h-3 w-3" />
+                      <FaChevronDown className="h-3 w-3" />
                     </span>
                   </button>
-                  
+
                   {/* Dropdown children */}
                   <div className={`${isExpanded ? 'block' : 'hidden'}`}>
                     <div className="pl-4 space-y-1 mt-1">
@@ -245,8 +245,8 @@ const Sidebar = ({
                           to={child.to}
                           className={`
                             group flex items-center px-4 py-2 text-sm font-medium rounded-xl mx-2
-                            ${location.pathname === child.to 
-                              ? 'bg-white/20 text-white' 
+                            ${location.pathname === child.to
+                              ? 'bg-white/20 text-white'
                               : 'text-teal-100 hover:text-white hover:bg-white/10'
                             }
                           `}
@@ -263,51 +263,51 @@ const Sidebar = ({
                 </div>
               );
             }
-            
+
             // Handle regular navigation items
             // Variables are already defined at the top
-            
+
             return (
               <div key={link.to} className={`relative ${isActive ? 'px-0 pl-0' : 'px-4'}`}>
-                 {isActive && (
-                    <>
-                        {/* CSS trick to create the curve effect above and below active item */}
-                        <div className="absolute right-0 top-[-20px] w-5 h-5 bg-transparent rounded-br-3xl shadow-[5px_5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
-                        <div className="absolute right-0 bottom-[-20px] w-5 h-5 bg-transparent rounded-tr-3xl shadow-[5px_-5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
-                    </>
-                 )}
-              <Link
-                to={link.to}
-                className={`
+                {isActive && (
+                  <>
+                    {/* CSS trick to create the curve effect above and below active item */}
+                    <div className="absolute right-0 top-[-20px] w-5 h-5 bg-transparent rounded-br-3xl shadow-[5px_5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
+                    <div className="absolute right-0 bottom-[-20px] w-5 h-5 bg-transparent rounded-tr-3xl shadow-[5px_-5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
+                  </>
+                )}
+                <Link
+                  to={link.to}
+                  className={`
                   group flex items-center px-6 py-3.5 text-sm font-medium
                   relative
-                  ${isActive 
-                    ? `${activeBg} ${activeText} rounded-l-full ml-4 shadow-sm z-0 md:rounded-r-none md:rounded-l-full` 
-                    : 'text-white hover:bg-white/10 rounded-xl'
-                  }
+                  ${isActive
+                      ? `${activeBg} ${activeText} rounded-l-full ml-4 shadow-sm z-0 md:rounded-r-none md:rounded-l-full`
+                      : 'text-white hover:bg-white/10 rounded-xl'
+                    }
                   md:${isActive ? 'rounded-l-full ml-4' : 'rounded-xl'}
                   ${isActive ? 'mobile-active-item' : ''}
                 `}
-                onClick={() => handleItemClick(link.to)}
-              >
-                {link.icon && (
-                  <span className={getIconClass(isActive, isClicked)}>
-                    {link.icon}
-                  </span>
-                )}
-                <span className="flex-1 text-left truncate">{link.label}</span>
-                {link.badge && (
-                  <span className={`ml-2 text-xs rounded-full px-2 py-0.5 flex-shrink-0 ${isActive ? 'bg-[#0d9488] text-white' : 'bg-white text-[#0d9488]'}`}>
-                    {link.badge}
-                  </span>
-                )}
-              </Link>
+                  onClick={() => handleItemClick(link.to)}
+                >
+                  {link.icon && (
+                    <span className={getIconClass(isActive, isClicked)}>
+                      {link.icon}
+                    </span>
+                  )}
+                  <span className="flex-1 text-left truncate">{link.label}</span>
+                  {link.badge && (
+                    <span className={`ml-2 text-xs rounded-full px-2 py-0.5 flex-shrink-0 ${isActive ? 'bg-[#0d9488] text-white' : 'bg-white text-[#0d9488]'}`}>
+                      {link.badge}
+                    </span>
+                  )}
+                </Link>
               </div>
             );
           })}
         </nav>
       </div>
-      
+
       {/* Mobile specific styles for active item - converted to standard style tag */}
       <style>{`
         @media (max-width: 767px) {

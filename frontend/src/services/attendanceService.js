@@ -12,10 +12,10 @@ export const putAttendance = async (attendanceData) => {
                 // Get current position
                 const position = await getCurrentPosition();
                 const { latitude, longitude } = position;
-                
+
                 // Check if worker is in allowed location
                 const locationResult = await isWorkerInAllowedLocation(attendanceData.subdomain, latitude, longitude);
-                
+
                 if (!locationResult.allowed) {
                     throw new Error(locationResult.message);
                 }
@@ -32,7 +32,7 @@ export const putAttendance = async (attendanceData) => {
                 'Content-Type': 'application/json'
             },
         });
-        
+
         // Return the response data directly
         return response.data;
     } catch (error) {
@@ -44,7 +44,7 @@ export const putAttendance = async (attendanceData) => {
 // RFID attendance function with location validation
 export const putRfidAttendance = async (attendanceData) => {
     const token = getAuthToken();
-    
+
     try {
         // First, get the worker to determine their subdomain
         const workerResponse = await api.post('/workers/get-worker-by-rfid', { rfid: attendanceData.rfid }, {
@@ -53,30 +53,30 @@ export const putRfidAttendance = async (attendanceData) => {
                 'Content-Type': 'application/json'
             }
         });
-        
+
         const worker = workerResponse.data.worker;
         const subdomain = worker.subdomain;
-        
+
         // Add location data to attendanceData
         let attendanceRequest = { ...attendanceData };
-        
+
         // Check location if subdomain is available
         if (subdomain) {
             try {
                 // Get current position
                 const position = await getCurrentPosition();
                 const { latitude, longitude } = position;
-                
+
                 // Add location data to request
                 attendanceRequest = {
                     ...attendanceRequest,
                     latitude,
                     longitude
                 };
-                
+
                 // Check if worker is in allowed location
                 const locationResult = await isWorkerInAllowedLocation(subdomain, latitude, longitude);
-                
+
                 if (!locationResult.allowed) {
                     throw new Error(locationResult.message);
                 }
@@ -93,7 +93,7 @@ export const putRfidAttendance = async (attendanceData) => {
                 'Content-Type': 'application/json'
             },
         });
-        
+
         // Return the response data directly
         return response.data;
     } catch (error) {
@@ -156,7 +156,7 @@ export const getWorkerAttendance = async (attendanceData) => {
 // Function to get worker's last attendance record
 export const getWorkerLastAttendance = async (rfid, subdomain) => {
     const token = getAuthToken();
-    
+
     try {
         const response = await api.post('/attendance/worker-last', { rfid, subdomain }, {
             headers: {
@@ -188,11 +188,29 @@ export const getPaginatedAttendance = async (attendanceData) => {
     }
 };
 
+export const getAttendanceSummary = async (attendanceData) => {
+    const token = getAuthToken();
+
+    try {
+        const response = await api.post('/attendance/summary', attendanceData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Failed to fetch attendance summary:', error);
+        throw error.response?.data || new Error('Failed to fetch attendance summary');
+    }
+};
+
 export default {
     putAttendance,
     putRfidAttendance,
     getAttendance,
     getWorkerAttendance,
     recognizeFaceAndMarkAttendance,
-    getWorkerLastAttendance
+    getWorkerLastAttendance,
+    getAttendanceSummary
 };

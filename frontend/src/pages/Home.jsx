@@ -71,7 +71,7 @@ const Home = () => {
   useEffect(() => {
     const currentFeature = features[activeFeature];
     let currentIndex = 0;
-    
+
     const typingInterval = setInterval(() => {
       if (currentIndex <= currentFeature.description.length) {
         setTypingText(currentFeature.description.slice(0, currentIndex));
@@ -87,9 +87,9 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-white text-black flex items-center justify-center p-6 overflow-hidden relative">
       <div className="absolute inset-0 bg-white/90 backdrop-blur-sm"></div>
-      
+
       {/* Main Content */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
@@ -100,20 +100,20 @@ const Home = () => {
           <div className="flex items-center">
             {/* Static Logo */}
             <div className="h-16 w-16 mr-4">
-              <ShatteredLogo 
-                src="/logo.png" 
-                alt="CipherGate Logo" 
+              <ShatteredLogo
+                src="/logo.png"
+                alt="CipherGate Logo"
                 className="h-16 w-16"
               />
             </div>
-            <h1 
-              className={`text-4xl md:text-5xl font-bold ${showColorAnimation ? 'ciphergate-animated' : ''}`} 
+            <h1
+              className={`text-4xl md:text-5xl font-bold ${showColorAnimation ? 'ciphergate-animated' : ''}`}
               style={{ fontFamily: 'Times New Roman, serif' }}
             >
               {cipherGateText}
             </h1>
           </div>
-          
+
           <p className="text-lg md:text-xl text-black">
             Presence is not Performance.We track Both.
             Boost Productivity Through Intelligent Workforce Management
@@ -128,7 +128,7 @@ const Home = () => {
             >
               Admin Portal
             </motion.button>
-            
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -147,11 +147,10 @@ const Home = () => {
               <motion.div
                 key={feature.title}
                 onClick={() => setActiveFeature(index)}
-                className={`flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all ${
-                  activeFeature === index 
-                    ? 'bg-[#0d9488]/20 border border-[#0d9488]' 
+                className={`flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all ${activeFeature === index
+                    ? 'bg-[#0d9488]/20 border border-[#0d9488]'
                     : 'bg-gray-100 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <div className={`mb-2 ${activeFeature === index ? 'text-[#0d9488]' : 'text-black'}`}>
                   {feature.icon}
@@ -161,7 +160,7 @@ const Home = () => {
             ))}
           </div>
 
-          <motion.div 
+          <motion.div
             key={activeFeature}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

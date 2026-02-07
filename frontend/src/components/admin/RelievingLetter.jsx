@@ -190,7 +190,21 @@ const RelievingLetter = () => {
     html2canvas(letterRef.current, {
       scale: 2.5,
       useCORS: true,
-      scrollY: -window.scrollY
+      scrollY: -window.scrollY,
+      onclone: (clonedDoc) => {
+        const input = clonedDoc.getElementById('recipientNameInput');
+        if (input) {
+          const div = clonedDoc.createElement('div');
+          div.className = 'font-medium text-gray-900';
+          div.style.fontFamily = 'Montserrat, sans-serif'; // Ensure font consistency
+          div.innerText = input.value;
+          input.parentNode.replaceChild(div, input);
+        }
+
+        // Hide any open dropdowns in the clone
+        const dropdowns = clonedDoc.querySelectorAll('ul.absolute');
+        dropdowns.forEach(el => el.style.display = 'none');
+      }
     }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -509,6 +523,7 @@ const RelievingLetter = () => {
                     {!isViewMode ? (
                       <>
                         <input
+                          id="recipientNameInput"
                           type="text"
                           value={formData.recipientName}
                           onChange={handleSearchChange}
