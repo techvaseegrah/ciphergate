@@ -46,11 +46,12 @@ const addFine = asyncHandler(async (req, res) => {
     // ---------------------------------------------------------
     try {
         // 1. Get or Create Wallet
-        let wallet = await CommunityFundWallet.findOne();
+        let wallet = await CommunityFundWallet.findOne({ subdomain: worker.subdomain });
         if (!wallet) {
             wallet = await CommunityFundWallet.create({
                 totalBalance: 0,
-                totalFinesCollected: 0
+                totalFinesCollected: 0,
+                subdomain: worker.subdomain
             });
         }
 
@@ -67,7 +68,8 @@ const addFine = asyncHandler(async (req, res) => {
             source: 'fine',
             reason: reason.trim(),
             referenceId: worker.fines[worker.fines.length - 1]._id, // ID of the fine just added
-            createdBy: req.user ? req.user._id : null // Assuming req.user is set by auth middleware
+            createdBy: req.user ? req.user._id : null, // Assuming req.user is set by auth middleware
+            subdomain: worker.subdomain
         });
     } catch (error) {
         console.error("Error updating Community Fund:", error);
@@ -149,7 +151,7 @@ const deleteFine = asyncHandler(async (req, res) => {
     // COMMUNITY FUND REVERSAL
     // ---------------------------------------------------------
     try {
-        const wallet = await CommunityFundWallet.findOne();
+        const wallet = await CommunityFundWallet.findOne({ subdomain: worker.subdomain });
         if (wallet) {
             wallet.totalBalance -= fineAmount;
             wallet.totalFinesCollected -= fineAmount;
@@ -164,7 +166,8 @@ const deleteFine = asyncHandler(async (req, res) => {
             source: 'fine',
             reason: `Reversal of fine: ${worker.name}`, // Or fetch the original reason if needed
             referenceId: fineId, // Reference the deleted fine ID
-            createdBy: req.user ? req.user._id : null
+            createdBy: req.user ? req.user._id : null,
+            subdomain: worker.subdomain
         });
     } catch (error) {
         console.error("Error reversing Community Fund:", error);
@@ -278,7 +281,7 @@ const updateFine = asyncHandler(async (req, res) => {
     // ---------------------------------------------------------
     if (amountDifference !== 0) {
         try {
-            const wallet = await CommunityFundWallet.findOne();
+            const wallet = await CommunityFundWallet.findOne({ subdomain: worker.subdomain });
             if (wallet) {
                 wallet.totalBalance += amountDifference;
                 wallet.totalFinesCollected += amountDifference;
@@ -293,7 +296,8 @@ const updateFine = asyncHandler(async (req, res) => {
                 source: 'fine',
                 reason: `Fine adjustment for ${worker.name}: ${amountDifference > 0 ? 'increased' : 'decreased'} by ₹${Math.abs(amountDifference)}`,
                 referenceId: fineId,
-                createdBy: req.user ? req.user._id : null
+                createdBy: req.user ? req.user._id : null,
+                subdomain: worker.subdomain
             });
         } catch (error) {
             console.error("Error updating Community Fund:", error);
@@ -312,16 +316,16 @@ const getAllFines = asyncHandler(async (req, res) => {
 
     // Build query to find all workers with fines
     let query = { fines: { $exists: true, $ne: [] } };
-    
+
     // If department is specified, filter by department
     if (department) {
         query.department = department;
     }
 
     const workers = await Worker.find(query).select('name department fines photo rfid');
-    
+
     let allFines = [];
-    
+
     workers.forEach(worker => {
         worker.fines.forEach(fine => {
             // If month and year are provided, filter by that specific month/year
@@ -358,7 +362,7 @@ const getAllFines = asyncHandler(async (req, res) => {
             }
         });
     });
-    
+
     // Sort fines by date (newest first)
     allFines.sort((a, b) => new Date(b.date) - new Date(a.date));
 
