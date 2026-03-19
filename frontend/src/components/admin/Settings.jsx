@@ -74,7 +74,10 @@ const Settings = () => {
                 to: '19:00',
                 lunchFrom: '12:00',
                 lunchTo: '13:00',
-                isLunchConsider: false
+                isLunchConsider: false,
+                isFactoryWorkerToggle: false,
+                requiredWorkingHours: 8,
+                allowedFreeLunchHours: 1
             }
         ],
         intervals: [
@@ -196,7 +199,10 @@ const Settings = () => {
                     to: '19:00',
                     lunchFrom: '12:00',
                     lunchTo: '13:00',
-                    isLunchConsider: false
+                    isLunchConsider: false,
+                    isFactoryWorkerToggle: false,
+                    requiredWorkingHours: 8,
+                    allowedFreeLunchHours: 1
                 }],
                 intervals: fetchedSettings.intervals || [
                     { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
@@ -232,7 +238,10 @@ const Settings = () => {
                     to: '19:00',
                     lunchFrom: '12:00',
                     lunchTo: '13:00',
-                    isLunchConsider: false
+                    isLunchConsider: false,
+                    isFactoryWorkerToggle: false,
+                    requiredWorkingHours: 8,
+                    allowedFreeLunchHours: 1
                 }],
                 intervals: fetchedSettings.intervals || [
                     { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
@@ -309,7 +318,10 @@ const Settings = () => {
             to: '19:00',
             lunchFrom: '12:00',
             lunchTo: '13:00',
-            isLunchConsider: false
+            isLunchConsider: false,
+            isFactoryWorkerToggle: false,
+            requiredWorkingHours: 8,
+            allowedFreeLunchHours: 1
         };
         const updatedSettings = {
             ...settings,
@@ -1057,63 +1069,119 @@ const Settings = () => {
                                                 placeholder="Enter batch name"
                                             />
                                         </div>
-                                        {/* Working Hours */}
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                        {/* Factory Worker Toggle */}
+                                        <div className="flex items-center justify-between mb-4 border-b pb-4">
                                             <div>
-                                                <label className="block text-sm font-medium mb-1">From</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.from}
-                                                    onChange={(e) => handleBatchChange(index, 'from', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">To</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.to}
-                                                    onChange={(e) => handleBatchChange(index, 'to', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Lunch Hours */}
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Lunch From</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.lunchFrom}
-                                                    onChange={(e) => handleBatchChange(index, 'lunchFrom', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Lunch To</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.lunchTo}
-                                                    onChange={(e) => handleBatchChange(index, 'lunchTo', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Consider Work at Lunch Toggle */}
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <label className="block text-sm font-medium">Consider Work at Lunch</label>
-                                                <p className="text-xs text-gray-500">Allow employees to work during lunch hours</p>
+                                                <label className="block text-sm font-medium">Factory Worker</label>
+                                                <p className="text-xs text-gray-500">Enable flexible lunch tracking based on required hours</p>
                                             </div>
                                             <label className="switch">
                                                 <input
                                                     type="checkbox"
-                                                    checked={batch.isLunchConsider}
-                                                    onChange={(e) => handleBatchChange(index, 'isLunchConsider', e.target.checked)}
+                                                    checked={batch.isFactoryWorkerToggle}
+                                                    onChange={(e) => handleBatchChange(index, 'isFactoryWorkerToggle', e.target.checked)}
                                                 />
                                                 <span className="slider round"></span>
                                             </label>
                                         </div>
+
+                                        {!batch.isFactoryWorkerToggle ? (
+                                            <>
+                                                {/* Working Hours */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">From</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.from}
+                                                            onChange={(e) => handleBatchChange(index, 'from', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">To</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.to}
+                                                            onChange={(e) => handleBatchChange(index, 'to', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Lunch Hours */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Lunch From</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.lunchFrom}
+                                                            onChange={(e) => handleBatchChange(index, 'lunchFrom', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Lunch To</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.lunchTo}
+                                                            onChange={(e) => handleBatchChange(index, 'lunchTo', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Consider Work at Lunch Toggle */}
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <label className="block text-sm font-medium">Consider Work at Lunch</label>
+                                                        <p className="text-xs text-gray-500">Allow employees to work during lunch hours</p>
+                                                    </div>
+                                                    <label className="switch">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={batch.isLunchConsider}
+                                                            onChange={(e) => handleBatchChange(index, 'isLunchConsider', e.target.checked)}
+                                                        />
+                                                        <span className="slider round"></span>
+                                                    </label>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Factory Worker specific settings */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Required Hrs Per Day</label>
+                                                        <select
+                                                            value={batch.requiredWorkingHours}
+                                                            onChange={(e) => handleBatchChange(index, 'requiredWorkingHours', Number(e.target.value))}
+                                                            className="w-full p-2 border rounded"
+                                                        >
+                                                            {[...Array(16).keys()].map(i => (
+                                                                <option key={i + 4} value={i + 4}>{i + 4} Hours</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Allowed Free Lunch Hrs</label>
+                                                        <select
+                                                            value={batch.allowedFreeLunchHours}
+                                                            onChange={(e) => handleBatchChange(index, 'allowedFreeLunchHours', Number(e.target.value))}
+                                                            className="w-full p-2 border rounded"
+                                                        >
+                                                            <option value="0.5">0.5 Hours (30 mins)</option>
+                                                            <option value="1">1 Hour</option>
+                                                            <option value="1.5">1.5 Hours</option>
+                                                            <option value="2">2 Hours</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-2">
+                                                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                                                        Note: Lunch From/To times will be ignored. Workers must complete required hours. Break time exceeding allowed free lunch will be deducted.
+                                                    </p>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                                 <button
