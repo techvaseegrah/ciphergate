@@ -7,18 +7,21 @@ const CommunityFundTransaction = require('../models/CommunityFundTransaction');
 // @route   GET /api/community-fund/wallet
 // @access  Private/Admin
 const getWallet = asyncHandler(async (req, res) => {
-    let wallet = await CommunityFundWallet.findOne();
+    const { subdomain } = req.user;
+
+    let wallet = await CommunityFundWallet.findOne({ subdomain });
 
     // If wallet doesn't exist, create it (initialization)
     if (!wallet) {
         wallet = await CommunityFundWallet.create({
             totalBalance: 0,
-            totalFinesCollected: 0
+            totalFinesCollected: 0,
+            subdomain
         });
     }
 
     // Calculate totals from transactions
-    const allTransactions = await CommunityFundTransaction.find();
+    const allTransactions = await CommunityFundTransaction.find({ subdomain });
 
     const totalCredits = allTransactions
         .filter(t => t.type === 'credit')
@@ -52,7 +55,9 @@ const getWallet = asyncHandler(async (req, res) => {
 // @route   GET /api/community-fund/transactions
 // @access  Private/Admin
 const getTransactions = asyncHandler(async (req, res) => {
-    const transactions = await CommunityFundTransaction.find()
+    const { subdomain } = req.user;
+
+    const transactions = await CommunityFundTransaction.find({ subdomain })
         .populate('employeeId', 'name username subdomain')
         .populate('createdBy', 'username email')
         .sort({ createdAt: -1 });
@@ -65,6 +70,7 @@ const getTransactions = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const debitFund = asyncHandler(async (req, res) => {
     const { amount, reason, date } = req.body;
+    const { subdomain } = req.user;
 
     // Validate inputs
     if (!amount || isNaN(amount) || amount <= 0) {
@@ -76,7 +82,7 @@ const debitFund = asyncHandler(async (req, res) => {
     }
 
     // Calculate current balance
-    const allTransactions = await CommunityFundTransaction.find();
+    const allTransactions = await CommunityFundTransaction.find({ subdomain });
     const totalCredits = allTransactions
         .filter(t => t.type === 'credit')
         .reduce((acc, t) => acc + t.amount, 0);
@@ -93,7 +99,7 @@ const debitFund = asyncHandler(async (req, res) => {
     }
 
     // Update wallet
-    let wallet = await CommunityFundWallet.findOne();
+    let wallet = await CommunityFundWallet.findOne({ subdomain });
     if (wallet) {
         wallet.totalBalance = currentBalance - amount;
         await wallet.save();
@@ -106,7 +112,8 @@ const debitFund = asyncHandler(async (req, res) => {
         source: 'expense',
         reason: reason.trim(),
         createdBy: req.user ? req.user._id : null,
-        createdAt: date ? new Date(date) : new Date()
+        createdAt: date ? new Date(date) : new Date(),
+        subdomain
     });
 
     res.status(201).json({

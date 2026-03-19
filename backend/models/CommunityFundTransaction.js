@@ -32,6 +32,10 @@ const communityFundTransactionSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Admin',
         required: false
+    },
+    subdomain: {
+        type: String,
+        required: true
     }
 }, {
     timestamps: true

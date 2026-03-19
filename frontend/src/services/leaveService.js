@@ -33,7 +33,7 @@ export const createLeave = async (leaveData) => {
     // Check if leaveData is already a FormData object
     let formData;
     let subdomain, reason, startDate, endDate, leaveType;
-    
+
     if (leaveData instanceof FormData) {
       // If it's already FormData, extract values for validation
       formData = leaveData;
@@ -49,7 +49,7 @@ export const createLeave = async (leaveData) => {
       startDate = leaveData.startDate;
       endDate = leaveData.endDate;
       leaveType = leaveData.leaveType;
-      
+
       formData = new FormData();
       Object.keys(leaveData).forEach(key => {
         if (key === 'document' && leaveData.document) {
@@ -126,6 +126,15 @@ export const getLeavesByStatus = async (status) => {
     return response.data;
   } catch (error) {
     throw error.response ? error.response.data : new Error('Failed to fetch leaves');
+  }
+};
+
+export const getLeaveApplyStats = async (subdomain) => {
+  try {
+    const response = await api.get(`/leaves/apply-info/${subdomain}`);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to fetch leave apply stats');
   }
 };
 

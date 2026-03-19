@@ -1,5 +1,6 @@
 const Department = require('../models/Department');
 const Worker = require('../models/Worker');
+const Attendance = require('../models/Attendance'); // Added import
 const asyncHandler = require('express-async-handler');
 
 const createDepartment = asyncHandler(async (req, res) => {
@@ -17,10 +18,10 @@ const createDepartment = asyncHandler(async (req, res) => {
   }
 
   try {
-    const existingDepartment = await Department.findOne({ 
+    const existingDepartment = await Department.findOne({
       name: name.trim()
     });
-  
+
     if (existingDepartment) {
       res.status(400);
       throw new Error('Department with this name already exists.');
@@ -28,11 +29,11 @@ const createDepartment = asyncHandler(async (req, res) => {
 
     // Create department with exact case preservation
     const department = new Department({ name, subdomain });
-    
+
     await department.save();
-    
+
     // Get worker count
-    const workerCount = await Worker.countDocuments({ 
+    const workerCount = await Worker.countDocuments({
       department: department._id
     });
 
@@ -62,6 +63,15 @@ const getDepartments = asyncHandler(async (req, res) => {
       .find({ subdomain })
       .sort({ createdAt: -1 });
 
+    // Get today's date in India Timezone
+    const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const currentDateFormatted = indiaTimezoneDate.format(new Date());
+
     // 2. For each department, fetch its workers and build the response
     const departmentsWithData = await Promise.all(
       departments.map(async (department) => {
@@ -70,11 +80,29 @@ const getDepartments = asyncHandler(async (req, res) => {
           .find({ department: department._id })
           .select('name photo');
 
+        // Calculate attendance percentage for this department
+        const workerIds = employees.map(e => e._id);
+
+        let percentage = 0;
+        let presentCount = 0;
+
+        if (workerIds.length > 0) {
+          const presentWorkerIds = await Attendance.distinct('worker', {
+            worker: { $in: workerIds },
+            date: currentDateFormatted,
+            presence: true
+          });
+          presentCount = presentWorkerIds.length;
+          percentage = Math.round((presentCount / workerIds.length) * 100);
+        }
+
         return {
           // Spread the original department fields (_id, name, createdAt, etc.)
           ...department.toObject(),
           workerCount: employees.length,
-          employees  // [{ name, photo }, …]
+          employees,  // [{ name, photo }, …]
+          attendancePercentage: percentage,
+          presentCount // Optional: helpful for debugging or detailed display
         };
       })
     );
@@ -98,8 +126,8 @@ const deleteDepartment = asyncHandler(async (req, res) => {
   }
 
   // Check for associated workers
-  const workerCount = await Worker.countDocuments({ 
-    department: req.params.id 
+  const workerCount = await Worker.countDocuments({
+    department: req.params.id
   });
 
   if (workerCount > 0) {
@@ -108,7 +136,7 @@ const deleteDepartment = asyncHandler(async (req, res) => {
   }
 
   await department.deleteOne();
-  res.json({ 
+  res.json({
     message: 'Department removed successfully',
     departmentId: req.params.id
   });
@@ -126,7 +154,7 @@ const updateDepartment = asyncHandler(async (req, res) => {
 
   try {
     // Check for existing department (case-insensitive)
-    const existingDepartment = await Department.findOne({ 
+    const existingDepartment = await Department.findOne({
       name: { $regex: `^${name.trim()}$`, $options: 'i' },
       _id: { $ne: id } // Exclude current department
     });
@@ -138,7 +166,7 @@ const updateDepartment = asyncHandler(async (req, res) => {
 
     // Find the department and update with exact case
     const department = await Department.findById(id);
-    
+
     if (!department) {
       res.status(404);
       throw new Error('Department not found');
@@ -148,8 +176,8 @@ const updateDepartment = asyncHandler(async (req, res) => {
     await department.save(); // Use save() to trigger validation
 
     // Get worker count
-    const workerCount = await Worker.countDocuments({ 
-      department: department._id 
+    const workerCount = await Worker.countDocuments({
+      department: department._id
     });
 
     // Prepare response
@@ -165,7 +193,7 @@ const updateDepartment = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error('A department with this name already exists');
     }
-    
+
     // Rethrow other errors
     throw error;
   }

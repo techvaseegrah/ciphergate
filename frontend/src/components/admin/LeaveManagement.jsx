@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 import { FaChevronDown, FaChevronUp, FaSearch, FaBusinessTime } from 'react-icons/fa';
+import { FiDollarSign } from 'react-icons/fi';
 import { getAllLeaves, markLeavesAsViewedByAdmin, updateLeaveStatus } from '../../services/leaveService';
 import appContext from '../../context/AppContext';
 import Spinner from '../common/Spinner';
@@ -94,21 +95,21 @@ const LeaveManagement = () => {
   // Calculate permission duration in hours and minutes
   const calculatePermissionDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return '';
-    
+
     try {
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       const [endHours, endMinutes] = endTime.split(':').map(Number);
-      
+
       const startTotalMinutes = startHours * 60 + startMinutes;
       const endTotalMinutes = endHours * 60 + endMinutes;
-      
+
       const durationMinutes = endTotalMinutes - startTotalMinutes;
-      
+
       if (durationMinutes <= 0) return '';
-      
+
       const hours = Math.floor(durationMinutes / 60);
       const minutes = durationMinutes % 60;
-      
+
       if (hours > 0 && minutes > 0) {
         return `(${hours}h ${minutes}m)`;
       } else if (hours > 0) {
@@ -123,13 +124,11 @@ const LeaveManagement = () => {
 
   const LeaveItem = ({ leave }) => (
     <Card
-      className={`mb-4 border-t-4 ${
-        leave.status === 'Approved' ? 'border-green-500' :
+      className={`mb-4 border-t-4 ${leave.status === 'Approved' ? 'border-green-500' :
         leave.status === 'Rejected' ? 'border-red-500' :
-        'border-yellow-500'
-      } ${
-        leave.leaveType === 'Permission' ? 'bg-blue-50' : ''
-      }`}
+          'border-yellow-500'
+        } ${leave.leaveType === 'Permission' ? 'bg-blue-50' : ''
+        }`}
     >
       <div className="flex justify-between">
         <div>
@@ -158,20 +157,37 @@ const LeaveManagement = () => {
           )}
           <p className="text-sm text-gray-500">
             {leave.leaveType === 'Permission' ? (
-              calculatePermissionDuration(leave.startTime, leave.endTime) ? 
+              calculatePermissionDuration(leave.startTime, leave.endTime) ?
                 `Duration: ${calculatePermissionDuration(leave.startTime, leave.endTime).replace(/[()]/g, '')}` :
                 'Duration: Permission request'
             ) : (
               `Total days: ${leave.totalDays || 0}`
             )}
           </p>
+          {leave.leaveType !== 'Permission' && leave.deductionFactor > 1 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold border border-red-200 uppercase tracking-tighter shadow-sm flex items-center">
+                <FiDollarSign className="mr-0.5" /> {leave.deductionFactor}X Deduction
+              </span>
+              {leave.penaltyReasons?.attendanceRule && (
+                <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded text-[10px] font-medium border border-orange-100">
+                  Attendance Penalty
+                </span>
+              )}
+              {leave.penaltyReasons?.monthlyLimitRule && (
+                <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-medium border border-blue-100">
+                  Limit Exceeded
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <span
           className={`px-2 h-8 flex justify-center items-center rounded-full text-xs ${leave.status === 'Approved'
-              ? 'bg-green-100 text-green-800'
-              : leave.status === 'Rejected'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-yellow-100 text-yellow-800'
+            ? 'bg-green-100 text-green-800'
+            : leave.status === 'Rejected'
+              ? 'bg-red-100 text-red-800'
+              : 'bg-yellow-100 text-yellow-800'
             }`}
         >
           {leave.status}
@@ -205,8 +221,8 @@ const LeaveManagement = () => {
 
   const getTabClassName = (tabName) => {
     return `px-3 py-1 rounded-md cursor-pointer ${activeView === tabName
-        ? 'bg-[#0d9488] text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-[#0d9488] hover:text-white'
+      ? 'bg-[#0d9488] text-white'
+      : 'bg-gray-200 text-gray-700 hover:bg-[#0d9488] hover:text-white'
       }`;
   };
 

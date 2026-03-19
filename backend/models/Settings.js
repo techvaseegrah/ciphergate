@@ -154,6 +154,37 @@ const settingsSchema = mongoose.Schema({
     }
   },
 
+  // Advanced Leave Deduction Settings
+  advancedLeaveDeduction: {
+    attendanceRuleEnabled: {
+      type: Boolean,
+      default: false
+    },
+    monthlyLimitRuleEnabled: {
+      type: Boolean,
+      default: false
+    },
+    thresholds: {
+      company: {
+        value: { type: Number, default: 80, min: 0, max: 100 },
+        enabled: { type: Boolean, default: true }
+      },
+      department: {
+        value: { type: Number, default: 80, min: 0, max: 100 },
+        enabled: { type: Boolean, default: true }
+      },
+      employee: {
+        value: { type: Number, default: 90, min: 0, max: 100 },
+        enabled: { type: Boolean, default: true }
+      }
+    },
+    monthlyLimit: {
+      type: Number,
+      default: 2,
+      min: 0
+    }
+  },
+
   // Common fields
   lastUpdated: {
     type: Date,
@@ -191,6 +222,18 @@ const settingsSchema = mongoose.Schema({
         isLunchConsider: {
           type: Boolean,
           default: false
+        },
+        isFactoryWorkerToggle: {
+          type: Boolean,
+          default: false
+        },
+        requiredWorkingHours: {
+          type: Number,
+          default: 8
+        },
+        allowedFreeLunchHours: {
+          type: Number,
+          default: 1
         }
       }
     ],
@@ -201,7 +244,10 @@ const settingsSchema = mongoose.Schema({
         to: '19:00',
         lunchFrom: '13:30',
         lunchTo: '14:30',
-        isLunchConsider: false
+        isLunchConsider: false,
+        isFactoryWorkerToggle: false,
+        requiredWorkingHours: 8,
+        allowedFreeLunchHours: 1
       }
     ]
   },

@@ -47,6 +47,7 @@ import appContext from './context/AppContext';
 import { useEffect, useState } from 'react';
 import WorkerAttendance from './components/admin/WorkerAttendance';
 import Settings from './components/admin/Settings';
+import InstallPrompt from './components/common/InstallPrompt';
 
 // NEW COMPONENTS
 
@@ -125,15 +126,15 @@ function App() {
       <div className="App w-full overflow-x-hidden bg-[#FFF3F2]">
         {/* Debug info - remove in production */}
         {process.env.NODE_ENV === 'development' && (
-          <div style={{ 
-            position: 'fixed', 
-            top: 0, 
-            right: 0, 
-            background: '#000', 
-            color: '#fff', 
-            padding: '5px', 
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            background: '#000',
+            color: '#fff',
+            padding: '5px',
             fontSize: '12px',
-            zIndex: 9999 
+            zIndex: 9999
           }}>
             Company Name: {subdomain || 'null'}
           </div>
@@ -177,7 +178,7 @@ function App() {
               <Route path="intern-certificate" element={<InternCertificate />} />
               <Route path="offer-letter" element={<OfferLetter />} />
               <Route path="acceptance-letter" element={<AcceptanceLetter />} />
-              
+
               {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
               <Route path="test/generate-questions" element={
                 <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
@@ -199,7 +200,7 @@ function App() {
                   <GlobalScoreboard />
                 </Suspense>
               } />
-              
+
               {/* Catch-all route for unknown admin paths */}
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Route>
@@ -216,6 +217,8 @@ function App() {
           {/* 404 Not Found Route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+        <InstallPrompt />
       </div>
     </appContext.Provider>
   );

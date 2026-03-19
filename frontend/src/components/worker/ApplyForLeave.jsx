@@ -1,12 +1,13 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { createLeave } from '../../services/leaveService';
+import { createLeave, getLeaveApplyStats } from '../../services/leaveService';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
+import { FiAlertTriangle, FiInfo, FiActivity, FiUserCheck, FiLayers } from 'react-icons/fi';
 
 const ApplyForLeave = () => {
   const { user } = useAuth();
@@ -23,6 +24,26 @@ const ApplyForLeave = () => {
     endTime: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (subdomain && subdomain !== 'main') {
+      fetchApplyStats();
+    }
+  }, [subdomain]);
+
+  const fetchApplyStats = async () => {
+    try {
+      setLoadingStats(true);
+      const data = await getLeaveApplyStats(subdomain);
+      setStats(data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const calculateTotalDays = (start, end) => {
     if (!start || !end) return 0;
@@ -85,7 +106,7 @@ const ApplyForLeave = () => {
       toast.error('Please provide a start and end time for your permission request.');
       return;
     }
-    
+
     setIsSubmitting(true);
     const formPayload = new FormData();
     formPayload.append('leaveType', formData.leaveType);
@@ -117,7 +138,7 @@ const ApplyForLeave = () => {
         startTime: '',
         endTime: ''
       });
-      
+
       // Navigate to leave requests page after successful submission
       setTimeout(() => {
         navigate('/worker/leave-requests');
@@ -130,8 +151,111 @@ const ApplyForLeave = () => {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Apply for Leave</h1>
+    <div className="max-w-4xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Apply for Leave</h1>
+        <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-bold border border-blue-100 flex items-center shadow-sm">
+          <FiInfo className="mr-2" />
+          Leave Policy Active
+        </div>
+      </div>
+
+      {/* Attendance Stats & Policy Summary */}
+      {loadingStats ? (
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-24 bg-gray-200 animate-pulse rounded-2xl"></div>
+          ))}
+        </div>
+      ) : stats && (
+        <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Company</span>
+              <FiActivity className={`text-blue-500 ${!stats.advancedSettings?.thresholds?.company?.enabled ? 'opacity-30' : ''}`} />
+            </div>
+            <div className={`text-2xl font-black ${!stats.advancedSettings?.thresholds?.company?.enabled ? 'text-gray-400' : 'text-gray-900'}`}>{stats.stats.companyAttendance}%</div>
+            <div className={`mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden`}>
+              <div
+                className={`h-full ${!stats.advancedSettings?.thresholds?.company?.enabled ? 'bg-gray-300' : stats.stats.companyAttendance >= (stats.advancedSettings?.thresholds?.company?.value || 80) ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${stats.stats.companyAttendance}%` }}
+              ></div>
+            </div>
+            {!stats.advancedSettings?.thresholds?.company?.enabled && <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Policy Disabled</p>}
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Department</span>
+              <FiLayers className={`text-indigo-500 ${!stats.advancedSettings?.thresholds?.department?.enabled ? 'opacity-30' : ''}`} />
+            </div>
+            <div className={`text-2xl font-black ${!stats.advancedSettings?.thresholds?.department?.enabled ? 'text-gray-400' : 'text-gray-900'}`}>{stats.stats.deptAttendance}%</div>
+            <div className={`mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden`}>
+              <div
+                className={`h-full ${!stats.advancedSettings?.thresholds?.department?.enabled ? 'bg-gray-300' : stats.stats.deptAttendance >= (stats.advancedSettings?.thresholds?.department?.value || 80) ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${stats.stats.deptAttendance}%` }}
+              ></div>
+            </div>
+            {!stats.advancedSettings?.thresholds?.department?.enabled && <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Policy Disabled</p>}
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Personal</span>
+              <FiUserCheck className={`text-emerald-500 ${!stats.advancedSettings?.thresholds?.employee?.enabled ? 'opacity-30' : ''}`} />
+            </div>
+            <div className={`text-2xl font-black ${!stats.advancedSettings?.thresholds?.employee?.enabled ? 'text-gray-400' : 'text-gray-900'}`}>{stats.stats.personalAttendance}%</div>
+            <div className={`mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden`}>
+              <div
+                className={`h-full ${!stats.advancedSettings?.thresholds?.employee?.enabled ? 'bg-gray-300' : stats.stats.personalAttendance >= (stats.advancedSettings?.thresholds?.employee?.value || 90) ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${stats.stats.personalAttendance}%` }}
+              ></div>
+            </div>
+            {!stats.advancedSettings?.thresholds?.employee?.enabled && <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Policy Disabled</p>}
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Monthly Usage</span>
+              <FiInfo className="text-orange-500" />
+            </div>
+            <div className="text-2xl font-black text-gray-900">{stats.stats.leavesTaken} / {stats.stats.allowedLimit}</div>
+            <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase">Days Used This Month</p>
+          </div>
+        </div>
+      )}
+
+      {/* Penalty Warning Card */}
+      {!loadingStats && stats?.willApply2X && formData.leaveType !== 'Permission' && (
+        <div className="mb-8 bg-black rounded-3xl p-6 text-white border-4 border-red-500/30 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <FiAlertTriangle size={120} />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-500 p-2 rounded-xl mr-4 animate-pulse">
+                <FiAlertTriangle className="text-white h-6 w-6" />
+              </div>
+              <h2 className="text-xl font-black tracking-tight">ATTENTION: 2X DEDUCTION APPLIES</h2>
+            </div>
+            <p className="text-gray-400 text-sm mb-6 leading-relaxed max-w-lg">
+              Based on current system rules, this leave will result in a <strong>2 days salary deduction for 1 day leave</strong> due to:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {stats.reasons.attendance && (
+                <span className="bg-red-500/20 text-red-400 px-4 py-1.5 rounded-full text-xs font-bold border border-red-500/30 flex items-center">
+                  Low Attendance Threshold
+                </span>
+              )}
+              {stats.reasons.monthlyLimit && (
+                <span className="bg-orange-500/20 text-orange-400 px-4 py-1.5 rounded-full text-xs font-bold border border-orange-500/30 flex items-center">
+                  Monthly Leave Limit Exceeded
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card>
         <form onSubmit={handleSubmit}>

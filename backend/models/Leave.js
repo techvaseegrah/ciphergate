@@ -50,6 +50,20 @@ const leaveSchema = mongoose.Schema({
   },
   endTime: {
     type: String
+  },
+  deductionFactor: {
+    type: Number,
+    default: 1
+  },
+  penaltyReasons: {
+    attendanceRule: {
+      type: Boolean,
+      default: false
+    },
+    monthlyLimitRule: {
+      type: Boolean,
+      default: false
+    }
   }
 }, {
   timestamps: true

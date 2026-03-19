@@ -9,7 +9,7 @@ const Settings = require('../models/Settings');
 const putAttendance = async (req, res) => {
     try {
         const { rfid, subdomain, presence: providedPresence } = req.body;
-        
+
         console.log('putAttendance called with:', { rfid, subdomain, providedPresence, providedPresenceType: typeof providedPresence });
 
         if (!subdomain || subdomain === 'main') {
@@ -41,9 +41,9 @@ const putAttendance = async (req, res) => {
 
         if (recentAttendance) {
             // Return success: false with custom message instead of throwing error
-            return res.status(200).json({ 
-                success: false, 
-                message: "Try punch in or punch out after 1 minute." 
+            return res.status(200).json({
+                success: false,
+                message: "Try punch in or punch out after 1 minute."
             });
         }
 
@@ -138,7 +138,7 @@ const putAttendance = async (req, res) => {
                 }
             }
         }
-        
+
         console.log('Final presence value to be recorded:', newPresence);
 
         const newAttendance = await Attendance.create({
@@ -161,7 +161,8 @@ const putAttendance = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -195,9 +196,9 @@ const putRfidAttendance = async (req, res) => {
 
         if (recentAttendance) {
             // Return success: false with custom message instead of throwing error
-            return res.status(200).json({ 
-                success: false, 
-                message: "Try punch in or punch out after 1 minute." 
+            return res.status(200).json({
+                success: false,
+                message: "Try punch in or punch out after 1 minute."
             });
         }
 
@@ -213,28 +214,28 @@ const putRfidAttendance = async (req, res) => {
         if (subdomain && subdomain !== 'main') {
             // Get location settings
             const settings = await Settings.findOne({ subdomain });
-            
+
             // If location restriction is enabled, validate location
             if (settings && settings.attendanceLocation && settings.attendanceLocation.enabled) {
                 // If location data is not provided with RFID scan, deny attendance
                 if (!latitude || !longitude) {
-                    return res.status(403).json({ 
-                        message: 'Location validation required for attendance but not provided with RFID scan' 
+                    return res.status(403).json({
+                        message: 'Location validation required for attendance but not provided with RFID scan'
                     });
                 }
-                
+
                 // Calculate distance between worker's location and allowed location
                 const { calculateDistance } = require('../utils/locationUtils');
                 const allowedLat = settings.attendanceLocation.latitude;
                 const allowedLon = settings.attendanceLocation.longitude;
                 const radius = settings.attendanceLocation.radius;
-                
+
                 const distance = calculateDistance(allowedLat, allowedLon, latitude, longitude);
-                
+
                 // Check if worker is within the allowed radius
                 if (distance > radius) {
-                    return res.status(403).json({ 
-                        message: `Worker is ${Math.round(distance)} meters away from allowed location (max: ${radius} meters)` 
+                    return res.status(403).json({
+                        message: `Worker is ${Math.round(distance)} meters away from allowed location (max: ${radius} meters)`
                     });
                 }
             }
@@ -270,7 +271,7 @@ const putRfidAttendance = async (req, res) => {
         } else {
             // Determine presence state based on last attendance (existing logic)
             const allAttendances = await Attendance.find({ rfid, subdomain }).sort({ createdAt: -1 });
-            
+
             if (allAttendances.length > 0) {
                 const lastAttendance = allAttendances[0];
                 presence = !lastAttendance.presence;
@@ -299,7 +300,8 @@ const putRfidAttendance = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -320,7 +322,8 @@ const getAttendance = async (req, res) => {
         res.status(200).json({ message: 'Attendance data retrieved successfully', attendance: attendanceData });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -350,8 +353,8 @@ const getPaginatedAttendance = async (req, res) => {
 
         // If no dates for this page, return empty result
         if (datesForPage.length === 0) {
-            return res.status(200).json({ 
-                message: 'Attendance data retrieved successfully', 
+            return res.status(200).json({
+                message: 'Attendance data retrieved successfully',
                 attendance: [],
                 hasMore: false,
                 currentPage: page,
@@ -360,16 +363,16 @@ const getPaginatedAttendance = async (req, res) => {
         }
 
         // Get all attendance records for the dates on this page
-        const attendanceData = await Attendance.find({ 
-            subdomain, 
-            date: { $in: datesForPage } 
+        const attendanceData = await Attendance.find({
+            subdomain,
+            date: { $in: datesForPage }
         }).sort({ date: -1, createdAt: -1 });
 
         // Check if there are more records available
         const hasMore = skip + limit < sortedDates.length;
 
-        res.status(200).json({ 
-            message: 'Attendance data retrieved successfully', 
+        res.status(200).json({
+            message: 'Attendance data retrieved successfully',
             attendance: attendanceData,
             hasMore: hasMore,
             currentPage: page,
@@ -377,7 +380,8 @@ const getPaginatedAttendance = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -403,7 +407,8 @@ const getWorkerAttendance = async (req, res) => {
         res.status(200).json({ message: 'Worker attendance data retrieved successfully', attendance: workerAttendance });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -413,7 +418,7 @@ const getWorkerAttendance = async (req, res) => {
 const getWorkerLastAttendance = async (req, res) => {
     try {
         const { rfid, subdomain } = req.body;
-        
+
         console.log('getWorkerLastAttendance called with:', { rfid, subdomain });
 
         if (!subdomain || subdomain === 'main') {
@@ -428,7 +433,7 @@ const getWorkerLastAttendance = async (req, res) => {
 
         // Find the last attendance record for this worker
         const lastAttendance = await Attendance.findOne({ rfid, subdomain }).sort({ createdAt: -1 });
-        
+
         console.log('Last attendance record found:', lastAttendance);
 
         if (!lastAttendance) {
@@ -450,7 +455,8 @@ const getWorkerLastAttendance = async (req, res) => {
         }
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -460,7 +466,7 @@ const getWorkerLastAttendance = async (req, res) => {
 const recognizeFaceAndMarkAttendance = async (req, res) => {
     try {
         const { faceDescriptor, subdomain } = req.body;
-        
+
         if (!subdomain || subdomain === 'main') {
             res.status(401);
             throw new Error('Company name is missing, login again');
@@ -472,9 +478,9 @@ const recognizeFaceAndMarkAttendance = async (req, res) => {
         }
 
         // Find all workers with face embeddings
-        const workers = await Worker.find({ 
-            subdomain, 
-            faceEmbeddings: { $exists: true, $ne: [] } 
+        const workers = await Worker.find({
+            subdomain,
+            faceEmbeddings: { $exists: true, $ne: [] }
         });
 
         if (!workers.length) {
@@ -491,7 +497,7 @@ const recognizeFaceAndMarkAttendance = async (req, res) => {
             for (const embedding of worker.faceEmbeddings) {
                 // Calculate Euclidean distance between face descriptors
                 const distance = calculateEuclideanDistance(faceDescriptor, embedding);
-                
+
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestMatch = worker;
@@ -501,7 +507,7 @@ const recognizeFaceAndMarkAttendance = async (req, res) => {
 
         // Set a threshold for face recognition (adjust as needed)
         const threshold = 0.4;
-        
+
         if (!bestMatch || minDistance > threshold) {
             res.status(404);
             throw new Error('No matching worker found');
@@ -563,7 +569,8 @@ const recognizeFaceAndMarkAttendance = async (req, res) => {
         });
     } catch (error) {
         console.error('Face recognition error:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
     }
 };
 
@@ -572,7 +579,7 @@ function calculateEuclideanDistance(descriptor1, descriptor2) {
     if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
         return Infinity;
     }
-    
+
     let sum = 0;
     for (let i = 0; i < descriptor1.length; i++) {
         const diff = descriptor1[i] - descriptor2[i];
@@ -581,6 +588,67 @@ function calculateEuclideanDistance(descriptor1, descriptor2) {
     return Math.sqrt(sum);
 }
 
+// @desc    Get attendance summary (percentage)
+// @route   POST /api/attendance/summary
+// @access  Private
+const getAttendanceSummary = async (req, res) => {
+    try {
+        const { subdomain } = req.body;
+
+        if (!subdomain || subdomain === 'main') {
+            res.status(401);
+            throw new Error('Company name is missing, login again');
+        }
+
+        // 1. Get total number of active workers
+        const totalWorkers = await Worker.countDocuments({
+            subdomain,
+            status: { $ne: 'Relieved' }
+        });
+
+        if (totalWorkers === 0) {
+            return res.status(200).json({
+                percentage: 0,
+                totalWorkers: 0,
+                presentWorkers: 0
+            });
+        }
+
+        // 2. Get today's date in India Timezone
+        const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const currentDateFormatted = indiaTimezoneDate.format(new Date());
+
+        // 3. Count unique workers who have marked attendance today
+        // distinct returns an array of unique values (in this case, worker IDs)
+        const presentWorkerIds = await Attendance.distinct('worker', {
+            subdomain,
+            date: currentDateFormatted,
+            presence: true // Only count those who have punched IN at least once
+        });
+
+        const presentWorkersCount = presentWorkerIds.length;
+
+        // 4. Calculate percentage
+        const percentage = Math.round((presentWorkersCount / totalWorkers) * 100);
+
+        res.status(200).json({
+            percentage,
+            totalWorkers,
+            presentWorkers: presentWorkersCount
+        });
+
+    } catch (error) {
+        console.error('Error fetching attendance summary:', error);
+        const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+        res.status(statusCode).json({ message: statusCode === 500 ? 'Server error' : error.message, error: error.message });
+    }
+};
+
 module.exports = {
     putAttendance,
     putRfidAttendance,
@@ -588,5 +656,6 @@ module.exports = {
     getPaginatedAttendance, // Add this new function
     getWorkerAttendance,
     getWorkerLastAttendance,
-    recognizeFaceAndMarkAttendance
+    recognizeFaceAndMarkAttendance,
+    getAttendanceSummary
 };

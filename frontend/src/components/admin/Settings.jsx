@@ -17,7 +17,11 @@ import {
     FiToggleRight,
     FiPlus,
     FiTrash2,
-    FiMapPin
+    FiMapPin,
+    FiActivity,
+    FiUserCheck,
+    FiLayers,
+    FiInfo
 } from 'react-icons/fi';
 import Button from '../common/Button';
 import Card from '../common/Card';
@@ -74,7 +78,10 @@ const Settings = () => {
                 to: '19:00',
                 lunchFrom: '12:00',
                 lunchTo: '13:00',
-                isLunchConsider: false
+                isLunchConsider: false,
+                isFactoryWorkerToggle: false,
+                requiredWorkingHours: 8,
+                allowedFreeLunchHours: 1
             }
         ],
         intervals: [
@@ -110,6 +117,18 @@ const Settings = () => {
                 rfidAttendance: true,
                 faceAttendance: true
             }
+        },
+
+        // Advanced Leave Deduction Settings
+        advancedLeaveDeduction: {
+            attendanceRuleEnabled: false,
+            monthlyLimitRuleEnabled: false,
+            thresholds: {
+                company: { value: 80, enabled: true },
+                department: { value: 80, enabled: true },
+                employee: { value: 90, enabled: true }
+            },
+            monthlyLimit: 2
         }
     });
 
@@ -159,96 +178,49 @@ const Settings = () => {
                 }
             });
             const fetchedSettings = response.data;
-            // Update state with fetched settings
-            setSettings((prevSettings) => ({
-                ...prevSettings,
-                // Breakfast settings
-                breakfastEnabled: fetchedSettings.breakfastEnabled !== undefined ? fetchedSettings.breakfastEnabled : false,
-                breakfastOpenTime: fetchedSettings.breakfastOpenTime || '07:00',
-                breakfastCloseTime: fetchedSettings.breakfastCloseTime || '09:00',
-                breakfastAutoSwitch: fetchedSettings.breakfastAutoSwitch !== undefined ? fetchedSettings.breakfastAutoSwitch : false,
 
-                // Lunch (food request) settings
-                foodRequestEnabled: fetchedSettings.foodRequestEnabled !== undefined ? fetchedSettings.foodRequestEnabled : false,
-                foodRequestOpenTime: fetchedSettings.foodRequestOpenTime || '12:00',
-                foodRequestCloseTime: fetchedSettings.foodRequestCloseTime || '14:00',
-                foodRequestAutoSwitch: fetchedSettings.foodRequestAutoSwitch !== undefined ? fetchedSettings.foodRequestAutoSwitch : false,
-
-                // Dinner settings
-                dinnerEnabled: fetchedSettings.dinnerEnabled !== undefined ? fetchedSettings.dinnerEnabled : false,
-                dinnerOpenTime: fetchedSettings.dinnerOpenTime || '18:00',
-                dinnerCloseTime: fetchedSettings.dinnerCloseTime || '20:00',
-                dinnerAutoSwitch: fetchedSettings.dinnerAutoSwitch !== undefined ? fetchedSettings.dinnerAutoSwitch : false,
-
-                // Email settings
-                emailReportsEnabled: fetchedSettings.emailReportsEnabled !== undefined ? fetchedSettings.emailReportsEnabled : false,
-
-                // Attendance and productivity settings
-                considerOvertime: fetchedSettings.considerOvertime !== undefined ? fetchedSettings.considerOvertime : false,
-                deductSalary: fetchedSettings.deductSalary !== undefined ? fetchedSettings.deductSalary : true,
-                permissionTimeMinutes: fetchedSettings.permissionTimeMinutes || 15,
-                salaryDeductionPerBreak: fetchedSettings.salaryDeductionPerBreak || 10,
-
-                // Batches and intervals
-                batches: fetchedSettings.batches || [{
-                    batchName: 'Full Time',
-                    from: '09:00',
-                    to: '19:00',
-                    lunchFrom: '12:00',
-                    lunchTo: '13:00',
-                    isLunchConsider: false
-                }],
-                intervals: fetchedSettings.intervals || [
-                    { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
-                    { intervalName: 'interval2', from: '14:15', to: '14:30', isBreakConsider: false }
-                ],
-
-                // Location settings
-                attendanceLocation: {
-                    enabled: fetchedSettings.attendanceLocation?.enabled !== undefined ? fetchedSettings.attendanceLocation.enabled : false,
-                    latitude: fetchedSettings.attendanceLocation?.latitude || 0,
-                    longitude: fetchedSettings.attendanceLocation?.longitude || 0,
-                    radius: fetchedSettings.attendanceLocation?.radius || 100
-                },
-
-                // Attendance Access Control
-                attendanceAccessControl: {
-                    admin: {
-                        addAttendance: fetchedSettings.attendanceAccessControl?.admin?.addAttendance !== undefined ? fetchedSettings.attendanceAccessControl.admin.addAttendance : true,
-                        faceAttendance: fetchedSettings.attendanceAccessControl?.admin?.faceAttendance !== undefined ? fetchedSettings.attendanceAccessControl.admin.faceAttendance : true
+            const mappedAdvanced = {
+                attendanceRuleEnabled: fetchedSettings.advancedLeaveDeduction?.attendanceRuleEnabled !== undefined ? fetchedSettings.advancedLeaveDeduction.attendanceRuleEnabled : false,
+                monthlyLimitRuleEnabled: fetchedSettings.advancedLeaveDeduction?.monthlyLimitRuleEnabled !== undefined ? fetchedSettings.advancedLeaveDeduction.monthlyLimitRuleEnabled : false,
+                thresholds: {
+                    company: {
+                        value: fetchedSettings.advancedLeaveDeduction?.thresholds?.company?.value ?? fetchedSettings.advancedLeaveDeduction?.thresholds?.company ?? 80,
+                        enabled: fetchedSettings.advancedLeaveDeduction?.thresholds?.company?.enabled ?? true
+                    },
+                    department: {
+                        value: fetchedSettings.advancedLeaveDeduction?.thresholds?.department?.value ?? fetchedSettings.advancedLeaveDeduction?.thresholds?.department ?? 80,
+                        enabled: fetchedSettings.advancedLeaveDeduction?.thresholds?.department?.enabled ?? true
                     },
                     employee: {
-                        rfidAttendance: fetchedSettings.attendanceAccessControl?.employee?.rfidAttendance !== undefined ? fetchedSettings.attendanceAccessControl.employee.rfidAttendance : true,
-                        faceAttendance: fetchedSettings.attendanceAccessControl?.employee?.faceAttendance !== undefined ? fetchedSettings.attendanceAccessControl.employee.faceAttendance : true
+                        value: fetchedSettings.advancedLeaveDeduction?.thresholds?.employee?.value ?? fetchedSettings.advancedLeaveDeduction?.thresholds?.employee ?? 90,
+                        enabled: fetchedSettings.advancedLeaveDeduction?.thresholds?.employee?.enabled ?? true
                     }
-                }
-            }));
+                },
+                monthlyLimit: fetchedSettings.advancedLeaveDeduction?.monthlyLimit || 2
+            };
 
-            setOriginalSettings({
-                ...fetchedSettings,
-                batches: fetchedSettings.batches || [{
-                    batchName: 'Full Time',
-                    from: '09:00',
-                    to: '19:00',
-                    lunchFrom: '12:00',
-                    lunchTo: '13:00',
-                    isLunchConsider: false
-                }],
-                intervals: fetchedSettings.intervals || [
-                    { intervalName: 'interval1', from: '10:15', to: '10:30', isBreakConsider: false },
-                    { intervalName: 'interval2', from: '14:15', to: '14:30', isBreakConsider: false }
-                ],
+            const finalSettings = {
+                ...settings, // Start with defaults
+                ...fetchedSettings, // Overwrite with DB data
+                advancedLeaveDeduction: mappedAdvanced, // Overwrite with mapped data
+                attendanceAccessControl: {
+                    admin: { ...settings.attendanceAccessControl.admin, ...(fetchedSettings.attendanceAccessControl?.admin || {}) },
+                    employee: { ...settings.attendanceAccessControl.employee, ...(fetchedSettings.attendanceAccessControl?.employee || {}) }
+                },
                 attendanceLocation: {
-                    enabled: fetchedSettings.attendanceLocation?.enabled !== undefined ? fetchedSettings.attendanceLocation.enabled : false,
+                    enabled: fetchedSettings.attendanceLocation?.enabled ?? false,
                     latitude: fetchedSettings.attendanceLocation?.latitude || 0,
                     longitude: fetchedSettings.attendanceLocation?.longitude || 0,
                     radius: fetchedSettings.attendanceLocation?.radius || 100
                 }
-            });
+            };
+
+            setSettings(finalSettings);
+            setOriginalSettings(finalSettings);
             setHasChanges(false);
         } catch (error) {
             if (error.response?.status === 404) {
-                setOriginalSettings(settings);
+                setOriginalSettings(settings); // Baseline is current defaults
             } else {
                 toast.error('Failed to fetch settings');
             }
@@ -309,7 +281,10 @@ const Settings = () => {
             to: '19:00',
             lunchFrom: '12:00',
             lunchTo: '13:00',
-            isLunchConsider: false
+            isLunchConsider: false,
+            isFactoryWorkerToggle: false,
+            requiredWorkingHours: 8,
+            allowedFreeLunchHours: 1
         };
         const updatedSettings = {
             ...settings,
@@ -381,6 +356,35 @@ const Settings = () => {
                     [field]: value
                 }
             }
+        };
+        setSettings(updatedSettings);
+        checkForChanges(updatedSettings);
+    };
+
+    // Handle Advanced Leave Deduction Settings changes
+    const handleAdvancedSettingsChange = (field, value, subField = null, property = null) => {
+        let updatedAdvanced;
+        if (subField) {
+            const currentThreshold = settings.advancedLeaveDeduction.thresholds[subField];
+            updatedAdvanced = {
+                ...settings.advancedLeaveDeduction,
+                thresholds: {
+                    ...settings.advancedLeaveDeduction.thresholds,
+                    [subField]: property
+                        ? { ...currentThreshold, [property]: value }
+                        : value
+                }
+            };
+        } else {
+            updatedAdvanced = {
+                ...settings.advancedLeaveDeduction,
+                [field]: value
+            };
+        }
+
+        const updatedSettings = {
+            ...settings,
+            advancedLeaveDeduction: updatedAdvanced
         };
         setSettings(updatedSettings);
         checkForChanges(updatedSettings);
@@ -1014,6 +1018,126 @@ const Settings = () => {
                     </div>
                 </Card>
 
+                {/* Advanced Leave Deduction Settings */}
+                <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
+                    <div className="h-2 bg-gradient-to-r from-red-400 to-orange-400" />
+                    <div className="p-6">
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-lg font-semibold flex items-center text-gray-900">
+                                <div className="p-2 bg-red-100 rounded-lg mr-3">
+                                    <FiDollarSign className="h-5 w-5 text-red-600" />
+                                </div>
+                                Advanced Leave Deduction System
+                            </h3>
+                            <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100">
+                                PREMIUM FEATURE
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Rule Toggles */}
+                            <div className="space-y-6">
+                                <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-bold text-gray-800">Attendance Penalty Policy</h4>
+                                        <CustomToggle
+                                            checked={settings.advancedLeaveDeduction.attendanceRuleEnabled}
+                                            onChange={() => handleAdvancedSettingsChange('attendanceRuleEnabled', !settings.advancedLeaveDeduction.attendanceRuleEnabled)}
+                                        />
+                                    </div>
+                                    <p className="text-sm text-gray-500 mb-6">
+                                        Apply 2X deduction (2 days salary for 1 day leave) if attendance falls below thresholds.
+                                    </p>
+
+                                    {settings.advancedLeaveDeduction.attendanceRuleEnabled && (
+                                        <div className="space-y-6 pt-6 border-t border-gray-200">
+                                            {[
+                                                { label: 'Company (%)', key: 'company' },
+                                                { label: 'Dept (%)', key: 'department' },
+                                                { label: 'Employee (%)', key: 'employee' }
+                                            ].map((item) => (
+                                                <div key={item.key} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                    <div className="flex items-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={settings.advancedLeaveDeduction.thresholds[item.key].enabled}
+                                                            onChange={(e) => handleAdvancedSettingsChange(null, e.target.checked, item.key, 'enabled')}
+                                                            className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded mr-3"
+                                                        />
+                                                        <label className="text-sm font-bold text-gray-700">{item.label}</label>
+                                                    </div>
+                                                    <div className="w-24">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            disabled={!settings.advancedLeaveDeduction.thresholds[item.key].enabled}
+                                                            value={settings.advancedLeaveDeduction.thresholds[item.key].value}
+                                                            onChange={(e) => handleAdvancedSettingsChange(null, parseInt(e.target.value) || 0, item.key, 'value')}
+                                                            className={`w-full px-3 py-1.5 border rounded-lg focus:ring-red-500 focus:border-red-500 transition-all font-medium text-gray-700 text-center ${!settings.advancedLeaveDeduction.thresholds[item.key].enabled ? 'bg-gray-100 text-gray-400' : 'bg-white'
+                                                                }`}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 h-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-bold text-gray-800">Monthly Limit Policy</h4>
+                                        <CustomToggle
+                                            checked={settings.advancedLeaveDeduction.monthlyLimitRuleEnabled}
+                                            onChange={() => handleAdvancedSettingsChange('monthlyLimitRuleEnabled', !settings.advancedLeaveDeduction.monthlyLimitRuleEnabled)}
+                                        />
+                                    </div>
+                                    <p className="text-sm text-gray-500 mb-6">
+                                        Penalty of 2X deduction applies once an employee exceeds their monthly leave limit.
+                                    </p>
+
+                                    {settings.advancedLeaveDeduction.monthlyLimitRuleEnabled && (
+                                        <div className="pt-4 border-t border-gray-200">
+                                            <div className="flex items-center">
+                                                <div className="flex-grow">
+                                                    <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Monthly Limit (Days)</label>
+                                                    <div className="flex items-center">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={settings.advancedLeaveDeduction.monthlyLimit}
+                                                            onChange={(e) => handleAdvancedSettingsChange('monthlyLimit', parseInt(e.target.value))}
+                                                            className="w-32 px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 transition-all font-medium text-gray-700"
+                                                        />
+                                                        <span className="ml-3 text-sm text-gray-600 font-medium">days / month</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-shrink-0 bg-red-100 p-3 rounded-full">
+                                                    <FiClock className="text-red-600 h-6 w-6" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Note */}
+                        <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start">
+                            <FiAlertTriangle className="text-blue-500 h-5 w-5 mr-3 mt-0.5" />
+                            <div className="text-xs text-blue-700 font-medium leading-relaxed">
+                                <p className="font-bold mb-1">How Deduction Factor Works:</p>
+                                <ul className="list-disc ml-4 space-y-1">
+                                    <li>When enabled, system evaluates BOTH attendance and limits.</li>
+                                    <li>If ANY condition fails (e.g. low dept attendance OR limit exceeded), <strong>2X deduction factor</strong> is recorded for that specific leave request.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
                 {/* Work Schedule Configuration */}
                 <div className="mb-8">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
@@ -1057,63 +1181,119 @@ const Settings = () => {
                                                 placeholder="Enter batch name"
                                             />
                                         </div>
-                                        {/* Working Hours */}
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                        {/* Factory Worker Toggle */}
+                                        <div className="flex items-center justify-between mb-4 border-b pb-4">
                                             <div>
-                                                <label className="block text-sm font-medium mb-1">From</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.from}
-                                                    onChange={(e) => handleBatchChange(index, 'from', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">To</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.to}
-                                                    onChange={(e) => handleBatchChange(index, 'to', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Lunch Hours */}
-                                        <div className="grid grid-cols-2 gap-4 mb-3">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Lunch From</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.lunchFrom}
-                                                    onChange={(e) => handleBatchChange(index, 'lunchFrom', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Lunch To</label>
-                                                <input
-                                                    type="time"
-                                                    value={batch.lunchTo}
-                                                    onChange={(e) => handleBatchChange(index, 'lunchTo', e.target.value)}
-                                                    className="w-full p-2 border rounded"
-                                                />
-                                            </div>
-                                        </div>
-                                        {/* Consider Work at Lunch Toggle */}
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <label className="block text-sm font-medium">Consider Work at Lunch</label>
-                                                <p className="text-xs text-gray-500">Allow employees to work during lunch hours</p>
+                                                <label className="block text-sm font-medium">Factory Worker</label>
+                                                <p className="text-xs text-gray-500">Enable flexible lunch tracking based on required hours</p>
                                             </div>
                                             <label className="switch">
                                                 <input
                                                     type="checkbox"
-                                                    checked={batch.isLunchConsider}
-                                                    onChange={(e) => handleBatchChange(index, 'isLunchConsider', e.target.checked)}
+                                                    checked={batch.isFactoryWorkerToggle}
+                                                    onChange={(e) => handleBatchChange(index, 'isFactoryWorkerToggle', e.target.checked)}
                                                 />
                                                 <span className="slider round"></span>
                                             </label>
                                         </div>
+
+                                        {!batch.isFactoryWorkerToggle ? (
+                                            <>
+                                                {/* Working Hours */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">From</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.from}
+                                                            onChange={(e) => handleBatchChange(index, 'from', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">To</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.to}
+                                                            onChange={(e) => handleBatchChange(index, 'to', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Lunch Hours */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Lunch From</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.lunchFrom}
+                                                            onChange={(e) => handleBatchChange(index, 'lunchFrom', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Lunch To</label>
+                                                        <input
+                                                            type="time"
+                                                            value={batch.lunchTo}
+                                                            onChange={(e) => handleBatchChange(index, 'lunchTo', e.target.value)}
+                                                            className="w-full p-2 border rounded"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {/* Consider Work at Lunch Toggle */}
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <label className="block text-sm font-medium">Consider Work at Lunch</label>
+                                                        <p className="text-xs text-gray-500">Allow employees to work during lunch hours</p>
+                                                    </div>
+                                                    <label className="switch">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={batch.isLunchConsider}
+                                                            onChange={(e) => handleBatchChange(index, 'isLunchConsider', e.target.checked)}
+                                                        />
+                                                        <span className="slider round"></span>
+                                                    </label>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Factory Worker specific settings */}
+                                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Required Hrs Per Day</label>
+                                                        <select
+                                                            value={batch.requiredWorkingHours}
+                                                            onChange={(e) => handleBatchChange(index, 'requiredWorkingHours', Number(e.target.value))}
+                                                            className="w-full p-2 border rounded"
+                                                        >
+                                                            {[...Array(16).keys()].map(i => (
+                                                                <option key={i + 4} value={i + 4}>{i + 4} Hours</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Allowed Free Lunch Hrs</label>
+                                                        <select
+                                                            value={batch.allowedFreeLunchHours}
+                                                            onChange={(e) => handleBatchChange(index, 'allowedFreeLunchHours', Number(e.target.value))}
+                                                            className="w-full p-2 border rounded"
+                                                        >
+                                                            <option value="0.5">0.5 Hours (30 mins)</option>
+                                                            <option value="1">1 Hour</option>
+                                                            <option value="1.5">1.5 Hours</option>
+                                                            <option value="2">2 Hours</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div className="pt-2">
+                                                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                                                        Note: Lunch From/To times will be ignored. Workers must complete required hours. Break time exceeding allowed free lunch will be deducted.
+                                                    </p>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                                 <button

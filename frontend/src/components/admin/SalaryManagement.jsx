@@ -51,7 +51,7 @@ const SalaryManagement = () => {
 
     // ADD FINE STATE
     const [isFineModalOpen, setIsFineModalOpen] = useState(false);
-    
+
     // State for fine filter
     const [isFineFilterOpen, setIsFineFilterOpen] = useState(false);
     const [selectedFineMonth, setSelectedFineMonth] = useState('');
@@ -330,12 +330,14 @@ const SalaryManagement = () => {
             ['Total Days in Period', reportData.report.summary?.totalDaysInPeriod || 0],
             ['Total Working Days', reportData.report.summary?.totalWorkingDaysInPeriod || 0],
             ['Total Absent Days', reportData.report.summary?.totalAbsentDays || 0],
+            ['Total Leave Days', reportData.report.summary?.totalLeaveDays || 0],
             ['Total Holidays', reportData.report.summary?.totalHolidaysInPeriod || 0],
             ['Total Sundays', reportData.report.summary?.totalSundaysInPeriod || 0],
             ['Actual Working Days', reportData.report.summary?.actualWorkingDays || 0],
             ['Total Working Hours', `${Number(reportData.report.totalWorkingHours || 0).toFixed(2)} hrs`],
             ['Total Permission Time', `${reportData.report.totalPermissionTime || 0} mins`],
             ['Absent Deduction', formatCurrencyForPDF(reportData.report.summary?.absentDeduction || 0)],
+            ['Leave Deduction', formatCurrencyForPDF(reportData.report.summary?.leaveDeduction || 0)],
             ['Permission Deduction', formatCurrencyForPDF(reportData.report.summary?.permissionDeduction || 0)],
             ['Total Deductions', formatCurrencyForPDF(reportData.report.totalSalaryDeduction || 0)],
             ['Attendance Rate', `${Number(reportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
@@ -539,7 +541,7 @@ const SalaryManagement = () => {
             const params = {};
             if (selectedFineMonth) params.month = selectedFineMonth;
             if (selectedFineYear) params.year = selectedFineYear;
-            
+
             const response = await getAllFines(params);
             setFinesData(response.fines);
         } catch (error) {
@@ -634,6 +636,7 @@ const SalaryManagement = () => {
                         department: worker.department?.name || worker.department || 'N/A',
                         totalWorkingDays: report.report.summary?.totalWorkingDaysInPeriod || 0,
                         totalAbsentDays: report.report.summary?.totalAbsentDays || 0,
+                        totalLeaveDays: report.report.summary?.totalLeaveDays || 0,
                         totalFinalSalary: report.finalSalaryWithFines || 0
                     };
                 } catch (error) {
@@ -742,12 +745,14 @@ const SalaryManagement = () => {
             ['Total Days in Period', individualReportData.report.summary?.totalDaysInPeriod || 0],
             ['Total Working Days', individualReportData.report.summary?.totalWorkingDaysInPeriod || 0],
             ['Total Absent Days', individualReportData.report.summary?.totalAbsentDays || 0],
+            ['Total Leave Days', individualReportData.report.summary?.totalLeaveDays || 0],
             ['Total Holidays', individualReportData.report.summary?.totalHolidaysInPeriod || 0],
             ['Total Sundays', individualReportData.report.summary?.totalSundaysInPeriod || 0],
             ['Actual Working Days', individualReportData.report.summary?.actualWorkingDays || 0],
             ['Total Working Hours', `${Number(individualReportData.report.totalWorkingHours || 0).toFixed(2)} hrs`],
             ['Total Permission Time', `${individualReportData.report.totalPermissionTime || 0} mins`],
             ['Absent Deduction', formatCurrencyForPDF(individualReportData.report.summary?.absentDeduction || 0)],
+            ['Leave Deduction', formatCurrencyForPDF(individualReportData.report.summary?.leaveDeduction || 0)],
             ['Permission Deduction', formatCurrencyForPDF(individualReportData.report.summary?.permissionDeduction || 0)],
             ['Total Deductions', formatCurrencyForPDF(individualReportData.report.totalSalaryDeduction || 0)],
             ['Attendance Rate', `${Number(individualReportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
@@ -1006,7 +1011,7 @@ const SalaryManagement = () => {
                     </Button>
                 </div>
             </div>
-            
+
             {/* DESKTOP BUTTONS: Show only on desktop */}
             <div className="hidden md:flex justify-end items-center mb-6 space-x-2">
                 <Button
@@ -1042,7 +1047,7 @@ const SalaryManagement = () => {
                         {isFineFilterOpen ? 'Hide Fine Filter' : 'Show Fine Filter'}
                     </button>
                 </div>
-                
+
                 {isFineFilterOpen && (
                     <div className="mt-4">
                         <form onSubmit={handleFineFilterSubmit}>
@@ -1093,7 +1098,7 @@ const SalaryManagement = () => {
                                 </div>
                             </div>
                         </form>
-                        
+
                         {finesData.length > 0 && (
                             <div className="mt-4">
                                 <h4 className="text-md font-medium mb-2">Fines Summary</h4>
@@ -1115,7 +1120,7 @@ const SalaryManagement = () => {
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 <h4 className="text-md font-medium mb-2">Recent Fines</h4>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
@@ -1176,7 +1181,7 @@ const SalaryManagement = () => {
                                 )}
                             </div>
                         )}
-                        
+
                         {finesData.length === 0 && !isLoadingFines && (
                             <p className="text-gray-500 text-center py-4">No fines found for the selected criteria.</p>
                         )}
@@ -1477,6 +1482,10 @@ const SalaryManagement = () => {
                                     <span className="font-bold">{individualReportData.report.summary.totalAbsentDays || 0}</span>
                                 </div>
                                 <div>
+                                    <p><strong>Total Leave Days:</strong></p>
+                                    <span className="font-bold">{individualReportData.report.summary.totalLeaveDays || 0}</span>
+                                </div>
+                                <div>
                                     <p><strong>Total Holidays:</strong></p>
                                     <span className="font-bold">{individualReportData.report.summary.totalHolidaysInPeriod || 0}</span>
                                 </div>
@@ -1500,6 +1509,22 @@ const SalaryManagement = () => {
                                     <p><strong>Absent Deduction:</strong></p>
                                     <span className="font-bold">₹{individualReportData.report.summary.absentDeduction?.toFixed(2) || '0.00'}</span>
                                 </div>
+                                <div>
+                                    <p><strong>Leave Deduction:</strong></p>
+                                    <span className="font-bold">₹{individualReportData.report.summary.leaveDeduction?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                {individualReportData.report.summary.penalizedLeaveDays > 0 && (
+                                    <div className="bg-red-50 p-1 rounded border border-red-100">
+                                        <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Leaves (2X)</p>
+                                        <span className="font-bold text-red-700">{individualReportData.report.summary.penalizedLeaveDays} Days (₹{individualReportData.report.summary.penalizedLeaveDeduction.toFixed(2)})</span>
+                                    </div>
+                                )}
+                                {individualReportData.report.summary.penalizedAbsentDays > 0 && (
+                                    <div className="bg-red-50 p-1 rounded border border-red-100">
+                                        <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Absences (2X)</p>
+                                        <span className="font-bold text-red-700">{individualReportData.report.summary.penalizedAbsentDays} Days (₹{individualReportData.report.summary.penalizedAbsentDeduction.toFixed(2)})</span>
+                                    </div>
+                                )}
                                 <div>
                                     <p><strong>Permission Deduction:</strong></p>
                                     <span className="font-bold">₹{individualReportData.report.summary.permissionDeduction?.toFixed(2) || '0.00'}</span>
@@ -1740,6 +1765,10 @@ const SalaryManagement = () => {
                                         <span className="font-bold">{reportData.report.summary.totalAbsentDays || 0}</span>
                                     </div>
                                     <div>
+                                        <p><strong>Total Leave Days:</strong></p>
+                                        <span className="font-bold">{reportData.report.summary.totalLeaveDays || 0}</span>
+                                    </div>
+                                    <div>
                                         <p><strong>Total Holidays:</strong></p>
                                         <span className="font-bold">{reportData.report.summary.totalHolidaysInPeriod || 0}</span>
                                     </div>
@@ -1763,6 +1792,22 @@ const SalaryManagement = () => {
                                         <p><strong>Absent Deduction:</strong></p>
                                         <span className="font-bold">₹{reportData.report.summary.absentDeduction?.toFixed(2) || '0.00'}</span>
                                     </div>
+                                    <div>
+                                        <p><strong>Leave Deduction:</strong></p>
+                                        <span className="font-bold">₹{reportData.report.summary.leaveDeduction?.toFixed(2) || '0.00'}</span>
+                                    </div>
+                                    {reportData.report.summary.penalizedLeaveDays > 0 && (
+                                        <div className="bg-red-50 p-1 rounded border border-red-100">
+                                            <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Leaves (2X)</p>
+                                            <span className="font-bold text-red-700">{reportData.report.summary.penalizedLeaveDays} Days (₹{reportData.report.summary.penalizedLeaveDeduction.toFixed(2)})</span>
+                                        </div>
+                                    )}
+                                    {reportData.report.summary.penalizedAbsentDays > 0 && (
+                                        <div className="bg-red-50 p-1 rounded border border-red-100">
+                                            <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Absences (2X)</p>
+                                            <span className="font-bold text-red-700">{reportData.report.summary.penalizedAbsentDays} Days (₹{reportData.report.summary.penalizedAbsentDeduction.toFixed(2)})</span>
+                                        </div>
+                                    )}
                                     <div>
                                         <p><strong>Permission Deduction:</strong></p>
                                         <span className="font-bold">₹{reportData.report.summary.permissionDeduction?.toFixed(2) || '0.00'}</span>

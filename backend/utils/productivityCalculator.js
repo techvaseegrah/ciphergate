@@ -8,6 +8,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
     toDate,
     options = {},
     worker,
+    leaveData = []
   } = productivityParameters;
 
   const {
@@ -19,8 +20,12 @@ const calculateWorkerProductivity = (productivityParameters) => {
     intervals = [],
     fiteredBatch = 'Full Time',
     isLunchConsider = false,
-    holidays = []
+    holidays = [],
+    advancedLeaveDeduction = null
   } = options;
+
+  let currentMonthMissedCount = 0;
+  let lastMonthIdx = -1;
 
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
@@ -97,10 +102,10 @@ const calculateWorkerProductivity = (productivityParameters) => {
       const holidayDate = new Date(h.date).toISOString().split('T')[0];
       // Check if dates match
       if (holidayDate !== dateStr) return false;
-      
+
       // If it's a company-wide holiday (appliesTo: 'all'), it applies to all workers
       if (h.appliesTo === 'all') return true;
-      
+
       // If it's a specific holiday, check if the worker is in the workers array
       if (h.appliesTo === 'specific' && h.workers) {
         // Handle both string IDs and object IDs
@@ -116,10 +121,25 @@ const calculateWorkerProductivity = (productivityParameters) => {
           return false;
         });
       }
-      
+
       return false;
     });
     return holiday || null;
+  };
+
+  const getLeaveForDay = (date) => {
+    if (!leaveData || leaveData.length === 0) return null;
+    const dateStr = new Date(date).toISOString().split('T')[0];
+
+    return leaveData.find(l => {
+      // Must be approved or pending
+      if (l.status !== 'Approved' && l.status !== 'Pending') return false;
+
+      const start = new Date(l.startDate).toISOString().split('T')[0];
+      const end = new Date(l.endDate).toISOString().split('T')[0];
+
+      return (dateStr >= start && dateStr <= end);
+    });
   };
 
   const generateDateRange = (fromDate, toDate) => {
@@ -142,7 +162,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
   const pairPunches = (punches, workEnd, workEndTime, workStart) => {
     const pairs = [];
     let i = 0;
-    
+
     while (i < punches.length) {
       // If current punch is OUT, it's an orphaned OUT punch
       if (!punches[i].record.presence) {
@@ -158,7 +178,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
             isOrphanedOut: true
           }
         };
-        
+
         // Pair the pseudo IN with the actual OUT punch
         pairs.push({
           in: pseudoInPunch,
@@ -166,26 +186,30 @@ const calculateWorkerProductivity = (productivityParameters) => {
           isAutoOut: false,
           isOrphanedOut: true
         });
-        
+
         i++; // Move to next punch
         continue;
       }
-      
+
       // Current punch is IN
       const inPunch = punches[i];
       let outPunch = null;
       let isAutoOut = false;
-      
+
       // Look for the next immediate OUT punch (should be the very next punch)
       if (i + 1 < punches.length && !punches[i + 1].record.presence) {
         // The very next punch is an OUT punch, pair them
         outPunch = punches[i + 1];
         i += 2; // Move past both IN and OUT punches
       } else {
-        // No immediate OUT punch found, create an auto OUT at end of shift
-        // But only if the IN punch occurred during the scheduled work time
-        // If the IN punch was after work end time, don't create an auto-out
-        if (inPunch.time <= workEnd) {
+        // No immediate OUT punch found
+        // For factory workers: don't auto-out at workEnd; skip this unmatched IN
+        // For standard workers: create auto-out at workEnd if IN was before workEnd
+        if (isFactoryWorkerToggle) {
+          // Factory workers: skip unmatched IN punch, no auto-out generated
+          i++;
+          continue;
+        } else if (inPunch.time <= workEnd) {
           const autoOutTime = workEnd;
           outPunch = {
             time: autoOutTime,
@@ -204,7 +228,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }
         i++; // Move to next punch
       }
-      
+
       pairs.push({
         in: inPunch,
         out: outPunch,
@@ -212,7 +236,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         isOrphanedOut: false
       });
     }
-    
+
     return pairs;
   };
 
@@ -223,23 +247,41 @@ const calculateWorkerProductivity = (productivityParameters) => {
     if (isOrphanedOut) {
       return { rawMinutes: 0, finalMinutes: 0, deductions: [] };
     }
-    
+
+    let intervalStart, intervalEnd, rawWorkingInterval, finalWorkingInterval;
+
+    if (isFactoryWorkerToggle) {
+      // Factory workers: use raw punch times directly without capping to shift boundaries
+      intervalStart = inPunch.time;
+      intervalEnd = outPunch.time;
+      if (intervalEnd <= intervalStart) return { rawMinutes: 0, finalMinutes: 0, deductions: [] };
+      rawWorkingInterval = intervalEnd - intervalStart;
+      finalWorkingInterval = rawWorkingInterval;
+      return {
+        rawMinutes: rawWorkingInterval,
+        finalMinutes: finalWorkingInterval,
+        deductions: [],
+        totalDeducted: 0
+      };
+    }
+
+    // Standard worker: cap times to the shift window
     // Check if this pair is for punches that occurred after work end time
     // If both punches are after work end time, don't calculate working time
     if (inPunch.time > workEnd && outPunch.time > workEnd) {
       return { rawMinutes: 0, finalMinutes: 0, deductions: [] };
     }
-    
-    let intervalStart = Math.max(inPunch.time, workStart);
-    let intervalEnd = Math.min(outPunch.time, workEnd);
-    
+
+    intervalStart = Math.max(inPunch.time, workStart);
+    intervalEnd = Math.min(outPunch.time, workEnd);
+
     if (intervalEnd <= intervalStart) return { rawMinutes: 0, finalMinutes: 0, deductions: [] };
-    
-    let rawWorkingInterval = intervalEnd - intervalStart;
-    let finalWorkingInterval = rawWorkingInterval;
+
+    rawWorkingInterval = intervalEnd - intervalStart;
+    finalWorkingInterval = rawWorkingInterval;
     let intervalDeductions = [];
 
-    if (!isLunchConsider) {
+    if (!options.isLunchConsider && !selectedBatch?.isFactoryWorkerToggle) {
       const lunchStart = timeToMinutes(lunchFrom);
       const lunchEnd = timeToMinutes(lunchTo);
       if (intervalStart < lunchEnd && intervalEnd > lunchStart) {
@@ -252,7 +294,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         });
       }
     }
-    
+
     intervals.forEach(interval => {
       if (!interval.isBreakConsider) {
         const breakStart = timeToMinutes(interval.from);
@@ -268,7 +310,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }
       }
     });
-    
+
     return {
       rawMinutes: rawWorkingInterval,
       finalMinutes: Math.max(0, finalWorkingInterval),
@@ -282,16 +324,16 @@ const calculateWorkerProductivity = (productivityParameters) => {
     let delayDetails = [];
     let totalDelayMinutes = 0;
     let lateMinutes = 0; // Initialize here so it's available throughout the function
-    
+
     // Check if this is the first session of the day
     const isFirstSession = pairIndex === 0;
-    
+
     // For orphaned OUT punches, treat more conservatively
     if (isOrphanedOut) {
       // NEW LOGIC: Check if there are other actual working punches in the same day
       // If so, don't apply a full day deduction for the orphaned OUT punch
       const hasActualWorkingPunches = allPairs.some(pair => !pair.isOrphanedOut);
-      
+
       if (hasActualWorkingPunches) {
         // If there are actual working punches, don't apply any deduction for the orphaned OUT
         // This is likely a cross-day session where the OUT punch belongs to the previous day
@@ -305,7 +347,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         // For early day OUT punches with no actual working punches, treat as full day absent
         // Calculate unworked time for the full work day
         let unworkedMinutes = workEnd - workStart;
-        
+
         // Exclude lunch time if applicable
         if (!isLunchConsider) {
           const lunchStart = timeToMinutes(lunchFrom);
@@ -316,7 +358,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
             unworkedMinutes -= (lunchOverlapEnd - lunchOverlapStart);
           }
         }
-        
+
         if (unworkedMinutes > 0) {
           totalDelayMinutes += unworkedMinutes;
           delayDetails.push({
@@ -326,23 +368,23 @@ const calculateWorkerProductivity = (productivityParameters) => {
           });
         }
       }
-      
+
       return {
         totalDelayMinutes,
         delayDetails
       };
     }
-    
+
     // Get lunch period
     const lunchStart = timeToMinutes(lunchFrom);
     const lunchEnd = timeToMinutes(lunchTo);
-    
+
     // Calculate late arrival and other delays
     // Late arrival should happen regardless of auto-generated out status
     // Other delays (early departure, etc.) should only happen if OUT is not auto-generated
     if (inPunch.time > workStart && inPunch.time !== outPunch.time) {
       lateMinutes = 0; // Reset for this pair
-      
+
       if (isFirstSession) {
         // Special handling for first session
         // If employee punches in during lunch time, don't calculate late arrival
@@ -360,7 +402,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
               description: `${Math.round(missedMorningMinutes)} mins missed morning work`
             });
           }
-        } 
+        }
         // NEW: Special handling for first session after lunch
         else if (inPunch.time >= lunchEnd) {
           // For employees whose shift starts after lunch, compare to their actual shift start time
@@ -380,7 +422,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
                 description: `${Math.round(missedMorningMinutes)} mins missed morning work`
               });
             }
-            
+
             // Also calculate late arrival after lunch (from lunch end to actual punch time)
             const lateAfterLunchMinutes = inPunch.time - lunchEnd;
             if (lateAfterLunchMinutes > 0) {
@@ -395,7 +437,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         // For subsequent sessions, we need to check if the first actual working session was during lunch
         // If so, we should not penalize for late arrival after lunch
         let isFirstSessionDuringLunch = false;
-        
+
         // Check if the first actual working session of the day
         // (i.e., the first session that is not an orphaned OUT)
         for (let i = 0; i < allPairs.length; i++) {
@@ -408,13 +450,13 @@ const calculateWorkerProductivity = (productivityParameters) => {
             break;
           }
         }
-        
+
         // If first session was during lunch, don't penalize subsequent sessions for being late
         if (!isFirstSessionDuringLunch) {
           // Normal handling for subsequent sessions
           // Check if this is actually a continuation of work
           // after a previous session, not a late arrival for the afternoon shift
-          
+
           // If there was a previous session that ended before lunch or during the work day,
           // then this session is a continuation, not a late arrival for the afternoon shift
           let isContinuation = false;
@@ -459,14 +501,14 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }
       }
     }
-    
+
     // Add late minutes for first session if it's a normal late arrival (not special case)
     // For special cases like during lunch or after lunch, delays were already added separately
     if (isFirstSession && lateMinutes > 0) {
       // Only add if not a special case where delay was already added to totalDelayMinutes
-      const isSpecialCase = (inPunch.time > lunchStart && inPunch.time < lunchEnd) || 
-                         (inPunch.time >= lunchEnd && workStart < lunchEnd); // punching after lunch end
-      
+      const isSpecialCase = (inPunch.time > lunchStart && inPunch.time < lunchEnd) ||
+        (inPunch.time >= lunchEnd && workStart < lunchEnd); // punching after lunch end
+
       if (!isSpecialCase) {
         totalDelayMinutes += lateMinutes;
         delayDetails.push({
@@ -476,18 +518,18 @@ const calculateWorkerProductivity = (productivityParameters) => {
         });
       }
     }
-    
+
     // Early departure and other delays (only if OUT punch is not auto-generated)
     // Note: We don't deduct for leaving after work hours (overtime)
     // Also don't calculate if IN and OUT times are the same
     if (!outPunch.record.isAutoGenerated && outPunch.time < workEnd && inPunch.time !== outPunch.time) {
       // Check if there's a next session
       const hasNextSession = pairIndex < allPairs.length - 1;
-      
+
       // FIRST: Calculate early departure penalty only for the LAST session of the day
       // If there's a next session, we don't calculate early departure for intermediate sessions
       let earlyMinutes = 0;
-      
+
       // Only calculate early departure for the last session
       if (!hasNextSession) {
         // Check if this is the first actual working session of the day
@@ -502,12 +544,12 @@ const calculateWorkerProductivity = (productivityParameters) => {
             break;
           }
         }
-        
+
         // If the first actual working session was during lunch, don't calculate early departure
         // because they didn't work the full afternoon shift
         if (!isFirstWorkingSessionDuringLunch) {
           // Normal early departure calculation
-          
+
           // If employee punched out before lunch start
           if (outPunch.time < lunchStart) {
             // Early departure from morning shift
@@ -539,7 +581,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
             earlyMinutes = workEnd - outPunch.time;
           }
           // If employee punched out after work end, no early departure penalty (overtime)
-          
+
           // Only add positive early minutes
           if (earlyMinutes > 0) {
             totalDelayMinutes += earlyMinutes;
@@ -565,7 +607,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
               break;
             }
           }
-          
+
           if (isLastActualWorkingSession) {
             // Employee left during lunch and didn't return for subsequent sessions
             // Deduct unworked time from lunch end to work end
@@ -581,21 +623,21 @@ const calculateWorkerProductivity = (productivityParameters) => {
           }
         }
       }
-      
+
       // SECOND: If there's a next session, calculate inter-work permission time
       if (hasNextSession) {
         // There is a next session, so calculate inter-work permission time
         const nextSession = allPairs[pairIndex + 1];
-        
+
         // NEW LOGIC: If the next session has an auto-generated OUT and this session ends after lunch,
         // we should not calculate inter-work permission as it will be covered by the unworked time deduction
         const isNextSessionAutoGenerated = nextSession.out.record.isAutoGenerated;
         const doesCurrentSessionEndAfterLunch = outPunch.time > lunchEnd;
-        
+
         // ALSO: If the first session was after lunch, don't calculate inter-work permission
         let isFirstSessionAfterLunch = false;
         let isFirstSessionDuringLunch = false;
-        
+
         // Check if the first actual working session of the day
         // (i.e., the first session that is not an orphaned OUT)
         for (let i = 0; i < allPairs.length; i++) {
@@ -611,7 +653,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
             break;
           }
         }
-        
+
         if (isNextSessionAutoGenerated && doesCurrentSessionEndAfterLunch) {
           // Skip inter-work permission calculation as the unworked time will cover this
         } else if (isFirstSessionAfterLunch) {
@@ -627,11 +669,11 @@ const calculateWorkerProductivity = (productivityParameters) => {
           // Calculate inter-work permission time only if not during lunch
           // FIXED: Properly account for lunch period when calculating inter-work permission time
           let interPermissionMinutes = 0;
-          
+
           // The correct approach is to calculate permission time as the actual non-working time
           // between the end of this session and the start of the next session
           // But we should not count the lunch period as permission time
-          
+
           // If the current session ends before lunch and the next session starts after lunch
           // then the permission time is from the end of current session to lunch start
           // because the lunch period itself is not permission time
@@ -643,33 +685,33 @@ const calculateWorkerProductivity = (productivityParameters) => {
             // Either both times are before lunch, or both are after lunch, or there's some other overlap
             // Calculate normally but exclude lunch time if there's overlap
             const rawPermissionTime = nextSession.in.time - outPunch.time;
-            
+
             // Check if the permission period overlaps with lunch
             if (outPunch.time < lunchEnd && nextSession.in.time > lunchStart) {
               // The permission period overlaps with lunch
               // Calculate the actual work time that should be penalized
               // This is the time before lunch plus the time after lunch
               // But not the lunch time itself
-              
+
               // Time before lunch (if any)
               let timeBeforeLunch = 0;
               if (outPunch.time < lunchStart) {
                 timeBeforeLunch = Math.min(lunchStart, nextSession.in.time) - outPunch.time;
               }
-              
+
               // Time after lunch (if any)
               let timeAfterLunch = 0;
               if (nextSession.in.time > lunchEnd) {
                 timeAfterLunch = nextSession.in.time - Math.max(lunchEnd, outPunch.time);
               }
-              
+
               interPermissionMinutes = timeBeforeLunch + timeAfterLunch;
             } else {
               // No overlap with lunch, calculate normally
               interPermissionMinutes = rawPermissionTime;
             }
           }
-          
+
           if (interPermissionMinutes > 0) {
             totalDelayMinutes += interPermissionMinutes;
             delayDetails.push({
@@ -681,23 +723,23 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }
       }
     }
-    
+
     // If it's an auto-generated OUT (missed punch), deduct for unworked time
     if (outPunch.record.isAutoGenerated) {
       // When an employee forgets to punch out, we need to calculate unworked time based on context:
       // 1. If there are no other punch pairs in the day, deduct full working day (540 min)
       // 2. If there are other punch pairs, it means this is part of a split session
       let unworkedMinutes = 0;
-      
+
       // Check if this is the only actual working pair in the day
       // If the employee only had one IN punch and no other punches, deduct full day
       const actualWorkingPairs = allPairs.filter(pair => !pair.isOrphanedOut);
-      
+
       // If there's only this one pair (the auto-out one) and no other working pairs, deduct full day
       if (actualWorkingPairs.length === 1) {
         // Calculate total work time excluding lunch
         let totalWorkTime = workEnd - workStart;
-        
+
         // Exclude lunch time if applicable
         if (!isLunchConsider) {
           const lunchOverlapStart = Math.max(workStart, lunchStart);
@@ -706,28 +748,28 @@ const calculateWorkerProductivity = (productivityParameters) => {
             totalWorkTime -= (lunchOverlapEnd - lunchOverlapStart);
           }
         }
-        
+
         unworkedMinutes = totalWorkTime;
       } else {
         // This is part of a split session, calculate time from IN to end of shift
         // Only calculate the remaining time from the IN time to the end of shift
         let remainingShiftTime = workEnd - inPunch.time;
-        
+
         // Adjust for lunch if the remaining time overlaps with lunch
         if (!isLunchConsider && inPunch.time < lunchEnd && workEnd > lunchStart) {
           // Calculate lunch overlap with the remaining shift time
           const lunchOverlapStart = Math.max(inPunch.time, lunchStart);
           const lunchOverlapEnd = Math.min(workEnd, lunchEnd);
-          
+
           if (lunchOverlapEnd > lunchOverlapStart) {
             remainingShiftTime -= (lunchOverlapEnd - lunchOverlapStart);
           }
         }
-        
+
         // Ensure we don't have negative time
         unworkedMinutes = Math.max(0, remainingShiftTime);
       }
-      
+
       if (unworkedMinutes > 0) {
         totalDelayMinutes = unworkedMinutes; // Overwrite totalDelayMinutes instead of adding to avoid stacking
         delayDetails = [{
@@ -750,30 +792,44 @@ const calculateWorkerProductivity = (productivityParameters) => {
   const workEndTime = selectedBatch ? selectedBatch.to : '19:00';
   const workStart = timeToMinutes(workStartTime);
   const workEnd = timeToMinutes(workEndTime);
-  
+
   // Use batch-specific lunch settings
+  const isFactoryWorkerToggle = selectedBatch ? selectedBatch.isFactoryWorkerToggle : false;
+  const requiredWorkingHours = selectedBatch ? selectedBatch.requiredWorkingHours || 8 : 8;
+  const allowedFreeLunchHours = selectedBatch ? selectedBatch.allowedFreeLunchHours || 1 : 1;
+
+  // Let factory workers skip regular lunch overlap deductions by considering lunch implicitly
+  if (isFactoryWorkerToggle) {
+    options.isLunchConsider = true;
+  }
+
   const lunchFrom = selectedBatch ? selectedBatch.lunchFrom : '12:00';
   const lunchTo = selectedBatch ? selectedBatch.lunchTo : '13:00';
   const lunchStart = timeToMinutes(lunchFrom);
   const lunchEnd = timeToMinutes(lunchTo);
-  
+
   let standardWorkingMinutes = workEnd - workStart;
-  if (!isLunchConsider) {
-    // Only subtract lunch time if it overlaps with the work period
-    const lunchOverlapStart = Math.max(workStart, lunchStart);
-    const lunchOverlapEnd = Math.min(workEnd, lunchEnd);
-    if (lunchOverlapEnd > lunchOverlapStart) {
-      standardWorkingMinutes -= (lunchOverlapEnd - lunchOverlapStart);
+
+  if (isFactoryWorkerToggle) {
+    standardWorkingMinutes = requiredWorkingHours * 60;
+  } else {
+    if (!options.isLunchConsider) {
+      // Only subtract lunch time if it overlaps with the work period
+      const lunchOverlapStart = Math.max(workStart, lunchStart);
+      const lunchOverlapEnd = Math.min(workEnd, lunchEnd);
+      if (lunchOverlapEnd > lunchOverlapStart) {
+        standardWorkingMinutes -= (lunchOverlapEnd - lunchOverlapStart);
+      }
     }
+
+    intervals.forEach(interval => {
+      if (!interval.isBreakConsider) {
+        const intervalStart = timeToMinutes(interval.from);
+        const intervalEnd = timeToMinutes(interval.to);
+        standardWorkingMinutes -= (intervalEnd - intervalStart);
+      }
+    });
   }
-  
-  intervals.forEach(interval => {
-    if (!interval.isBreakConsider) {
-      const intervalStart = timeToMinutes(interval.from);
-      const intervalEnd = timeToMinutes(interval.to);
-      standardWorkingMinutes -= (intervalEnd - intervalStart);
-    }
-  });
 
   const filteredData = attendanceData.filter(record => {
     const recordDate = new Date(record.date);
@@ -793,7 +849,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
   const allDates = generateDateRange(fromDate, toDate);
   const totalDaysInPeriod = allDates.length;
   const totalSundaysInPeriod = countSundaysInRange(fromDate, toDate);
-  
+
   // Count holidays that apply to this specific worker
   const totalHolidaysInPeriod = allDates.filter(date => isHolidayForWorker(date, worker._id)).length;
   // FIXED: Working days should only exclude Sundays, not holidays
@@ -810,6 +866,13 @@ const calculateWorkerProductivity = (productivityParameters) => {
   let totalAbsentDays = 0;
   let totalSundayCount = 0;
   let totalHolidayCount = 0;
+  let totalLeaveDays = 0;
+  let totalLeaveDeduction = 0;
+  let totalAbsentDeduction = 0;
+  let penalizedLeaveDays = 0;
+  let penalizedLeaveDeduction = 0;
+  let penalizedAbsentDays = 0;
+  let penalizedAbsentDeduction = 0;
 
   const groupedByDate = {};
   filteredData.forEach(record => {
@@ -834,30 +897,47 @@ const calculateWorkerProductivity = (productivityParameters) => {
         permissionDetails: []
       }
     };
-    
+
     // Sort punches by time
     const sortedPunches = punches.map(record => ({
       time: parseAttendanceTime(record.time),
       originalTime: record.time,
       record
     })).sort((a, b) => a.time - b.time);
-    
+
     // Pair IN and OUT punches
     const pairs = pairPunches(sortedPunches, workEnd, workEndTime, workStart);
-    
+
     let dayTotalWorkingMinutes = 0;
     let dayTotalPermissionMinutes = 0;
     let dayTotalDeduction = 0;
     let pairReports = [];
-    
+    let customTotalBreaks = 0;
+
     // Process each IN-OUT pair
     pairs.forEach((pair, index) => {
       const workingTimeResult = calculatePairWorkingTime(pair.in, pair.out, workStart, workEnd, pair.isOrphanedOut);
-      const delayTimeResult = calculatePairDelayTime(pair.in, pair.out, workStart, workEnd, pairs, index, pair.isOrphanedOut);
-      
+      let delayTimeResult = calculatePairDelayTime(pair.in, pair.out, workStart, workEnd, pairs, index, pair.isOrphanedOut);
+
+      // Factory worker overrides
+      if (isFactoryWorkerToggle) {
+        // Reset delay calculations for factory per pair, as we aggregate at the day level instead
+        delayTimeResult = { totalDelayMinutes: 0, delayDetails: [] };
+        if (index < pairs.length - 1) {
+          // calculate breaks between this OUT and next IN
+          const nextPair = pairs[index + 1];
+          if (!pair.isOrphanedOut && !nextPair.isOrphanedOut) {
+            let breakTime = nextPair.in.time - pair.out.time;
+            if (breakTime > 0) {
+              customTotalBreaks += breakTime;
+            }
+          }
+        }
+      }
+
       // SPECIAL CASE: If this is an auto-generated OUT (forgot to punch out) and it's the only pair,
       // we should not add the working time but only the delay/deduction time
-      if (pair.out.record.isAutoGenerated && pairs.length === 1) {
+      if (pair.out.record.isAutoGenerated && pairs.length === 1 && !isFactoryWorkerToggle) {
         // When worker forgets to punch out, they get 0 working minutes
         dayTotalWorkingMinutes += 0;
         dayTotalPermissionMinutes += delayTimeResult.totalDelayMinutes;
@@ -865,18 +945,18 @@ const calculateWorkerProductivity = (productivityParameters) => {
         dayTotalWorkingMinutes += workingTimeResult.finalMinutes;
         dayTotalPermissionMinutes += delayTimeResult.totalDelayMinutes;
       }
-      
+
       const pairDeduction = delayTimeResult.totalDelayMinutes * perMinuteSalary;
       dayTotalDeduction += pairDeduction;
-      
+
       // SPECIAL CASE: If this is an auto-generated OUT (forgot to punch out) and it's the only pair,
       // adjust the interval details to show 0 working minutes
       let intervalFinalMinutes = workingTimeResult.finalMinutes;
       let intervalRawMinutes = workingTimeResult.rawMinutes;
       let intervalDeductions = [...workingTimeResult.deductions];
       let intervalTotalDeducted = workingTimeResult.totalDeducted;
-      
-      if (pair.out.record.isAutoGenerated && pairs.length === 1) {
+
+      if (pair.out.record.isAutoGenerated && pairs.length === 1 && !isFactoryWorkerToggle) {
         intervalFinalMinutes = 0;
         intervalRawMinutes = 0;
         intervalDeductions = [{
@@ -886,7 +966,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }];
         intervalTotalDeducted = standardWorkingMinutes;
       }
-      
+
       // Add to detailed breakdown
       dayData.detailedBreakdown.intervals.push({
         intervalNumber: index + 1,
@@ -897,35 +977,82 @@ const calculateWorkerProductivity = (productivityParameters) => {
         deductions: intervalDeductions,
         totalDeducted: intervalTotalDeducted
       });
-      
+
       // Add interval-specific deductions for consistency
       dayData.detailedBreakdown.deductions.push(...intervalDeductions);
-      
+
       delayTimeResult.delayDetails.forEach(detail => {
         dayData.detailedBreakdown.permissionDetails.push({
           type: detail.type,
           totalMinutes: detail.minutes,
           description: detail.description
         });
-        
+
         dayData.issues.push(`${detail.type}: ${Math.round(detail.minutes)} minutes`);
       });
     });
-    
+
+    // Factory Worker Day Level Calculation
+    if (isFactoryWorkerToggle) {
+      let unworkedMinutes = 0;
+      if (dayTotalWorkingMinutes < standardWorkingMinutes) {
+        unworkedMinutes = standardWorkingMinutes - dayTotalWorkingMinutes;
+      }
+
+      const allowedFreeLunchMinutes = allowedFreeLunchHours * 60;
+      let excessBreakMinutes = 0;
+
+      if (customTotalBreaks > allowedFreeLunchMinutes) {
+        excessBreakMinutes = customTotalBreaks - allowedFreeLunchMinutes;
+      }
+
+      // The worker is ONLY penalized for missing total working hours.
+      // We ensure `dayTotalPermissionMinutes` accurately reflects missing time to trigger deductions.
+      dayTotalPermissionMinutes = unworkedMinutes;
+
+      dayTotalDeduction = dayTotalPermissionMinutes * perMinuteSalary;
+
+      if (unworkedMinutes > 0) {
+        dayData.issues.push(`Short on Working Hours: ${Math.round(unworkedMinutes)} minutes.`);
+      }
+      if (excessBreakMinutes > 0) {
+        dayData.issues.push(`Excess Break Time: ${Math.round(excessBreakMinutes)} minutes.`);
+      }
+    }
+
     // Calculate the day's final salary after all deductions
     const dayFinalSalary = Math.max(0, perDaySalary - dayTotalDeduction);
-    
+
     // Now create the report entries with the correct total salary
     pairs.forEach((pair, index) => {
-      const delayTimeResult = calculatePairDelayTime(pair.in, pair.out, workStart, workEnd, pairs, index, pair.isOrphanedOut);
-      const pairDeduction = delayTimeResult.totalDelayMinutes * perMinuteSalary;
-      
+      let delayTimeResult = calculatePairDelayTime(pair.in, pair.out, workStart, workEnd, pairs, index, pair.isOrphanedOut);
+      let pairDeduction = delayTimeResult.totalDelayMinutes * perMinuteSalary;
+      let delayTimeString = `${Math.round(delayTimeResult.totalDelayMinutes)} mins`;
+      let delayTypeString = delayTimeResult.delayDetails.map(d => d.description).join(', ');
+
+      // Factory workers use day-level calculations entirely.
+      // We attribute the day's deduction completely to the final pair so the totals match the table.
+      if (isFactoryWorkerToggle) {
+        if (index === pairs.length - 1) {
+          pairDeduction = dayTotalDeduction;
+          delayTimeString = `${Math.round(dayTotalPermissionMinutes)} mins`;
+          const issuesArray = [];
+          if (dayTotalPermissionMinutes > 0) issuesArray.push('Short on Working Hours');
+          if (pairs.some(p => p.out.record.isAutoGenerated)) issuesArray.push('Auto-Out Used');
+          delayTypeString = issuesArray.length > 0 ? issuesArray.join(', ') : 'None';
+        } else {
+          pairDeduction = 0;
+          delayTimeString = `0 mins`;
+          delayTypeString = 'N/A';
+        }
+      }
+
       // Add to report only if it's not an orphaned OUT punch that should be hidden
       // OR if it's an orphaned OUT punch but there are no other working punches in the day
       const hasActualWorkingPunches = pairs.some(p => !p.isOrphanedOut);
       const shouldShowOrphanedOut = pair.isOrphanedOut && !hasActualWorkingPunches;
       const shouldHideOrphanedOut = pair.isOrphanedOut && hasActualWorkingPunches;
-      
+
       // Only add to report if it's not a hidden orphaned OUT punch
       if (!shouldHideOrphanedOut) {
         // Add to report
@@ -934,8 +1061,8 @@ const calculateWorkerProductivity = (productivityParameters) => {
           date: dateFormatted,
           inTime: pair.isOrphanedOut ? 'Absent' : (pair.in.record.isAutoGenerated ? 'Absent' : formatTime(pair.in.time)),
           outTime: pair.out.originalTime,
-          delayTime: `${Math.round(delayTimeResult.totalDelayMinutes)} mins`,
-          delayType: delayTimeResult.delayDetails.map(d => d.description).join(', '),
+          delayTime: delayTimeString,
+          delayType: delayTypeString,
           deductionAmount: formatCurrency(pairDeduction),
           // For the total salary, we show the day's final salary after all deductions
           totalSalary: formatCurrency(dayFinalSalary),
@@ -947,10 +1074,10 @@ const calculateWorkerProductivity = (productivityParameters) => {
     dayData.workingMinutes = dayTotalWorkingMinutes;
     dayData.permissionMinutes = dayTotalPermissionMinutes;
     dayData.salaryDeduction = dayTotalDeduction;
-    
+
     // Add all pair reports to main report
     report.push(...pairReports);
-    
+
     totalWorkingMinutes += dayData.workingMinutes;
     totalPermissionMinutes += dayData.permissionMinutes;
     dailyBreakdown.push(dayData);
@@ -961,7 +1088,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
     const isSundayDay = isSunday(date);
     // NEW: Check if holiday applies to this specific worker
     const holidayInfo = isHolidayForWorker(date, worker._id);
-    
+
     if (isSundayDay) {
       totalSundayCount++;
       const dayData = {
@@ -1009,32 +1136,102 @@ const calculateWorkerProductivity = (productivityParameters) => {
       report.push(reportEntry);
       dailyBreakdown.push(dayData);
     } else {
-      totalAbsentDays++;
-      const dayData = {
-        date: dateString,
-        punchTime: 'Absent',
-        workingMinutes: 0,
-        permissionMinutes: 0,
-        salaryDeduction: perDaySalary,
-        issues: ['Absent - Full day salary deducted'],
-        detailedBreakdown: { intervals: [], deductions: [], permissionDetails: [] }
-      };
-      const reportEntry = {
-        date: formatDate(dateString),
-        outTime: 'Absent',
-        inTime: 'Absent',
-        delayTime: 'Full Day',
-        delayType: 'Absent - Full day',
-        deductionAmount: formatCurrency(perDaySalary),
-        totalSalary: formatCurrency(0),
-        status: 'Absent'
-      };
-      report.push(reportEntry);
-      dailyBreakdown.push(dayData);
+      const leaveInfo = getLeaveForDay(date);
+      if (leaveInfo) {
+        totalLeaveDays++;
+        currentMonthMissedCount++;
+
+        let dynamicFactor = 1;
+        // Apply 2X penalty for leaves if monthly limit exceeded dynamically
+        if (advancedLeaveDeduction && advancedLeaveDeduction.monthlyLimitRuleEnabled) {
+          const limit = advancedLeaveDeduction.monthlyLimit || 0;
+          if (currentMonthMissedCount > limit) {
+            dynamicFactor = 2;
+          }
+        }
+
+        const factor = Math.max(leaveInfo.deductionFactor || 1, dynamicFactor);
+        const deductionAmount = perDaySalary * factor;
+        totalLeaveDeduction += deductionAmount;
+
+        if (factor > 1) {
+          penalizedLeaveDays++;
+          penalizedLeaveDeduction += deductionAmount;
+        }
+
+        const dayData = {
+          date: dateString,
+          punchTime: 'Leave',
+          workingMinutes: 0,
+          permissionMinutes: 0,
+          salaryDeduction: deductionAmount,
+          issues: [`${leaveInfo.leaveType}${factor > 1 ? ` (${factor}X Penalty)` : ''}`],
+          detailedBreakdown: { intervals: [], deductions: [], permissionDetails: [] }
+        };
+        const reportEntry = {
+          date: formatDate(dateString),
+          outTime: 'Leave',
+          inTime: 'Leave',
+          delayTime: factor > 1 ? `${factor} Days` : '1 Day',
+          delayType: `${leaveInfo.leaveType}${factor > 1 ? ` (${factor}X)` : ''}`,
+          deductionAmount: formatCurrency(deductionAmount),
+          totalSalary: formatCurrency(0),
+          status: 'Leave'
+        };
+        report.push(reportEntry);
+        dailyBreakdown.push(dayData);
+      } else {
+        totalAbsentDays++;
+        currentMonthMissedCount++;
+
+        let factor = 1;
+        // Apply 2X penalty for absences if monthly limit exceeded
+        if (advancedLeaveDeduction && advancedLeaveDeduction.monthlyLimitRuleEnabled) {
+          const limit = advancedLeaveDeduction.monthlyLimit || 0;
+          if (currentMonthMissedCount > limit) {
+            factor = 2;
+          }
+        }
+
+        const deductionAmount = perDaySalary * factor;
+        const dayData = {
+          date: dateString,
+          punchTime: 'Absent',
+          workingMinutes: 0,
+          permissionMinutes: 0,
+          salaryDeduction: deductionAmount,
+          issues: [`Absent - ${factor}X salary deducted`],
+          detailedBreakdown: { intervals: [], deductions: [], permissionDetails: [] }
+        };
+        const reportEntry = {
+          date: formatDate(dateString),
+          outTime: 'Absent',
+          inTime: 'Absent',
+          delayTime: factor > 1 ? `${factor} Days` : 'Full Day',
+          delayType: `Absent - ${factor}X deduction`,
+          deductionAmount: formatCurrency(deductionAmount),
+          totalSalary: formatCurrency(0),
+          status: 'Absent'
+        };
+        totalAbsentDeduction += deductionAmount;
+        if (factor > 1) {
+          penalizedAbsentDays++;
+          penalizedAbsentDeduction += deductionAmount;
+        }
+        report.push(reportEntry);
+        dailyBreakdown.push(dayData);
+      }
     }
   };
 
   allDates.forEach(date => {
+    // Check if month has changed to reset missed count
+    const monthIdx = date.getMonth();
+    if (monthIdx !== lastMonthIdx) {
+      currentMonthMissedCount = 0;
+      lastMonthIdx = monthIdx;
+    }
+
     // Use consistent date format (YYYY-MM-DD) for matching to match groupedByDate keys
     const dateKey = date.toISOString().split('T')[0];
     const dateString = date.toISOString().split('T')[0];
@@ -1049,37 +1246,40 @@ const calculateWorkerProductivity = (productivityParameters) => {
   });
 
   const totalDays = dailyBreakdown.length;
-  const actualWorkingDays = totalWorkingDaysInPeriod - totalAbsentDays;
+  // Actual working days are days when the worker was physically present (subtract both absences and leaves)
+  const actualWorkingDays = totalWorkingDaysInPeriod - totalAbsentDays - totalLeaveDays;
   const productivityPercentage = totalExpectedMinutes > 0 ? (totalWorkingMinutes / totalExpectedMinutes) * 100 : 0;
   const averageWorkingHours = actualWorkingDays > 0 ? (totalWorkingMinutes / actualWorkingDays) / 60 : 0;
   const punctualityScore = actualWorkingDays > 0 ? ((actualWorkingDays - punctualityViolations) / actualWorkingDays) * 100 : 0;
   const attendanceRate = totalWorkingDaysInPeriod > 0 ? (actualWorkingDays / totalWorkingDaysInPeriod) * 100 : 0;
   const salaryFromWorkingMinutes = totalWorkingMinutes * perMinuteSalary;
-  const totalAbsentDeduction = totalAbsentDays * perDaySalary;
-  
-  // Calculate permission deduction by summing only non-absent entries
-  // Exclude absent days which are already accounted for in totalAbsentDeduction
+  // totalAbsentDeduction is now calculated incrementally in processMissedDay
+
+  // Calculate permission deduction by summing only non-absent and non-leave entries
+  // Exclude absent/leave days which are already accounted for separately
   const totalPermissionDeduction = report.reduce((sum, entry) => {
-    // Skip absent day entries to avoid double counting
-    if (entry.status === 'Absent' && entry.delayTime === 'Full Day') {
+    // Skip absent/leave day entries to avoid double counting
+    if ((entry.status === 'Absent' || entry.status === 'Leave') && (entry.delayTime === 'Full Day' || entry.delayTime.includes('Day'))) {
       return sum;
     }
     const deduction = parseFloat(entry.deductionAmount.replace('₹', ''));
     return sum + (isNaN(deduction) ? 0 : deduction);
   }, 0);
-  
-  const totalSalaryDeduction = totalAbsentDeduction + totalPermissionDeduction;
-  const finalSalary = Math.max(0, originalSalary - totalAbsentDeduction - totalPermissionDeduction);
+
+  const totalSalaryDeduction = totalAbsentDeduction + totalPermissionDeduction + totalLeaveDeduction;
+  const finalSalary = Math.max(0, originalSalary - totalSalaryDeduction);
   const finalSummary = {
     "Total Days in Period": totalDaysInPeriod,
     "Total Working Days": totalWorkingDaysInPeriod,
     "Total Sundays": totalSundaysInPeriod,
     "Total Holidays": totalHolidayCount,
     "Total Absent Days": totalAbsentDays,
+    "Total Leave Days": totalLeaveDays,
     "Actual Working Days": actualWorkingDays,
     "Total Working Hours": `${(totalWorkingMinutes / 60).toFixed(2)} hours`,
     "Total Permission Time": `${Math.round(totalPermissionMinutes)} minutes`,
     "Absent Deduction": formatCurrency(totalAbsentDeduction),
+    "Leave Deduction": formatCurrency(totalLeaveDeduction),
     "Permission Deduction": formatCurrency(totalPermissionDeduction),
     "Total Salary Deductions": formatCurrency(totalSalaryDeduction),
     "Attendance Rate": `${attendanceRate.toFixed(1)}%`,
@@ -1091,9 +1291,13 @@ const calculateWorkerProductivity = (productivityParameters) => {
     workingDays: actualWorkingDays,
     totalWorkingHours: totalWorkingMinutes / 60,
     averageWorkingHours,
-    totalPermissionTime: totalPermissionMinutes,
+    totalPermissionTime: parseFloat(totalPermissionMinutes.toFixed(2)),
     totalSalaryDeduction,
     totalAbsentDays,
+    penalizedLeaveDays,
+    penalizedLeaveDeduction,
+    penalizedAbsentDays,
+    penalizedAbsentDeduction,
     totalSundayCount: totalSundaysInPeriod,
     totalHolidayCount,
     productivityPercentage,
@@ -1120,9 +1324,15 @@ const calculateWorkerProductivity = (productivityParameters) => {
       totalSundaysInPeriod,
       totalHolidaysInPeriod,
       totalAbsentDays,
+      totalLeaveDays,
       actualWorkingDays,
       absentDeduction: totalAbsentDeduction,
+      leaveDeduction: totalLeaveDeduction,
       permissionDeduction: totalPermissionDeduction,
+      penalizedLeaveDays,
+      penalizedLeaveDeduction,
+      penalizedAbsentDays,
+      penalizedAbsentDeduction,
       worker: {
         name: worker.name || '',
         username: worker.username || '',
@@ -1157,80 +1367,80 @@ const calculateWorkerProductivity = (productivityParameters) => {
         if (!timeStr || timeStr === 'Absent') return 0;
         const [time, period] = timeStr.split(' ');
         const [hours, minutes] = time.split(':').map(Number);
-        
+
         let totalMinutes = hours * 60 + minutes;
-        
+
         if (period === 'AM') {
           if (hours === 12) totalMinutes -= 12 * 60;
         } else if (period === 'PM') {
           if (hours !== 12) totalMinutes += 12 * 60;
         }
-        
+
         return totalMinutes;
       };
-      
+
       const timeA = timeToMinutes(a.inTime);
       const timeB = timeToMinutes(b.inTime);
-      
+
       return timeA - timeB;
     })
   };
 };
 
 function emptyResponse() {
-    return {
-        totalDays: 0,
-        workingDays: 0,
-        totalWorkingHours: 0,
-        averageWorkingHours: 0,
-        totalPermissionTime: 0,
-        totalSalaryDeduction: 0,
-        totalAbsentDays: 0,
-        totalSundayCount: 0,
-        totalHolidayCount: 0,
-        productivityPercentage: 0,
-        dailyBreakdown: [],
-        summary: {
-            punctualityScore: 0,
-            attendanceRate: 0,
-            finalSalary: 0,
-            originalSalary: 0,
-            perMinuteSalary: 0,
-            totalWorkingDaysInPeriod: 0,
-            totalDaysInPeriod: 0,
-            totalSundaysInPeriod: 0,
-            totalHolidaysInPeriod: 0,
-            totalAbsentDays: 0,
-            actualWorkingDays: 0,
-            absentDeduction: 0,
-            permissionDeduction: 0,
-            worker: {
-                name: '',
-                username: '',
-                rfid: '',
-                department: '',
-                email: '',
-                salary: 0
-            }
-        },
-        configuration: {},
-        finalSummary: {
-            "Total Days in Period": 0,
-            "Total Working Days": 0,
-            "Total Sundays": 0,
-            "Total Holidays": 0,
-            "Total Absent Days": 0,
-            "Actual Working Days": 0,
-            "Total Working Hours": "0 hours",
-            "Total Permission Time": "0 minutes",
-            "Absent Deduction": "₹0.00",
-            "Permission Deduction": "₹0.00",
-            "Total Salary Deductions": "₹0.00",
-            "Attendance Rate": "0%",
-            "Final Salary": "₹0.00"
-        },
-        report: []
-    };
+  return {
+    totalDays: 0,
+    workingDays: 0,
+    totalWorkingHours: 0,
+    averageWorkingHours: 0,
+    totalPermissionTime: 0,
+    totalSalaryDeduction: 0,
+    totalAbsentDays: 0,
+    totalSundayCount: 0,
+    totalHolidayCount: 0,
+    productivityPercentage: 0,
+    dailyBreakdown: [],
+    summary: {
+      punctualityScore: 0,
+      attendanceRate: 0,
+      finalSalary: 0,
+      originalSalary: 0,
+      perMinuteSalary: 0,
+      totalWorkingDaysInPeriod: 0,
+      totalDaysInPeriod: 0,
+      totalSundaysInPeriod: 0,
+      totalHolidaysInPeriod: 0,
+      totalAbsentDays: 0,
+      actualWorkingDays: 0,
+      absentDeduction: 0,
+      permissionDeduction: 0,
+      worker: {
+        name: '',
+        username: '',
+        rfid: '',
+        department: '',
+        email: '',
+        salary: 0
+      }
+    },
+    configuration: {},
+    finalSummary: {
+      "Total Days in Period": 0,
+      "Total Working Days": 0,
+      "Total Sundays": 0,
+      "Total Holidays": 0,
+      "Total Absent Days": 0,
+      "Actual Working Days": 0,
+      "Total Working Hours": "0 hours",
+      "Total Permission Time": "0 minutes",
+      "Absent Deduction": "₹0.00",
+      "Permission Deduction": "₹0.00",
+      "Total Salary Deductions": "₹0.00",
+      "Attendance Rate": "0%",
+      "Final Salary": "₹0.00"
+    },
+    report: []
+  };
 }
 
 module.exports = {
