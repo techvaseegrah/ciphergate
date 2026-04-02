@@ -49,7 +49,7 @@ const getLeaveApplyStats = asyncHandler(async (req, res) => {
     subdomain,
     startDate: { $gte: startOfMonth, $lte: endOfMonth },
     status: { $ne: 'Rejected' },
-    leaveType: { $ne: 'Permission' } // Count full leaves, not permissions? Prompt says "2 days salary for 1 day leave"
+    ...(advancedSettings.includePermissionPenalty ? {} : { leaveType: { $ne: 'Permission' } })
   });
 
   // 2. Individual Attendance Stats (Current Month)
@@ -243,7 +243,7 @@ const createLeave = asyncHandler(async (req, res) => {
         startDate: { $lte: endOfMonth },
         endDate: { $gte: startOfMonth },
         status: { $ne: 'Rejected' },
-        leaveType: { $ne: 'Permission' }
+        ...(advancedSettings.includePermissionPenalty ? {} : { leaveType: { $ne: 'Permission' } })
       });
 
       const workerAttendances = await Attendance.find({
@@ -283,7 +283,7 @@ const createLeave = asyncHandler(async (req, res) => {
 
       const limit = advancedSettings.monthlyLimit || 0;
       if (effectiveLeaveCount >= limit) {
-        deductionFactor = 2;
+        deductionFactor = advancedSettings.deductionMultiplier || 2;
         penaltyReasons.monthlyLimitRule = true;
       }
     }
@@ -324,7 +324,7 @@ const createLeave = asyncHandler(async (req, res) => {
       const isPersonalLow = isEmployeeEnabled && workerAttendanceRate < employeeVal;
 
       if (isCompanyLow || isDeptLow || isPersonalLow) {
-        deductionFactor = 2;
+        deductionFactor = advancedSettings.deductionMultiplier || 2;
         penaltyReasons.attendanceRule = true;
       }
     }

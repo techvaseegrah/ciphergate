@@ -12,7 +12,8 @@ import {
   FaClipboardList,
   FaBook,
   FaGraduationCap,
-  FaCommentDots
+  FaCommentDots,
+  FaTasks
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyLeaves } from '../../services/leaveService';
@@ -106,6 +107,11 @@ const WorkerLayout = ({ children }) => {
       ]
     },
     {
+      to: '/worker/work-allocation',
+      icon: <FaTasks />,
+      label: 'Work Allocation'
+    },
+    {
       to: '/worker/food-request',
       icon: <FaPizzaSlice />,
       label: 'Food Request'
@@ -159,7 +165,7 @@ const WorkerLayout = ({ children }) => {
       />
 
       {/* Main content area - adjusted for sidebar */}
-      <div className="flex-1 md:ml-64 w-full overflow-x-hidden"> 
+      <div className="flex-1 md:ml-64 w-full overflow-x-hidden">
         <main className="p-4 md:p-6 min-h-screen w-full overflow-x-hidden">
           {children}
         </main>

@@ -236,10 +236,10 @@ const ApplyForLeave = () => {
               <div className="bg-red-500 p-2 rounded-xl mr-4 animate-pulse">
                 <FiAlertTriangle className="text-white h-6 w-6" />
               </div>
-              <h2 className="text-xl font-black tracking-tight">ATTENTION: 2X DEDUCTION APPLIES</h2>
+              <h2 className="text-xl font-black tracking-tight">ATTENTION: {stats?.advancedSettings?.deductionMultiplier || 2}X DEDUCTION APPLIES</h2>
             </div>
             <p className="text-gray-400 text-sm mb-6 leading-relaxed max-w-lg">
-              Based on current system rules, this leave will result in a <strong>2 days salary deduction for 1 day leave</strong> due to:
+              Based on current system rules, this leave will result in a <strong>{stats?.advancedSettings?.deductionMultiplier || 2} days salary deduction for 1 day leave</strong> due to:
             </p>
             <div className="flex flex-wrap gap-2">
               {stats.reasons.attendance && (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUsers, FaTasks, FaUtensils, FaCalendarAlt, FaComments, FaArrowRight, FaEllipsisV, FaBuilding } from 'react-icons/fa';
+import { FaUsers, FaTasks, FaUtensils, FaCalendarAlt, FaComments, FaArrowRight, FaEllipsisV, FaBuilding, FaChartBar } from 'react-icons/fa';
 import { getWorkers } from '../../services/workerService';
 import { getAllTasks } from '../../services/taskService';
 import { getAllLeaves } from '../../services/leaveService';
@@ -9,7 +9,8 @@ import { getTopics } from '../../services/topicService';
 import { getColumns } from '../../services/columnService';
 import { getMealsSummary } from '../../services/foodRequestService';
 import { getDepartments } from '../../services/departmentService';
-import { getAttendanceSummary } from '../../services/attendanceService'; // Added import
+import { getAttendanceSummary } from '../../services/attendanceService';
+import { getTickets } from '../../services/ticketService';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
@@ -57,6 +58,39 @@ const CircularProgress = ({ percentage, size = 120, strokeWidth = 8, color = '#0
   );
 };
 
+const calculateKpiStats = (tickets) => {
+  const closedTickets = tickets.filter(t => t.status === 'Done');
+  let totalDays = 0;
+
+  // Average cycle time calculation
+  closedTickets.forEach(t => {
+    const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
+    if (doneStatus) {
+      totalDays += (new Date(doneStatus.changedAt) - new Date(t.createdAt)) / (1000 * 60 * 60 * 24);
+    }
+  });
+  const avgCycleTime = closedTickets.length > 0 ? (totalDays / closedTickets.length).toFixed(1) : 0;
+
+  // Closed this week
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const closedThisWeek = closedTickets.filter(t => {
+    const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
+    return doneStatus && new Date(doneStatus.changedAt) >= oneWeekAgo;
+  }).length;
+
+  // SLA breach rate (mock logic: closed tickets taking > 7 days)
+  const breached = closedTickets.filter(t => {
+    const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
+    if (!doneStatus) return false;
+    const days = (new Date(doneStatus.changedAt) - new Date(t.createdAt)) / (1000 * 60 * 60 * 24);
+    return days > 7;
+  }).length;
+  const slaBreachRate = closedTickets.length > 0 ? Math.round((breached / closedTickets.length) * 100) : 0;
+
+  return { avgCycleTime, closedThisWeek, slaBreachRate };
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -75,6 +109,17 @@ const Dashboard = () => {
       total: 0,
       unread: 0,
     },
+    tickets: {
+      todo: 0,
+      inProgress: 0,
+      review: 0,
+      done: 0,
+    },
+    kpi: {
+      avgCycleTime: 0,
+      closedThisWeek: 0,
+      slaBreachRate: 0,
+    }
   });
   const [isLoading, setIsLoading] = useState(true);
   const [departments, setDepartments] = useState([]); // Changed from topWorkers to departments
@@ -94,7 +139,8 @@ const Dashboard = () => {
         getAllComments({ subdomain }),
         getMealsSummary({ subdomain }),
         getDepartments({ subdomain }),
-        getAttendanceSummary({ subdomain })
+        getAttendanceSummary({ subdomain }),
+        getTickets({ subdomain })
       ]);
 
       const workersData = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -106,6 +152,7 @@ const Dashboard = () => {
       const mealsSummary = results[6].status === 'fulfilled' ? results[6].value : { total: 0 };
       const departmentsDataRaw = results[7].status === 'fulfilled' ? results[7].value : [];
       const attendanceSummaryData = results[8].status === 'fulfilled' ? results[8].value : { percentage: 0 };
+      const ticketsData = results[9].status === 'fulfilled' ? results[9].value : [];
 
       // Ensure array type safety
       const departmentsDataSafe = Array.isArray(departmentsDataRaw) ? departmentsDataRaw : [];
@@ -139,6 +186,13 @@ const Dashboard = () => {
           total: commentsData.length,
           unread: unreadComments.length,
         },
+        tickets: {
+          todo: ticketsData.filter(t => t.status === 'To Do').length,
+          inProgress: ticketsData.filter(t => t.status === 'In Progress').length,
+          review: ticketsData.filter(t => t.status === 'Review').length,
+          done: ticketsData.filter(t => t.status === 'Done').length,
+        },
+        kpi: calculateKpiStats(ticketsData)
       });
 
       // Set pending leaves for display
@@ -232,13 +286,73 @@ const Dashboard = () => {
           colorClass="bg-purple-500"
           link="/admin/topics"
         />
-        <StatCard
-          title="Food Requests"
-          value={stats.foodRequests}
-          icon={FaUtensils}
-          colorClass="bg-orange-400"
-          link="/admin/food-requests"
-        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Work Allocation Widget */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow group">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-teal-50 rounded-lg group-hover:bg-teal-100 transition-colors">
+                <FaTasks className="text-teal-600" />
+              </div>
+              <h2 className="text-lg font-black text-gray-800">Work Allocation Board</h2>
+            </div>
+            <Link to="/admin/work-allocation" className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 uppercase tracking-wider bg-teal-50 px-3 py-1.5 rounded-full transition-all">View Board <FaArrowRight size={10} /></Link>
+          </div>
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">To Do</p>
+              <p className="text-2xl font-black text-slate-800">{stats.tickets.todo}</p>
+            </div>
+            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+              <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest mb-1">Active</p>
+              <p className="text-2xl font-black text-blue-800">{stats.tickets.inProgress}</p>
+            </div>
+            <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+              <p className="text-[10px] text-purple-500 font-black uppercase tracking-widest mb-1">Review</p>
+              <p className="text-2xl font-black text-purple-800">{stats.tickets.review}</p>
+            </div>
+            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-1">Done</p>
+              <p className="text-2xl font-black text-emerald-800">{stats.tickets.done}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI Management Widget */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow group">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                <FaChartBar className="text-indigo-600" />
+              </div>
+              <h2 className="text-lg font-black text-gray-800">Performance KPI</h2>
+            </div>
+            <Link to="/admin/kpi-management" className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 uppercase tracking-wider bg-indigo-50 px-3 py-1.5 rounded-full transition-all">Analytics <FaArrowRight size={10} /></Link>
+          </div>
+          <div className="grid grid-cols-3 gap-0 divide-x divide-gray-100 text-center">
+            <div className="px-3">
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Turnaround</p>
+              <div className="flex items-baseline justify-center gap-1">
+                <p className="text-2xl font-black text-slate-800">{stats.kpi.avgCycleTime}</p>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Days</span>
+              </div>
+            </div>
+            <div className="px-3">
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Closed (7d)</p>
+              <p className="text-2xl font-black text-slate-800">{stats.kpi.closedThisWeek}</p>
+            </div>
+            <div className="px-3">
+              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">SLA Index</p>
+              <div className="flex items-center justify-center gap-1">
+                <p className={`text-2xl font-black ${stats.kpi.slaBreachRate > 20 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {100 - stats.kpi.slaBreachRate}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

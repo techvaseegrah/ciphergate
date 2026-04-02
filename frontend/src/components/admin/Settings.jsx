@@ -128,7 +128,8 @@ const Settings = () => {
                 department: { value: 80, enabled: true },
                 employee: { value: 90, enabled: true }
             },
-            monthlyLimit: 2
+            monthlyLimit: 2,
+            deductionMultiplier: 2
         }
     });
 
@@ -196,7 +197,8 @@ const Settings = () => {
                         enabled: fetchedSettings.advancedLeaveDeduction?.thresholds?.employee?.enabled ?? true
                     }
                 },
-                monthlyLimit: fetchedSettings.advancedLeaveDeduction?.monthlyLimit || 2
+                monthlyLimit: fetchedSettings.advancedLeaveDeduction?.monthlyLimit || 2,
+                deductionMultiplier: fetchedSettings.advancedLeaveDeduction?.deductionMultiplier || 2
             };
 
             const finalSettings = {
@@ -1029,9 +1031,42 @@ const Settings = () => {
                                 </div>
                                 Advanced Leave Deduction System
                             </h3>
-                            <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-100">
-                                PREMIUM FEATURE
-                            </span>
+                        </div>
+
+                        {/* Global Multiplier Setting */}
+                        <div className="mb-8 p-6 bg-red-50/30 rounded-2xl border-2 border-dashed border-red-100">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <h4 className="text-lg font-bold text-gray-800 flex items-center">
+                                        <FiActivity className="mr-2 text-red-500" />
+                                        Penalty Multiplier Configuration
+                                    </h4>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        Define how many times the daily salary should be deducted when an employee violates the leave policies below.
+                                    </p>
+                                </div>
+                                <div className="flex items-center bg-white p-2 rounded-xl border border-red-200 shadow-sm self-start md:self-center">
+                                    <span className="px-3 text-sm font-bold text-gray-500 uppercase tracking-wider">Factor</span>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={settings.advancedLeaveDeduction.deductionMultiplier}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                handleAdvancedSettingsChange('deductionMultiplier', val === '' ? '' : parseInt(val));
+                                            }}
+                                            onBlur={(e) => {
+                                                if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                                                    handleAdvancedSettingsChange('deductionMultiplier', 1);
+                                                }
+                                            }}
+                                            className="w-24 px-4 py-2 bg-red-50 border-none rounded-lg focus:ring-2 focus:ring-red-500 font-black text-2xl text-red-700 text-center"
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xl font-black text-red-400 pointer-events-none">X</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1046,7 +1081,7 @@ const Settings = () => {
                                         />
                                     </div>
                                     <p className="text-sm text-gray-500 mb-6">
-                                        Apply 2X deduction (2 days salary for 1 day leave) if attendance falls below thresholds.
+                                        Apply {settings.advancedLeaveDeduction.deductionMultiplier}X deduction ({settings.advancedLeaveDeduction.deductionMultiplier} days salary for 1 day leave) if attendance falls below thresholds.
                                     </p>
 
                                     {settings.advancedLeaveDeduction.attendanceRuleEnabled && (
@@ -1095,11 +1130,11 @@ const Settings = () => {
                                         />
                                     </div>
                                     <p className="text-sm text-gray-500 mb-6">
-                                        Penalty of 2X deduction applies once an employee exceeds their monthly leave limit.
+                                        Penalty of {settings.advancedLeaveDeduction.deductionMultiplier}X deduction applies once an employee exceeds their monthly leave limit.
                                     </p>
 
-                                    {settings.advancedLeaveDeduction.monthlyLimitRuleEnabled && (
-                                        <div className="pt-4 border-t border-gray-200">
+                                     {settings.advancedLeaveDeduction.monthlyLimitRuleEnabled && (
+                                        <div className="pt-4 border-t border-gray-200 space-y-6">
                                             <div className="flex items-center">
                                                 <div className="flex-grow">
                                                     <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Monthly Limit (Days)</label>
@@ -1118,6 +1153,20 @@ const Settings = () => {
                                                     <FiClock className="text-red-600 h-6 w-6" />
                                                 </div>
                                             </div>
+
+                                            {/* New Permission Toggle */}
+                                            <div className="flex items-center justify-between p-3 bg-white border border-red-100 rounded-lg shadow-sm">
+                                                <div>
+                                                    <label className="text-sm font-bold text-gray-700">Include Permission in Penalty</label>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Apply {settings.advancedLeaveDeduction.deductionMultiplier}X penalty to permission/late time if limit is exceeded.
+                                                    </p>
+                                                </div>
+                                                <CustomToggle
+                                                    checked={settings.advancedLeaveDeduction.includePermissionPenalty}
+                                                    onChange={() => handleAdvancedSettingsChange('includePermissionPenalty', !settings.advancedLeaveDeduction.includePermissionPenalty)}
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1131,7 +1180,8 @@ const Settings = () => {
                                 <p className="font-bold mb-1">How Deduction Factor Works:</p>
                                 <ul className="list-disc ml-4 space-y-1">
                                     <li>When enabled, system evaluates BOTH attendance and limits.</li>
-                                    <li>If ANY condition fails (e.g. low dept attendance OR limit exceeded), <strong>2X deduction factor</strong> is recorded for that specific leave request.</li>
+                                    <li>If ANY condition fails (e.g. low dept attendance OR limit exceeded), <strong>{settings.advancedLeaveDeduction.deductionMultiplier}X deduction factor</strong> is recorded for that specific leave request.</li>
+                                    <li>If <strong>Include Permission in Penalty</strong> is on, the multiplier applies to late arrival/early departure time as well.</li>
                                 </ul>
                             </div>
                         </div>

@@ -71,6 +71,7 @@ const startServer = async () => {
     const fineRoutes = require('./routes/fineRoutes');
     const invoiceRoutes = require('./routes/invoiceRoutes');
     const communityFundRoutes = require('./routes/communityFundRoutes'); // ADD THIS
+    const ticketRoutes = require('./routes/ticketRoutes');
     const githubRoutes = require('./routes/githubRoutes');
 
     // Test App routes
@@ -103,6 +104,7 @@ const startServer = async () => {
     app.use('/api/fines', fineRoutes);
     app.use('/api/invoices', invoiceRoutes);
     app.use('/api/community-fund', communityFundRoutes); // ADD THIS
+    app.use('/api/tickets', ticketRoutes);
     app.use('/api/certificates', require('./routes/certificateRoutes'));
     app.use('/api/github', githubRoutes);
 

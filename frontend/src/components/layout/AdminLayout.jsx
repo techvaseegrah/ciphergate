@@ -62,6 +62,8 @@ import AcceptanceLetter from '../admin/AcceptanceLetter';
 import RelievingLetter from '../admin/RelievingLetter';
 import ExperienceCertificate from '../admin/ExperienceCertificate';
 import CommunityFund from '../admin/CommunityFund'; // ADD THIS
+import WorkAllocation from '../admin/WorkAllocation';
+import KpiManagement from '../admin/KpiManagement';
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -176,7 +178,16 @@ const AdminLayout = () => {
       icon: <FaBuilding />,
       label: 'Departments'
     },
-
+    {
+      to: '/admin/work-allocation',
+      icon: <FaTasks />,
+      label: 'Work Allocation'
+    },
+    {
+      to: '/admin/kpi-management',
+      icon: <FaChartBar />,
+      label: 'KPI Management'
+    },
     {
       to: '/admin/food-requests',
       icon: <FaPizzaSlice />,
@@ -328,6 +339,8 @@ const AdminLayout = () => {
             <Route path="attendance" element={<AttendanceManagement />} />
             <Route path="attendance/:id" element={<WorkerAttendance />} />
             <Route path="departments" element={<DepartmentManagement />} />
+            <Route path="work-allocation" element={<WorkAllocation />} />
+            <Route path="kpi-management" element={<KpiManagement />} />
             <Route path="columns" element={<ColumnManagement />} />
             <Route path="tasks" element={<TaskManagement />} />
             <Route path="leaves" element={<LeaveManagement />} />

@@ -14,6 +14,7 @@ import FaceAttendancePage from '../../components/worker/FaceAttendancePage'; // 
 import RFIDAttendance from '../../components/worker/RFIDAttendance'; // Import RFIDAttendance
 import WorkerInvoiceManagement from '../../components/worker/WorkerInvoiceManagement'; // Import Invoice Management
 import Communication from '../../pages/Communication';
+import WorkerWorkAllocation from '../../components/worker/WorkerWorkAllocation';
 
 const WorkerDashboard = () => {
   // State to track if a test is in progress
@@ -40,7 +41,8 @@ const WorkerDashboard = () => {
         <Route path="/rfid-attendance" element={<RFIDAttendance />} /> {/* Add RFIDAttendance route */}
         <Route path="/invoices" element={<WorkerInvoiceManagement />} /> {/* Add Invoice Management route */}
         <Route path="communication" element={<Communication />} />
-        
+        <Route path="/work-allocation" element={<WorkerWorkAllocation />} />
+
         {/* Redirect to dashboard for unknown routes */}
         <Route path="*" element={<Navigate to="/worker" replace />} />
       </Routes>

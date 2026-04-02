@@ -33,8 +33,16 @@ const WorkerLogin = () => {
   const manualSubdomainInputRef = useRef(null);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isWorker, isAdmin, loading: authLoading } = useAuth();
   const { subdomain, setSubdomain } = useContext(appContext);
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      if (isWorker) navigate('/worker');
+      else if (isAdmin) navigate('/admin');
+    }
+  }, [isAuthenticated, isWorker, isAdmin, authLoading, navigate]);
 
   const workersPerPage = 12;
   const totalWorkers = filteredWorkers.length;
@@ -181,9 +189,9 @@ const WorkerLogin = () => {
 
     if (currentPage > 1) {
       pageNumbers.push(
-        <motion.button 
-          key="prev" 
-          onClick={() => setCurrentPage(currentPage - 1)} 
+        <motion.button
+          key="prev"
+          onClick={() => setCurrentPage(currentPage - 1)}
           className="p-2 bg-[#0d9488] text-white rounded-full hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488] transition-colors"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -198,11 +206,10 @@ const WorkerLogin = () => {
         <motion.button
           key={i}
           onClick={() => setCurrentPage(i)}
-          className={`w-9 h-9 rounded-full flex items-center justify-center ${
-            currentPage === i 
-              ? 'bg-[#0d9488] text-white' 
-              : 'bg-gray-200 text-black hover:bg-[#0d9488] hover:text-white'
-          } transition-colors border-2 border-[#0d9488]`}
+          className={`w-9 h-9 rounded-full flex items-center justify-center ${currentPage === i
+            ? 'bg-[#0d9488] text-white'
+            : 'bg-gray-200 text-black hover:bg-[#0d9488] hover:text-white'
+            } transition-colors border-2 border-[#0d9488]`}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
         >
@@ -213,9 +220,9 @@ const WorkerLogin = () => {
 
     if (currentPage < totalPages) {
       pageNumbers.push(
-        <motion.button 
-          key="next" 
-          onClick={() => setCurrentPage(currentPage + 1)} 
+        <motion.button
+          key="next"
+          onClick={() => setCurrentPage(currentPage + 1)}
           className="p-2 bg-[#0d9488] text-white rounded-full hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488] transition-colors"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
@@ -241,42 +248,42 @@ const WorkerLogin = () => {
           <motion.div
             key={particle.id}
             className="absolute rounded-full bg-gray-200/20"
-            initial={{ 
-              x: `${particle.x}%`, 
-              y: `${particle.y}%`, 
-              opacity: 0.1 + Math.random() * 0.3 
+            initial={{
+              x: `${particle.x}%`,
+              y: `${particle.y}%`,
+              opacity: 0.1 + Math.random() * 0.3
             }}
-            animate={{ 
+            animate={{
               x: [`${particle.x}%`, `${particle.x + (Math.random() * 10 - 5)}%`],
               y: [`${particle.y}%`, `${particle.y - 20}%`],
               opacity: [0.1 + Math.random() * 0.3, 0]
             }}
-            transition={{ 
+            transition={{
               repeat: Infinity,
               duration: particle.duration,
               delay: particle.delay,
               ease: "linear"
             }}
-            style={{ 
-              width: `${particle.size}px`, 
-              height: `${particle.size}px` 
+            style={{
+              width: `${particle.size}px`,
+              height: `${particle.size}px`
             }}
           />
         ))}
-        
+
         {/* Gradient Orbs */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
-        
+
         <div className="container mx-auto relative z-10 flex items-center justify-center min-h-full w-full">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="w-[95%] max-w-md z-10 bg-white backdrop-blur-sm rounded-2xl p-6 shadow-2xl border border-gray-200 mx-auto"
           >
             <div className="mb-6 text-center">
-              <motion.h1 
+              <motion.h1
                 className="text-2xl sm:text-3xl font-bold text-[#0d9488]"
                 initial={{ y: -20 }}
                 animate={{ y: 0 }}
@@ -284,7 +291,7 @@ const WorkerLogin = () => {
               >
                 Enter Your Company Name
               </motion.h1>
-              <motion.div 
+              <motion.div
                 className="h-1 bg-[#0d9488] rounded-full w-0 mx-auto mt-2"
                 initial={{ width: 0 }}
                 animate={{ width: "60px" }}
@@ -293,14 +300,14 @@ const WorkerLogin = () => {
             </div>
 
             <form onSubmit={handleSubdomainSubmit} className="space-y-4">
-            <motion.div
+              <motion.div
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
                 <label className="text-black text-sm font-medium mb-2 block">Company Domain</label>
                 <input
-                  ref={manualSubdomainInputRef} 
+                  ref={manualSubdomainInputRef}
                   placeholder="e.g. company123"
                   value={manualSubdomain}
                   onChange={(e) => setManualSubdomain(e.target.value)}
@@ -308,18 +315,18 @@ const WorkerLogin = () => {
                   required
                 />
               </motion.div>
-              
+
               <motion.button
                 type="submit"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ 
-                  type: "spring", 
-                  duration: 0.5, 
+                transition={{
+                  type: "spring",
+                  duration: 0.5,
                   delay: 0.5,
-                  stiffness: 120 
+                  stiffness: 120
                 }}
                 className="w-full py-3 bg-[#0d9488] text-white rounded-lg hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488] transition-colors font-medium"
               >
@@ -341,35 +348,35 @@ const WorkerLogin = () => {
         <motion.div
           key={particle.id}
           className="absolute rounded-full bg-gray-200/20"
-          initial={{ 
-            x: `${particle.x}%`, 
-            y: `${particle.y}%`, 
-            opacity: 0.1 + Math.random() * 0.3 
+          initial={{
+            x: `${particle.x}%`,
+            y: `${particle.y}%`,
+            opacity: 0.1 + Math.random() * 0.3
           }}
-          animate={{ 
+          animate={{
             x: [`${particle.x}%`, `${particle.x + (Math.random() * 10 - 5)}%`],
             y: [`${particle.y}%`, `${particle.y - 20}%`],
             opacity: [0.1 + Math.random() * 0.3, 0]
           }}
-          transition={{ 
+          transition={{
             repeat: Infinity,
             duration: particle.duration,
             delay: particle.delay,
             ease: "linear"
           }}
-          style={{ 
-            width: `${particle.size}px`, 
-            height: `${particle.size}px` 
+          style={{
+            width: `${particle.size}px`,
+            height: `${particle.size}px`
           }}
         />
       ))}
-      
+
       {/* Gradient Orbs */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
-      
+
       <div className="container mx-auto relative z-10">
-        <motion.div 
+        <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -429,7 +436,7 @@ const WorkerLogin = () => {
             <Spinner size="lg" className="text-[#0d9488]" />
           </div>
         ) : (filteredWorkers.length === 0 && (subdomain && subdomain !== 'main')) ? ( // This line was modified previously
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
@@ -445,11 +452,11 @@ const WorkerLogin = () => {
               <IoMdRefresh />
             </motion.button>
           </motion.div>
-        ) : filteredWorkers.length === 0 ? ( 
-          null 
+        ) : filteredWorkers.length === 0 ? (
+          null
         ) : (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -463,11 +470,10 @@ const WorkerLogin = () => {
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   onClick={() => setSelectedWorker(worker)}
                   whileHover={{ scale: 1.05, y: -5 }}
-                  className={`cursor-pointer p-4 rounded-lg text-center transition-all ${
-                    selectedWorker?._id === worker._id
-                      ? 'bg-white border-2 border-[#0d9488] shadow-lg shadow-[#0d9488]/20'
-                      : 'bg-white border border-gray-300 hover:border-[#0d9488]'
-                  }`}
+                  className={`cursor-pointer p-4 rounded-lg text-center transition-all ${selectedWorker?._id === worker._id
+                    ? 'bg-white border-2 border-[#0d9488] shadow-lg shadow-[#0d9488]/20'
+                    : 'bg-white border border-gray-300 hover:border-[#0d9488]'
+                    }`}
                 >
                   <div className="w-16 h-16 rounded-full mx-auto mb-3 overflow-hidden border-2 border-[#0d9488]/30">
                     <img
@@ -497,7 +503,7 @@ const WorkerLogin = () => {
         {/* Worker Login Modal */}
         <AnimatePresence>
           {selectedWorker && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -506,7 +512,7 @@ const WorkerLogin = () => {
                 if (e.target === e.currentTarget) setSelectedWorker(null);
               }}
             >
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}

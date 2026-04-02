@@ -182,6 +182,15 @@ const settingsSchema = mongoose.Schema({
       type: Number,
       default: 2,
       min: 0
+    },
+    deductionMultiplier: {
+      type: Number,
+      default: 2,
+      min: 1
+    },
+    includePermissionPenalty: {
+      type: Boolean,
+      default: false
     }
   },
 

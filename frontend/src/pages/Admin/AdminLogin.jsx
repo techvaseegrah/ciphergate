@@ -26,8 +26,16 @@ const AdminLogin = () => {
     const [isOtpSent, setIsOtpSent] = useState(false);
     const [isOtpVerified, setIsOtpVerified] = useState(false);
 
-    const { login } = useAuth();
+    const { login, isAuthenticated, isAdmin, isWorker, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+
+    // Auto-redirect if already logged in
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) {
+            if (isWorker) navigate('/worker');
+            else if (isAdmin) navigate('/admin');
+        }
+    }, [isAuthenticated, isWorker, isAdmin, authLoading, navigate]);
 
     // Generate floating particles for background animation
     const particles = Array.from({ length: 20 }, (_, i) => ({
