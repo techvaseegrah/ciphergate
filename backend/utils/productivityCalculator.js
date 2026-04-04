@@ -912,6 +912,8 @@ const calculateWorkerProductivity = (productivityParameters) => {
     let pairReports = [];
     let customTotalBreaks = 0;
 
+    const pairs = pairPunches(sortedPunches, workEnd, workEndTime, workStart);
+
     // PRE-CALCULATE total permission minutes for the day to see if it triggers an advanced penalty
     let tempDayPermissionMinutes = 0;
     pairs.forEach((pair, index) => {
