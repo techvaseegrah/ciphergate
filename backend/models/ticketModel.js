@@ -46,6 +46,12 @@ const ticketSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    startDate: {
+        type: Date
+    },
+    endDate: {
+        type: Date
+    },
     labels: [{
         type: String,
         trim: true
@@ -56,7 +62,20 @@ const ticketSchema = new mongoose.Schema({
     },
     subdomain: {
         type: String
-    }
+    },
+    checklist: [{
+        text: {
+            type: String,
+            required: true
+        },
+        completed: {
+            type: Boolean,
+            default: false
+        },
+        completedAt: {
+            type: Date
+        }
+    }]
 }, { timestamps: true });
 
 // Middleware to record status history

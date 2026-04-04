@@ -59,7 +59,7 @@ const WorkerLayout = ({ children }) => {
         // Add unread admin replies to notification count
         setNewComments(newUnreadComments + unreadAdminReplies.length);
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        console.error('Failed to fetch notifications:', error.message || error);
       }
     };
 

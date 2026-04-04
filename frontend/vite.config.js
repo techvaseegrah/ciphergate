@@ -8,7 +8,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            injectRegister: 'auto',
+            injectRegister: null,
             includeAssets: ['favicon.ico', 'appicon.png', 'logo.png'],
             manifestFilename: 'manifest.json',
             manifest: {
@@ -79,6 +79,7 @@ export default defineConfig({
                     '**/models/**',
                     'manifest.json'
                 ],
+                globIgnores: ['registerSW.js'],
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

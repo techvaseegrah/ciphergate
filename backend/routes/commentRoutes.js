@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getWorkerComments, 
-  getMyComments, 
-  getAllComments, 
-  createComment, 
-  addReply, 
+const {
+  getWorkerComments,
+  getMyComments,
+  getAllComments,
+  createComment,
+  addReply,
   markAdminRepliesAsRead,
   getUnreadAdminReplies,
-  markCommentAsRead 
+  markCommentAsRead
 } = require('../controllers/commentController');
 
 const { protect, adminOnly, adminOrWorker, workerOnly } = require('../middleware/authMiddleware');

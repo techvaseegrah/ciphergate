@@ -179,14 +179,21 @@ const AdminLayout = () => {
       label: 'Departments'
     },
     {
-      to: '/admin/work-allocation',
+      label: 'Work Allocation',
+      isDropdown: true,
       icon: <FaTasks />,
-      label: 'Work Allocation'
-    },
-    {
-      to: '/admin/kpi-management',
-      icon: <FaChartBar />,
-      label: 'KPI Management'
+      children: [
+        {
+          to: '/admin/work-allocation',
+          icon: <FaTasks />,
+          label: 'Work Allocation'
+        },
+        {
+          to: '/admin/kpi-management',
+          icon: <FaChartBar />,
+          label: 'KPI Management'
+        }
+      ]
     },
     {
       to: '/admin/food-requests',

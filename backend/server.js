@@ -141,11 +141,17 @@ const startServer = async () => {
     // Error handler (should be last)
     app.use(errorHandler);
 
+    const http = require('http');
+    const server = http.createServer(app);
+    const { init: initSocket } = require('./utils/socket');
+    initSocket(server);
+
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🌟 Server running on port ${PORT}`);
       console.log(`📧 Email service: ${process.env.EMAIL_USER ? 'Configured' : 'Not configured'}`);
       console.log(`🗄️ Database: Connected successfully`);
+      console.log(`🔌 Socket.io: Initialized`);
     });
   } catch (error) {
     console.error('❌ Failed to start server due to database connection error:', error.message);

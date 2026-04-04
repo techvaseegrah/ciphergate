@@ -14,19 +14,36 @@ const protect = asyncHandler(async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Try to find the user in Admin collection first
-    let user = await Admin.findById(decoded.id).select('-password');
-    if (user) {
-      req.user = user;
-      req.user.role = 'admin';
-    } else {
-      // Then try Worker collection
-      user = await Worker.findById(decoded.id).select('-password');
+    // Use the role from the token to find the user in the correct collection
+    if (decoded.role === 'admin') {
+      const user = await Admin.findById(decoded.id).select('-password');
       if (!user) {
-        return res.status(401).json({ message: 'User not found' });
+        return res.status(401).json({ message: 'Admin not found' });
       }
       req.user = user;
+      req.user.role = 'admin';
+    } else if (decoded.role === 'worker') {
+      const user = await Worker.findById(decoded.id).select('-password');
+      if (!user) {
+        return res.status(401).json({ message: 'Worker not found' });
+      }
+      // Convert to object to ensure we can add the role property if it's not in the schema
+      req.user = user.toObject();
       req.user.role = 'worker';
+    } else {
+      // Fallback for older tokens or if role is missing in token
+      let user = await Admin.findById(decoded.id).select('-password');
+      if (user) {
+        req.user = user;
+        req.user.role = 'admin';
+      } else {
+        user = await Worker.findById(decoded.id).select('-password');
+        if (!user) {
+          return res.status(401).json({ message: 'User not found' });
+        }
+        req.user = user.toObject();
+        req.user.role = 'worker';
+      }
     }
 
     next();

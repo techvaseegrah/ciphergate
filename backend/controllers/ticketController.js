@@ -1,4 +1,41 @@
 const Ticket = require('../models/ticketModel');
+const { getIO } = require('../utils/socket');
+
+const parseChecklist = (description, existingChecklist = []) => {
+    if (!description) return [];
+
+    const lines = description.split('\n');
+    const checklist = [];
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        // Match checkbox [ ] or [x] OR bullets (•, -, *) OR numbered lists (1. , 2. )
+        // Priority to [ ] or [x]
+        const checkboxMatch = trimmed.match(/^\[([ x])\]\s+(.+)$/i);
+        const bulletMatch = trimmed.match(/^([•\-\*]|\d+\.)\s+(.+)$/);
+
+        if (checkboxMatch) {
+            const isCompleted = checkboxMatch[1].toLowerCase() === 'x';
+            const text = checkboxMatch[2].trim();
+            checklist.push({
+                text,
+                completed: isCompleted,
+                completedAt: isCompleted ? new Date() : null
+            });
+        } else if (bulletMatch) {
+            const text = bulletMatch[2].trim();
+            const existing = existingChecklist.find(item => item.text === text);
+            checklist.push({
+                text,
+                completed: existing ? existing.completed : false,
+                completedAt: existing ? existing.completedAt : null
+            });
+        }
+    });
+
+    return checklist;
+};
+
 
 // @desc    Get all tickets
 // @route   GET /api/tickets
@@ -31,7 +68,7 @@ exports.getTickets = async (req, res) => {
 // @access  Private/Admin
 exports.createTicket = async (req, res) => {
     try {
-        const { title, description, assignee, priority, status, issueType, storyPoints, labels } = req.body;
+        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate } = req.body;
         const subdomain = req.user?.subdomain || req.body.subdomain;
         const reporter = req.user?._id;
 
@@ -45,13 +82,20 @@ exports.createTicket = async (req, res) => {
             storyPoints: storyPoints ? Number(storyPoints) : 0,
             labels: labels || [],
             reporter,
-            subdomain
+            subdomain,
+            startDate,
+            endDate,
+            checklist: parseChecklist(description)
         });
 
         const savedTicket = await newTicket.save();
 
         // Populate assignee before returning
         await savedTicket.populate('assignee', 'name username');
+
+        // Socket emission
+        const io = getIO();
+        io.to(subdomain).emit('ticket:created', savedTicket);
 
         res.status(201).json(savedTicket);
     } catch (error) {
@@ -65,7 +109,7 @@ exports.createTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
     try {
         const ticketId = req.params.id;
-        const { title, description, assignee, priority, status, issueType, storyPoints, labels } = req.body;
+        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist } = req.body;
 
         const ticket = await Ticket.findById(ticketId);
 
@@ -87,9 +131,28 @@ exports.updateTicket = async (req, res) => {
         if (issueType !== undefined) ticket.issueType = issueType;
         if (storyPoints !== undefined) ticket.storyPoints = storyPoints;
         if (labels !== undefined) ticket.labels = labels;
+        if (startDate !== undefined) ticket.startDate = startDate;
+        if (endDate !== undefined) ticket.endDate = endDate;
+
+        // If checklist is provided directly (from employee update), use it
+        if (checklist !== undefined) {
+            ticket.checklist = checklist;
+        } else if (description !== undefined) {
+            // Otherwise, if description is updated, re-parse it
+            ticket.checklist = parseChecklist(description, ticket.checklist);
+        }
+
+        // Auto move to Done if all checklist items are completed
+        if (ticket.checklist && ticket.checklist.length > 0 && ticket.checklist.every(item => item.completed)) {
+            ticket.status = 'Done';
+        }
 
         const updatedTicket = await ticket.save();
         await updatedTicket.populate('assignee', 'name username');
+
+        // Socket emission
+        const io = getIO();
+        io.to(updatedTicket.subdomain || subdomain).emit('ticket:updated', updatedTicket);
 
         res.status(200).json(updatedTicket);
     } catch (error) {
@@ -114,7 +177,13 @@ exports.deleteTicket = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to access this ticket' });
         }
 
+        const subdomainForSocket = ticket.subdomain;
         await ticket.deleteOne();
+
+        // Socket emission
+        const io = getIO();
+        io.to(subdomainForSocket).emit('ticket:deleted', { id: req.params.id });
+
         res.status(200).json({ id: req.params.id, message: 'Ticket deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting ticket', error: error.message });

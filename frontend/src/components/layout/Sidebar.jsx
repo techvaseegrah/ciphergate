@@ -37,6 +37,26 @@ const Sidebar = ({
     return "sidebar-icon-gradient inactive mr-3 text-lg";
   };
 
+  // Auto-expand dropdowns if a child is active
+  useEffect(() => {
+    const newExpanded = { ...expandedDropdowns };
+    let changed = false;
+
+    links.forEach((link, index) => {
+      if (link.isDropdown && link.children) {
+        const dropdownKey = `dropdown-${index}`;
+        if (isAnyChildActive(link.children) && !newExpanded[dropdownKey]) {
+          newExpanded[dropdownKey] = true;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      setExpandedDropdowns(newExpanded);
+    }
+  }, [location.pathname, links]);
+
   // Trigger logo animation when component mounts
   useEffect(() => {
     // Show shattered logo for 2 seconds
