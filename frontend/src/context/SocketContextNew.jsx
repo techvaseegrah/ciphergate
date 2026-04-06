@@ -18,60 +18,89 @@ export const SocketProvider = ({ children }) => {
     const [isConnected, setIsConnected] = useState(false);
     const { subdomain } = useContext(appContext);
     const socketRef = useRef(null);
+    const toastShownRef = useRef(false);
 
     useEffect(() => {
         if (!subdomain || subdomain === 'main') {
             return;
         }
 
-        // Create socket connection
-        const apiBaseUrl = import.meta.env.VITE_API_URL === '/api'
-            ? `${window.location.protocol}//${window.location.hostname}:5001`
-            : (import.meta.env.VITE_API_URL || 'http://localhost:5001');
+        // ─── PRODUCTION FIX ───────────────────────────────────────────────────
+        // In production, VITE_API_URL is set to '/api' (relative).
+        // We connect to the SAME ORIGIN (no port!) so traffic flows through
+        // Nginx on port 443. Nginx then proxies /socket.io/ → backend:5001
+        // internally. Connecting to :5001 directly would be firewall-blocked.
+        //
+        // In local dev, Vite proxies /api but NOT /socket.io/, so we connect
+        // directly to localhost:5001.
+        // ─────────────────────────────────────────────────────────────────────
+        const isProduction = import.meta.env.VITE_API_URL === '/api';
 
-        const newSocket = io(apiBaseUrl, {
-            transports: ['websocket'],
+        const socketUrl = isProduction
+            ? window.location.origin          // e.g. https://techvaseegrah.ciphergate.in  (no port)
+            : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
+
+        // Retrieve token for auth — NEVER log the token to console in production
+        const token = localStorage.getItem('token');
+
+        const newSocket = io(socketUrl, {
+            // polling first → lets Nginx handle the HTTP upgrade to WebSocket.
+            // 'websocket' only would bypass the upgrade handshake and fail.
+            transports: ['polling', 'websocket'],
+
+            // Pass JWT in handshake auth so the backend can validate it
+            auth: { token },
+
             reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 8,
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 15000,
+
+            // 20s timeout handles slow SSL / proxy handshakes
+            timeout: 20000,
+
+            // Required for cookies / CORS with credentials
+            withCredentials: true,
+
+            // Must match the Nginx proxy_pass location and backend path config
+            path: '/socket.io/',
         });
 
         socketRef.current = newSocket;
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
-            console.log('Socket connected:', newSocket.id);
+            // Log transport used to confirm WebSocket upgrade succeeded
+            const transport = newSocket.io.engine.transport.name;
+            console.log(`[Socket] Connected: ${newSocket.id} (transport: ${transport})`);
             setIsConnected(true);
-            toast.success('Live updates connected');
-
-            // Join subdomain room
+            toastShownRef.current = false;
+            toast.success('Live updates connected', { toastId: 'socket-connect' });
             newSocket.emit('join-subdomain', subdomain);
         });
 
-        newSocket.on('disconnect', () => {
-            console.log('Socket disconnected');
+        newSocket.on('disconnect', (reason) => {
+            console.log('[Socket] Disconnected:', reason);
             setIsConnected(false);
-            toast.info('Live updates disconnected');
         });
 
         newSocket.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
+            if (!toastShownRef.current) {
+                // Do NOT log the token or sensitive data here
+                console.error('[Socket] Connection error:', error.message);
+                toast.error('Real-time updates unavailable. Retrying...', { toastId: 'socket-error' });
+                toastShownRef.current = true;
+            }
             setIsConnected(false);
-            toast.error('Failed to connect to live updates');
         });
 
+        // Forward real-time attendance updates to any listener in the app
         newSocket.on('attendance-update', (data) => {
-            console.log('Attendance update received:', data);
-            // Emit a custom event for attendance updates
             window.dispatchEvent(new CustomEvent('attendance-update', { detail: data }));
         });
 
-        // Cleanup function
         return () => {
-            if (newSocket) {
-                newSocket.disconnect();
-            }
+            newSocket.disconnect();
         };
     }, [subdomain]);
 

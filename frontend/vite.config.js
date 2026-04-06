@@ -125,6 +125,12 @@ export default defineConfig({
                 target: 'http://localhost:5001',
                 changeOrigin: true,
             },
+            // Proxy Socket.IO in dev so the same domain-only URL works locally
+            '/socket.io': {
+                target: 'http://localhost:5001',
+                changeOrigin: true,
+                ws: true,   // <-- enables WebSocket proxying in Vite
+            },
         },
     },
 })

@@ -84,7 +84,6 @@ const startServer = async () => {
     const jobRoutes = require('./routes/jobRoutes');
 
     // Mount routes
-    app.use('/api/gowhats', require('./routes/gowhatsRoutes'));
     app.use('/api/gowhats', gowhatsRoutes);
     app.use('/api/auth', authRoutes);
     app.use('/api/attendance', attendanceRoutes);

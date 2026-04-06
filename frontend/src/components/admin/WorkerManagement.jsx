@@ -404,20 +404,40 @@ const WorkerManagement = () => {
     {
       header: 'Name',
       accessor: 'name',
-      render: (record) => (
-        <div className="flex items-center">
-          {record?.photo && (
-            <img
-              src={record.photo
-                ? record.photo
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}`}
-              alt="Employee"
-              className="w-8 h-8 rounded-full mr-2"
-            />
-          )}
-          <span>{record.name}</span>
-        </div>
-      ),
+      render: (record) => {
+          // Resolve photo URL:
+          // - New uploads: relative path like "/uploads/workers/filename.jpg"
+          //   → prepend API base so it works in both dev and prod
+          // - Old Supabase URLs: absolute https://... (broken) → use avatar fallback
+          // - No photo: use avatar fallback
+          const getPhotoSrc = (photo, name) => {
+            const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0d9488&color=fff`;
+            if (!photo) return avatarFallback;
+            if (photo.startsWith('/uploads/')) {
+              // Relative backend URL — prepend origin in production, use as-is via Vite proxy in dev
+              return photo;
+            }
+            if (photo.startsWith('http')) {
+              // Old Supabase URL — these are broken, fall back to avatar
+              return avatarFallback;
+            }
+            return avatarFallback;
+          };
+          return (
+            <div className="flex items-center">
+              <img
+                src={getPhotoSrc(record.photo, record.name)}
+                alt="Employee"
+                className="w-8 h-8 rounded-full mr-2 object-cover"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}&background=0d9488&color=fff`;
+                }}
+              />
+              <span>{record.name}</span>
+            </div>
+          );
+        },
     },
     {
       header: 'Username',
