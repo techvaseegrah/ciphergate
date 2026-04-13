@@ -25,44 +25,39 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        // ─── PRODUCTION FIX ───────────────────────────────────────────────────
-        // In production, VITE_API_URL is set to '/api' (relative).
-        // We connect to the SAME ORIGIN (no port!) so traffic flows through
-        // Nginx on port 443. Nginx then proxies /socket.io/ → backend:5001
-        // internally. Connecting to :5001 directly would be firewall-blocked.
-        //
-        // In local dev, Vite proxies /api but NOT /socket.io/, so we connect
-        // directly to localhost:5001.
+        // ─── PRODUCTION SOCKET CONFIG ─────────────────────────────────────────
+        // We use VITE_SOCKET_URL for production (e.g., https://api.ciphergate.in)
+        // If not set, it defaults to window.location.origin for same-domain proxying.
         // ─────────────────────────────────────────────────────────────────────
-        const isProduction = import.meta.env.VITE_API_URL === '/api';
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
-        const socketUrl = isProduction
-            ? window.location.origin          // e.g. https://techvaseegrah.ciphergate.in  (no port)
-            : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001');
-
-        // Retrieve token for auth — NEVER log the token to console in production
+        // Retrieve token for auth
         const token = localStorage.getItem('token');
 
-        const newSocket = io(socketUrl, {
-            // polling first → lets Nginx handle the HTTP upgrade to WebSocket.
-            // 'websocket' only would bypass the upgrade handshake and fail.
-            transports: ['polling', 'websocket'],
+        if (!token) {
+            console.warn('[Socket] No token found, skipping connection');
+            return;
+        }
 
-            // Pass JWT in handshake auth so the backend can validate it
+        const newSocket = io(socketUrl, {
+            // Force websocket transport as requested for performance/stability
+            transports: ['websocket'],
+
+            // Pass JWT in handshake auth - checked by backend middleware
             auth: { token },
 
             reconnection: true,
-            reconnectionAttempts: 8,
+            reconnectionAttempts: Infinity, // Keep trying in production
             reconnectionDelay: 2000,
-            reconnectionDelayMax: 15000,
+            reconnectionDelayMax: 10000,
 
-            // 20s timeout handles slow SSL / proxy handshakes
+            // 20s timeout handles slow handshakes
             timeout: 20000,
 
-            // Required for cookies / CORS with credentials
+            // Required for cross-origin credentials
             withCredentials: true,
 
-            // Must match the Nginx proxy_pass location and backend path config
+            // Path must match backend/nginx configuration
             path: '/socket.io/',
         });
 
@@ -117,4 +112,5 @@ export const SocketProvider = ({ children }) => {
     );
 };
 
-export default SocketContext;
+export { SocketContext };
+export default SocketContext; // Keep for backward compatibility if needed, but named is better

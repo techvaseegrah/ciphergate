@@ -1,12 +1,13 @@
 const express = require('express');
-const { protect } = require('../middleware/authMiddleware');
-const { giveBonus, removeBonus, resetSalary, getWorkerSalaryReport, getCompensationReport, addDeveloperProject, getDeveloperProjects, deleteDeveloperProject, getAllDeveloperProjectsSummary } = require('../controllers/salaryController');
+const { protect, adminOnly, adminOrWorker, workerOnly } = require('../middleware/authMiddleware');
+const { giveBonus, removeBonus, resetSalary, getWorkerSalaryReport, getMySalaryReport, getCompensationReport, addDeveloperProject, getDeveloperProjects, deleteDeveloperProject, getAllDeveloperProjectsSummary } = require('../controllers/salaryController');
 const router = express.Router();
 
-router.route('/give-bonus/:id').post(protect, giveBonus);
-router.route('/remove-bonus/:id').post(protect, removeBonus);
-router.route('/reset-salary').post(protect, resetSalary);
-router.route('/report/:id').get(protect, getWorkerSalaryReport);
+router.route('/give-bonus/:id').post(protect, adminOnly, giveBonus);
+router.route('/remove-bonus/:id').post(protect, adminOnly, removeBonus);
+router.route('/reset-salary').post(protect, adminOnly, resetSalary);
+router.route('/report/:id').get(protect, adminOnly, getWorkerSalaryReport);
+router.route('/my-report').get(protect, adminOrWorker, getMySalaryReport);
 router.route('/compensation-report').post(protect, getCompensationReport); // Add this route
 
 // Developer project routes

@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getMyTasks } from '../../services/taskService';
 import { getTopics } from '../../services/topicService';
 import { getColumns } from '../../services/columnService';
+import { getMySalaryReport } from '../../services/salaryService';
 import TaskForm from './TaskForm';
 import Scoreboard from './Scoreboard';
 import Card from '../common/Card';
@@ -37,13 +38,27 @@ const Dashboard = () => {
   const [showFaceAttendance, setShowFaceAttendance] = useState(false);
   const [showRFIDAttendance, setShowRFIDAttendance] = useState(false);
   const [accessControl, setAccessControl] = useState({ rfidAttendance: true, faceAttendance: true });
+  const [salaryData, setSalaryData] = useState({
+    baseSalary: 0,
+    finalSalary: 0,
+    actualEarnedSalary: 0,
+    totalDeductions: 0
+  });
 
-  // prepare breakdown for tooltip
-  const baseSalary = typeof user?.salary === 'number' ? user.salary : 0;
-  const finalSalary = typeof user?.finalSalary === 'number' ? user.finalSalary : 0;
-  const diff = finalSalary - baseSalary;
-  const allowances = diff > 0 ? diff : 0;
-  const deductions = diff < 0 ? -diff : 0;
+  const fetchSalary = async () => {
+    try {
+      const data = await getMySalaryReport();
+      console.log("Salary API Raw Data:", data); // Debug logging
+      setSalaryData({
+        baseSalary: data.baseSalary ?? 0,
+        finalSalary: data.finalSalary ?? data.baseSalary ?? 0,
+        actualEarnedSalary: data.actualEarnedSalary ?? 0,
+        totalDeductions: data.totalDeductions ?? 0
+      });
+    } catch (error) {
+      console.error('Failed to fetch salary report:', error);
+    }
+  };
 
   const fetchNotifications = async () => {
     setIsLoading(true);
@@ -63,9 +78,6 @@ const Dashboard = () => {
     try {
       if (subdomain && subdomain !== 'main') {
         const response = await api.get(`/settings/public/${subdomain}`);
-        if (response.data?.attendanceLocation?.enabled) {
-          setAttendanceLocation(response.data.attendanceLocation);
-        }
         if (response.data?.attendanceAccessControl?.employee) {
           setAccessControl(response.data.attendanceAccessControl.employee);
         }
@@ -78,6 +90,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchNotifications();
     fetchAttendanceLocation();
+    fetchSalary();
   }, []);
 
   useEffect(() => {
@@ -114,6 +127,10 @@ const Dashboard = () => {
     loadDashboardData();
   }, [user]);
 
+  const handleAttendanceMarked = () => {
+    fetchSalary();
+  };
+
   const handleTaskSubmit = (newTask) => {
     setTasks(prev => [newTask, ...prev]);
     toast.success('Task submitted successfully!');
@@ -138,6 +155,7 @@ const Dashboard = () => {
           onClose={() => setShowFaceAttendance(false)}
           workerMode={true}
           currentWorker={user}
+          onAttendanceMarked={handleAttendanceMarked}
         />
       )}
 
@@ -148,6 +166,7 @@ const Dashboard = () => {
           onClose={() => setShowRFIDAttendance(false)}
           subdomain={subdomain}
           user={user}
+          onAttendanceMarked={handleAttendanceMarked}
         />
       )}
 
@@ -183,57 +202,48 @@ const Dashboard = () => {
           {/* Responsive grid that works well on all screen sizes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Base Salary with Icon */}
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
               <div className="flex items-center space-x-3">
                 <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
                   <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-600 truncate">Base Monthly Salary</p>
-                  {baseSalary > 0 ? (
-                    <CountUp
-                      start={0}
-                      end={baseSalary}
-                      duration={1}
-                      prefix="₹"
-                      decimals={2}
-                      className="text-xl font-bold text-gray-800 truncate"
-                    />
-                  ) : (
-                    <p className="text-xl font-bold text-gray-800 truncate">N/A</p>
-                  )}
+                  <CountUp
+                    start={0}
+                    end={salaryData.baseSalary || 0}
+                    duration={1}
+                    prefix="₹"
+                    decimals={2}
+                    className="text-xl font-bold text-gray-800 truncate"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Final Monthly Salary with Icon */}
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            {/* Final Monthly Salary with Icon - HIGHLIGHTED */}
+            <div className="bg-[#0d9488] p-4 rounded-xl border border-[#0d9488] shadow-md">
               <div className="flex items-center space-x-3">
-                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0">
                   <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-600 truncate">Final Monthly Salary</p>
-                  {finalSalary > 0 ? (
-                    <div
-                      title={
-                        `Base: ₹${baseSalary.toFixed(2)} | ` +
-                        `Allowances: ₹${allowances.toFixed(2)} | ` +
-                        `Deductions: ₹${deductions.toFixed(2)}`
-                      }
-                    >
-                      <CountUp
-                        start={0}
-                        end={finalSalary}
-                        duration={1}
-                        prefix="₹"
-                        decimals={2}
-                        className="text-xl font-bold text-gray-800 truncate"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-xl font-bold text-gray-800 truncate">N/A</p>
-                  )}
+                  <p className="text-sm font-medium text-white opacity-90 truncate">Final Monthly Salary</p>
+                  <div
+                    title={
+                      `Actual Earned: ₹${(salaryData.actualEarnedSalary || 0).toFixed(2)} | ` +
+                      `Total Deductions: ₹${(salaryData.totalDeductions || 0).toFixed(2)}`
+                    }
+                  >
+                    <CountUp
+                      start={0}
+                      end={salaryData.finalSalary || 0}
+                      duration={1}
+                      prefix="₹"
+                      decimals={2}
+                      className="text-2xl font-bold text-white truncate"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -241,12 +251,12 @@ const Dashboard = () => {
             {/* Attendance Cards */}
             {accessControl.faceAttendance && (
               <div
-                className="bg-gray-50 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
                 onClick={() => setShowFaceAttendance(true)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
-                    <FaCamera className="h-6 w-6 text-[#0d9488]" />
+                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-200 group-hover:bg-[#0d9488] group-hover:border-[#0d9488] transition-colors">
+                    <FaCamera className="h-6 w-6 text-[#0d9488] group-hover:text-white" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-600 truncate">Face Attendance</p>
@@ -260,12 +270,12 @@ const Dashboard = () => {
 
             {accessControl.rfidAttendance && (
               <div
-                className="bg-gray-50 p-4 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
                 onClick={() => setShowRFIDAttendance(true)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#0d9488]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-200 group-hover:bg-[#0d9488] group-hover:border-[#0d9488] transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#0d9488] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
@@ -281,35 +291,6 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Attendance Location Information */}
-      {attendanceLocation && (
-        <Card className="mb-6 bg-blue-50 border-blue-200">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div className="ml-3 min-w-0">
-              <h3 className="text-lg font-medium text-blue-800">Attendance Location</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>Attendance is restricted to a specific location:</p>
-                <p className="mt-1 font-medium truncate">
-                  Coordinates: {attendanceLocation.latitude.toFixed(6)}, {attendanceLocation.longitude.toFixed(6)}
-                </p>
-                <p className="mt-1 truncate">
-                  Radius: {attendanceLocation.radius} meters
-                </p>
-                <p className="mt-2 text-xs">
-                  You must be within this area to mark attendance using Face or RFID methods.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {
         Array.isArray(notifications) && notifications.length > 0 && (

@@ -20,7 +20,6 @@ import {
     FiMapPin,
     FiActivity,
     FiUserCheck,
-    FiLayers,
     FiInfo
 } from 'react-icons/fi';
 import Button from '../common/Button';
@@ -29,7 +28,6 @@ import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
 import api from '../../services/api';
 import { getAuthToken } from '../../utils/authUtils';
-
 const Settings = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -48,7 +46,6 @@ const Settings = () => {
         breakfastOpenTime: '07:00',
         breakfastCloseTime: '09:00',
         breakfastAutoSwitch: false,
-
         // Lunch (food request) settings
         foodRequestEnabled: false,
         foodRequestOpenTime: '12:00',
@@ -130,7 +127,8 @@ const Settings = () => {
             },
             monthlyLimit: 2,
             deductionMultiplier: 2
-        }
+        },
+        includePermission: false
     });
 
     const formatTimeTo12Hour = (time24) => {
@@ -214,7 +212,8 @@ const Settings = () => {
                     latitude: fetchedSettings.attendanceLocation?.latitude || 0,
                     longitude: fetchedSettings.attendanceLocation?.longitude || 0,
                     radius: fetchedSettings.attendanceLocation?.radius || 100
-                }
+                },
+                includePermission: fetchedSettings.includePermission ?? false
             };
 
             setSettings(finalSettings);
@@ -431,6 +430,7 @@ const Settings = () => {
         setSaving(true);
         try {
             const token = getAuthToken();
+            console.log('[Settings] Saving settings for subdomain:', subdomain, 'Payload:', settings);
             await api.put(`/settings/${subdomain}`, settings, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -1163,8 +1163,14 @@ const Settings = () => {
                                                     </p>
                                                 </div>
                                                 <CustomToggle
-                                                    checked={settings.advancedLeaveDeduction.includePermissionPenalty}
-                                                    onChange={() => handleAdvancedSettingsChange('includePermissionPenalty', !settings.advancedLeaveDeduction.includePermissionPenalty)}
+                                                    checked={settings.includePermission}
+                                                    onChange={() => handleInputChange({
+                                                        target: {
+                                                            name: 'includePermission',
+                                                            type: 'checkbox',
+                                                            checked: !settings.includePermission
+                                                        }
+                                                    })}
                                                 />
                                             </div>
                                         </div>

@@ -68,7 +68,7 @@ exports.getTickets = async (req, res) => {
 // @access  Private/Admin
 exports.createTicket = async (req, res) => {
     try {
-        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate } = req.body;
+        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist } = req.body;
         const subdomain = req.user?.subdomain || req.body.subdomain;
         const reporter = req.user?._id;
 
@@ -85,7 +85,7 @@ exports.createTicket = async (req, res) => {
             subdomain,
             startDate,
             endDate,
-            checklist: parseChecklist(description)
+            checklist: checklist || parseChecklist(description)
         });
 
         const savedTicket = await newTicket.save();
@@ -134,7 +134,7 @@ exports.updateTicket = async (req, res) => {
         if (startDate !== undefined) ticket.startDate = startDate;
         if (endDate !== undefined) ticket.endDate = endDate;
 
-        // If checklist is provided directly (from employee update), use it
+        // Ensure checklist is updated if provided
         if (checklist !== undefined) {
             ticket.checklist = checklist;
         } else if (description !== undefined) {

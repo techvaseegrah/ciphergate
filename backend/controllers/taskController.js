@@ -8,8 +8,8 @@ const Topic = require('../models/Topic'); // Still needed for context or if you 
 // @route   POST /api/tasks
 // @access  Private
 const createTask = asyncHandler(async (req, res) => {
-  // Destructure the new 'selectedSubtopics' from the request body
-  const { data, topics, subtopics, subdomain } = req.body; // 'subtopics' here is the selectedSubtopics object from frontend
+  // Destructure the new 'selectedSubtopics' and 'checklist' from the request body
+  const { data, topics, subtopics, subdomain, checklist } = req.body; // 'subtopics' here is the selectedSubtopics object from frontend
   const workerId = req.user._id;
 
   // MODIFIED VALIDATION: Allow submission if either 'data' (columns) has entries
@@ -78,7 +78,8 @@ const createTask = asyncHandler(async (req, res) => {
     subdomain,
     topics: selectedTopicIds, // Store IDs of main topics selected or implied by subtopics
     selectedSubtopics: subtopics, // NEW: Store the actual selected subtopics object
-    points: taskPoints
+    points: taskPoints,
+    checklist: checklist || []
   });
 
   // Update worker total points and last submission
@@ -196,7 +197,7 @@ const resetAllTasks = asyncHandler(async (req, res) => {
 });
 
 const createCustomTask = asyncHandler(async (req, res) => {
-  const { description, subdomain } = req.body;
+  const { description, subdomain, checklist } = req.body;
   const workerId = req.user._id;
 
   console.log('Creating custom task with workerId:', workerId);
@@ -215,7 +216,8 @@ const createCustomTask = asyncHandler(async (req, res) => {
     subdomain,
     isCustom: true,
     status: 'pending',
-    points: 0
+    points: 0,
+    checklist: checklist || []
   });
 
   // Populate the worker information before returning

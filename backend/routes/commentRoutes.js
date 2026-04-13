@@ -16,10 +16,10 @@ const { protect, adminOnly, adminOrWorker, workerOnly } = require('../middleware
 router.route('/').post(protect, createComment);
 router.route('/:subdomain').get(protect, adminOnly, getAllComments)
 
-router.get('/me', protect, workerOnly, getMyComments);
+router.get('/me', protect, adminOrWorker, getMyComments);
 router.get('/worker/:workerId', protect, adminOnly, getWorkerComments);
 router.post('/:id/replies', protect, addReply);
 router.put('/:id/read', protect, markCommentAsRead);
-router.get('/unread-admin-replies', protect, workerOnly, getUnreadAdminReplies);
+router.get('/unread-admin-replies', protect, adminOrWorker, getUnreadAdminReplies);
 router.put('/mark-admin-replies-read', protect, markAdminRepliesAsRead);
 module.exports = router;

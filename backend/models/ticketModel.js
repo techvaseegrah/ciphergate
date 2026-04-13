@@ -66,7 +66,7 @@ const ticketSchema = new mongoose.Schema({
     checklist: [{
         text: {
             type: String,
-            required: true
+            trim: true
         },
         completed: {
             type: Boolean,

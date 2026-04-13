@@ -183,6 +183,42 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ subdomain: worker.subdomain });
     const batches = settings ? settings.batches : [];
 
+    // Calculate Company/Dept Attendance Penalties (Today's rate)
+    let isCompanyPenalty = false;
+    let isDeptPenalty = false;
+
+    if (settings && settings.advancedLeaveDeduction && settings.advancedLeaveDeduction.attendanceRuleEnabled) {
+      const adv = settings.advancedLeaveDeduction;
+      const thresh = adv.thresholds || {};
+
+      const now = new Date();
+      const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const todayDateFormatted = indiaTimezoneDate.format(now);
+
+      // Company Status
+      if (thresh.company?.enabled ?? true) {
+        const totalCompanyWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, status: { $ne: 'Relieved' } });
+        const presentCompanyWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, date: todayDateFormatted, presence: true });
+        const companyRate = totalCompanyWorkers > 0 ? (presentCompanyWorkerIds.length / totalCompanyWorkers) * 100 : 100;
+        const companyVal = thresh.company?.value ?? thresh.company ?? 80;
+        if (companyRate < companyVal) isCompanyPenalty = true;
+      }
+
+      // Dept Status
+      if (thresh.department?.enabled ?? true) {
+        const totalDeptWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, department: worker.department?._id || worker.department, status: { $ne: 'Relieved' } });
+        const presentDeptWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, department: worker.department?._id || worker.department, date: todayDateFormatted, presence: true });
+        const deptRate = totalDeptWorkers > 0 ? (presentDeptWorkerIds.length / totalDeptWorkers) * 100 : 100;
+        const deptVal = thresh.department?.value ?? thresh.department ?? 80;
+        if (deptRate < deptVal) isDeptPenalty = true;
+      }
+    }
+
     // FIXED THIS LINE: Pass the worker object to the calculator function
     const report = calculateWorkerProductivity({
       worker, // ADDED: Pass the worker object
@@ -196,7 +232,10 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
         permissionTimeMinutes: settings ? settings.permissionTimeMinutes : 15,
         deductSalary: settings ? settings.deductSalary : true,
         intervals: settings ? settings.intervals : [],
-        advancedLeaveDeduction: settings ? settings.advancedLeaveDeduction : null
+        advancedLeaveDeduction: settings ? settings.advancedLeaveDeduction : null,
+        isCompanyPenalty,
+        isDeptPenalty,
+        includePermission: settings?.includePermission || false
       }
     });
 
@@ -263,6 +302,163 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to generate salary report' });
+  }
+});
+
+const getMySalaryReport = asyncHandler(async (req, res) => {
+  const { fromDate, toDate } = req.query;
+  const id = req.user._id;
+
+  console.log('Generating salary report for worker:', id);
+
+  // Calculate current month date range if not provided
+  let start, end;
+  if (!fromDate || !toDate) {
+    const now = new Date();
+    start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  } else {
+    start = fromDate;
+    end = toDate;
+  }
+
+  try {
+    const worker = await Worker.findById(id).populate('department').select('+fines');
+
+    if (!worker) {
+      console.log('Worker not found:', id);
+      return res.status(404).json({ message: 'Worker not found' });
+    }
+
+    const allAttendanceData = await Attendance.find({ worker: id });
+
+    const fromDateObj = new Date(start);
+    const toDateObj = new Date(end);
+
+    const attendanceData = allAttendanceData.filter(record => {
+      const recordDate = new Date(record.date);
+      return recordDate >= fromDateObj && recordDate <= toDateObj;
+    });
+
+    const leaveData = await Leave.find({
+      worker: id,
+      status: 'Approved'
+    });
+
+    const holidays = await Holiday.find({});
+    const settings = await Settings.findOne({ subdomain: worker.subdomain });
+    const batches = settings ? settings.batches : [];
+
+    // Calculate Company/Dept Attendance Penalties (Today's rate)
+    let isCompanyPenalty = false;
+    let isDeptPenalty = false;
+
+    if (settings && settings.advancedLeaveDeduction && settings.advancedLeaveDeduction.attendanceRuleEnabled) {
+      const adv = settings.advancedLeaveDeduction;
+      const thresh = adv.thresholds || {};
+
+      const now = new Date();
+      const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const todayDateFormatted = indiaTimezoneDate.format(now);
+
+      // Company Status
+      if (thresh.company?.enabled ?? true) {
+        const totalCompanyWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, status: { $ne: 'Relieved' } });
+        const presentCompanyWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, date: todayDateFormatted, presence: true });
+        const companyRate = totalCompanyWorkers > 0 ? (presentCompanyWorkerIds.length / totalCompanyWorkers) * 100 : 100;
+        const companyVal = thresh.company?.value ?? thresh.company ?? 80;
+        if (companyRate < companyVal) isCompanyPenalty = true;
+      }
+
+      // Dept Status
+      if (thresh.department?.enabled ?? true) {
+        const totalDeptWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, department: worker.department?._id || worker.department, status: { $ne: 'Relieved' } });
+        const presentDeptWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, department: worker.department?._id || worker.department, date: todayDateFormatted, presence: true });
+        const deptRate = totalDeptWorkers > 0 ? (presentDeptWorkerIds.length / totalDeptWorkers) * 100 : 100;
+        const deptVal = thresh.department?.value ?? thresh.department ?? 80;
+        if (deptRate < deptVal) isDeptPenalty = true;
+      }
+    }
+
+    const report = calculateWorkerProductivity({
+      worker,
+      attendanceData,
+      fromDate: start,
+      toDate: end,
+      leaveData,
+      options: {
+        batches,
+        holidays,
+        permissionTimeMinutes: settings ? settings.permissionTimeMinutes : 15,
+        deductSalary: settings ? settings.deductSalary : true,
+        intervals: settings ? settings.intervals : [],
+        advancedLeaveDeduction: settings ? settings.advancedLeaveDeduction : null,
+        isCompanyPenalty,
+        isDeptPenalty,
+        includePermission: settings?.includePermission || false
+      }
+    });
+
+    const bonusesForPeriod = worker.bonuses.filter(bonus => {
+      return (
+        (new Date(bonus.fromDate) <= new Date(end)) &&
+        (new Date(bonus.toDate) >= new Date(start))
+      );
+    });
+
+    const totalBonusAmount = bonusesForPeriod.reduce((total, bonus) => total + bonus.amount, 0);
+    let finalSalaryWithBonus = report.summary.finalSalary;
+
+    if (totalBonusAmount > 0 && bonusesForPeriod.length > 0) {
+      const bonus = bonusesForPeriod[0];
+      const baseSalary = worker.salary || 0;
+      const actualEarnedSalary = report.summary.finalSalary || 0;
+      const remainingBonus = Math.max(0, bonus.amount - baseSalary);
+      finalSalaryWithBonus = actualEarnedSalary + remainingBonus;
+    }
+
+    let totalFinesAmount = 0;
+    if (worker.fines && Array.isArray(worker.fines)) {
+      totalFinesAmount = worker.fines
+        .filter(fine => {
+          const fineDate = new Date(fine.date);
+          return fineDate >= fromDateObj && fineDate <= toDateObj;
+        })
+        .reduce((total, fine) => total + (fine.amount || 0), 0);
+    }
+
+    const finalSalaryWithFines = Math.max(0, finalSalaryWithBonus - totalFinesAmount);
+    
+    // The user wants a fallback ONLY if the report doesn't exist.
+    // Since we are calculating it, it exists as soon as calculation is successful.
+    // We strictly use the calculated value, even if it is 0.
+    const responseData = {
+      message: 'Salary report generated successfully',
+      baseSalary: worker.salary,
+      finalSalary: finalSalaryWithFines,
+      actualEarnedSalary: report.summary.finalSalary || 0,
+      totalDeductions: (report.summary.totalSalaryDeduction || 0) + totalFinesAmount,
+      report,
+      bonuses: bonusesForPeriod,
+      totalBonusAmount,
+      totalFinesAmount,
+      finalSalaryWithBonus,
+      finalSalaryWithFines
+    };
+
+    console.log('Salary API Response (Strict):', {
+      baseSalary: responseData.baseSalary,
+      finalSalary: responseData.finalSalary
+    });
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Failed to generate salary report:', error);
+    res.status(500).json({ message: 'Failed to generate salary report', error: error.message });
   }
 });
 
@@ -522,6 +718,7 @@ module.exports = {
   removeBonus,
   resetSalary,
   getWorkerSalaryReport,
+  getMySalaryReport,
   getCompensationReport,
   addDeveloperProject,
   getDeveloperProjects,

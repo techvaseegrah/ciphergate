@@ -296,6 +296,10 @@ const settingsSchema = mongoose.Schema({
         isBreakConsider: false
       }
     ]
+  },
+  includePermission: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

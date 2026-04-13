@@ -54,6 +54,18 @@ export const getSalaryReport = async (workerId, fromDate, toDate) => { // ADD TH
   }
 };
 
+export const getMySalaryReport = async () => {
+  try {
+    const token = getAuthToken();
+    const response = await api.get(`/salary/my-report`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to get your salary report');
+  }
+};
+
 // Get compensation report for all workers
 export const getCompensationReport = async (subdomain, filters = {}) => {
   try {

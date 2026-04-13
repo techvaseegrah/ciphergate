@@ -5,6 +5,7 @@ const Worker = require('../models/Worker');
 const Attendance = require('../models/Attendance');
 const Settings = require('../models/Settings');
 const Department = require('../models/Department');
+const Holiday = require('../models/Holiday');
 
 // Make sure to import the notification service
 const { sendNewLeaveRequestNotification } = require('../services/notificationService');
@@ -205,130 +206,9 @@ const createLeave = asyncHandler(async (req, res) => {
 
   const document = req.file ? req.file.filename : null;
 
-  // Calculate Deduction Factor based on rules
-  let deductionFactor = 1;
-  let penaltyReasons = { attendanceRule: false, monthlyLimitRule: false };
-
-  const settings = await Settings.findOne({ subdomain });
-  if (settings && settings.advancedLeaveDeduction) {
-    const advancedSettings = settings.advancedLeaveDeduction;
-    const worker = await Worker.findById(req.user._id);
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-    const monthPrefix = indiaTimezoneDate.format(now).substring(0, 7);
-
-    // 1. Monthly Limit Rule
-    if (advancedSettings.monthlyLimitRuleEnabled) {
-      // Calculate how many leave/absent days have been used this month
-      let effectiveLeaveCount = 0;
-
-      const holidays = await Holiday.find({
-        subdomain,
-        date: { $gte: startOfMonth, $lte: endOfMonth }
-      });
-      const holidayDates = holidays.map(h => h.date.toISOString().split('T')[0]);
-
-      const workerLeaves = await Leave.find({
-        worker: req.user._id,
-        subdomain,
-        startDate: { $lte: endOfMonth },
-        endDate: { $gte: startOfMonth },
-        status: { $ne: 'Rejected' },
-        ...(advancedSettings.includePermissionPenalty ? {} : { leaveType: { $ne: 'Permission' } })
-      });
-
-      const workerAttendances = await Attendance.find({
-        worker: req.user._id,
-        subdomain,
-        date: { $regex: new RegExp(`^${monthPrefix}`) },
-        presence: true
-      });
-      const presentDateStrings = [...new Set(workerAttendances.map(a => a.date))];
-
-      // Iterate through each day of the current month up to the end of the month
-      const tempDate = new Date(startOfMonth);
-      const todayStr = indiaTimezoneDate.format(now);
-
-      while (tempDate <= endOfMonth) {
-        const dStr = indiaTimezoneDate.format(tempDate);
-        const dayOfWeek = tempDate.getDay(); // 0 is Sunday
-
-        // Skip Sundays and holidays
-        if (dayOfWeek !== 0 && !holidayDates.includes(dStr)) {
-          const hasPunch = presentDateStrings.includes(dStr);
-          const hasLeave = workerLeaves.find(l => {
-            const lStart = indiaTimezoneDate.format(new Date(l.startDate));
-            const lEnd = indiaTimezoneDate.format(new Date(l.endDate));
-            return dStr >= lStart && dStr <= lEnd;
-          });
-
-          if (hasLeave) {
-            effectiveLeaveCount++;
-          } else if (dStr < todayStr && !hasPunch) {
-            // It's a past working day with no punch and no leave request -> Unplanned Absence
-            effectiveLeaveCount++;
-          }
-        }
-        tempDate.setDate(tempDate.getDate() + 1);
-      }
-
-      const limit = advancedSettings.monthlyLimit || 0;
-      if (effectiveLeaveCount >= limit) {
-        deductionFactor = advancedSettings.deductionMultiplier || 2;
-        penaltyReasons.monthlyLimitRule = true;
-      }
-    }
-
-    // 2. Attendance Rule (if not already 2X or if we want to record all reasons)
-    if (advancedSettings.attendanceRuleEnabled) {
-      // Individual
-      const workerPresentDays = await Attendance.distinct('date', {
-        worker: req.user._id,
-        subdomain,
-        date: { $regex: new RegExp(`^${monthPrefix}`) },
-        presence: true
-      });
-      const elapsedDays = now.getDate();
-      const workerAttendanceRate = elapsedDays > 0 ? (workerPresentDays.length / elapsedDays) * 100 : 100;
-
-      // Dept
-      const totalDeptWorkers = await Worker.countDocuments({ subdomain, department: worker.department, status: { $ne: 'Relieved' } });
-      const todayDateFormatted = indiaTimezoneDate.format(now);
-      const presentDeptWorkerIds = await Attendance.distinct('worker', { subdomain, department: worker.department, date: todayDateFormatted, presence: true });
-      const deptAttendanceRate = totalDeptWorkers > 0 ? (presentDeptWorkerIds.length / totalDeptWorkers) * 100 : 100;
-
-      // Company
-      const totalCompanyWorkers = await Worker.countDocuments({ subdomain, status: { $ne: 'Relieved' } });
-      const presentCompanyWorkerIds = await Attendance.distinct('worker', { subdomain, date: todayDateFormatted, presence: true });
-      const companyAttendanceRate = totalCompanyWorkers > 0 ? (presentCompanyWorkerIds.length / totalCompanyWorkers) * 100 : 100;
-
-      const thresh = advancedSettings.thresholds || {};
-      const isCompanyEnabled = thresh.company?.enabled ?? true;
-      const companyVal = thresh.company?.value ?? thresh.company ?? 80;
-      const isDeptEnabled = thresh.department?.enabled ?? true;
-      const deptVal = thresh.department?.value ?? thresh.department ?? 80;
-      const isEmployeeEnabled = thresh.employee?.enabled ?? true;
-      const employeeVal = thresh.employee?.value ?? thresh.employee ?? 90;
-
-      const isCompanyLow = isCompanyEnabled && companyAttendanceRate < companyVal;
-      const isDeptLow = isDeptEnabled && deptAttendanceRate < deptVal;
-      const isPersonalLow = isEmployeeEnabled && workerAttendanceRate < employeeVal;
-
-      if (isCompanyLow || isDeptLow || isPersonalLow) {
-        deductionFactor = advancedSettings.deductionMultiplier || 2;
-        penaltyReasons.attendanceRule = true;
-      }
-    }
-  }
+  // Deduction calculation moved to salary calculation (productivityCalculator)
+  const deductionFactor = 1;
+  const penaltyReasons = { attendanceRule: false, monthlyLimitRule: false };
 
   // Create the leave object in the database
   const leave = await Leave.create({

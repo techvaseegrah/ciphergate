@@ -873,6 +873,8 @@ const calculateWorkerProductivity = (productivityParameters) => {
   let penalizedLeaveDeduction = 0;
   let penalizedAbsentDays = 0;
   let penalizedAbsentDeduction = 0;
+  let runningPresentDays = 0;
+  let runningWorkingDays = 0;
 
   const groupedByDate = {};
   filteredData.forEach(record => {
@@ -922,14 +924,41 @@ const calculateWorkerProductivity = (productivityParameters) => {
     });
 
     // Apply Advanced Leave Deduction Penalty to permissions if enabled
-    if (tempDayPermissionMinutes > 0 && advancedLeaveDeduction && advancedLeaveDeduction.includePermissionPenalty) {
+    if (tempDayPermissionMinutes > 0 && advancedLeaveDeduction && (advancedLeaveDeduction.includePermissionPenalty || options.includePermission)) {
+      let isPenaltyTriggered = false;
+      
+      // Check Monthly Limit
       if (advancedLeaveDeduction.monthlyLimitRuleEnabled) {
-        currentMonthMissedCount++;
-        const limit = advancedLeaveDeduction.monthlyLimit || 0;
-        if (currentMonthMissedCount > limit) {
-          penaltyFactor = advancedLeaveDeduction.deductionMultiplier || 2;
-          dayData.issues.push(`Monthly Limit Exceeded (${penaltyFactor}X Penalty Applied)`);
+        if (currentMonthMissedCount >= (advancedLeaveDeduction.monthlyLimit || 0)) {
+          isPenaltyTriggered = true;
+          dayData.issues.push(`Monthly Limit Exceeded`);
         }
+      }
+
+      // Check Attendance Thresholds
+      if (!isPenaltyTriggered && advancedLeaveDeduction.attendanceRuleEnabled) {
+        const thresh = advancedLeaveDeduction.thresholds || {};
+        
+        // Personal Threshold (running)
+        if (thresh.employee?.enabled ?? true) {
+          const empVal = thresh.employee?.value ?? thresh.employee ?? 90;
+          const currentRate = runningWorkingDays > 0 ? (runningPresentDays / runningWorkingDays) * 100 : 100;
+          if (currentRate < empVal) {
+            isPenaltyTriggered = true;
+            dayData.issues.push(`Personal Attendance Low (${Math.round(currentRate)}%)`);
+          }
+        }
+        
+        // External Thresholds (Company/Dept)
+        if (!isPenaltyTriggered && (options.isCompanyPenalty || options.isDeptPenalty)) {
+          isPenaltyTriggered = true;
+          dayData.issues.push(options.isCompanyPenalty ? 'Company Attendance Low' : 'Dept Attendance Low');
+        }
+      }
+
+      if (isPenaltyTriggered) {
+        penaltyFactor = advancedLeaveDeduction.deductionMultiplier || 2;
+        dayData.issues.push(`${penaltyFactor}X Penalty Applied to Permission`);
       }
     }
 
@@ -1100,6 +1129,15 @@ const calculateWorkerProductivity = (productivityParameters) => {
 
     totalWorkingMinutes += dayData.workingMinutes;
     totalPermissionMinutes += dayData.permissionMinutes;
+    
+    // Update running attendance counters
+    if (!isSunday(new Date(date))) {
+      runningWorkingDays++;
+      if (dayData.workingMinutes > 0) {
+        runningPresentDays++;
+      }
+    }
+    
     dailyBreakdown.push(dayData);
   };
 
@@ -1162,10 +1200,31 @@ const calculateWorkerProductivity = (productivityParameters) => {
         currentMonthMissedCount++;
 
         let dynamicFactor = 1;
-        // Apply 2X penalty for leaves if monthly limit exceeded dynamically
-        if (advancedLeaveDeduction && advancedLeaveDeduction.monthlyLimitRuleEnabled) {
-          const limit = advancedLeaveDeduction.monthlyLimit || 0;
-          if (currentMonthMissedCount > limit) {
+        // Apply penalties for leaves if rules are triggered
+        if (advancedLeaveDeduction) {
+          let isPenaltyTriggered = false;
+          
+          // Monthly Limit Rule
+          if (advancedLeaveDeduction.monthlyLimitRuleEnabled) {
+            if (currentMonthMissedCount > (advancedLeaveDeduction.monthlyLimit || 0)) {
+              isPenaltyTriggered = true;
+            }
+          }
+          
+          // Attendance Rule
+          if (!isPenaltyTriggered && advancedLeaveDeduction.attendanceRuleEnabled) {
+            const thresh = advancedLeaveDeduction.thresholds || {};
+            if (thresh.employee?.enabled ?? true) {
+              const empVal = thresh.employee?.value ?? thresh.employee ?? 90;
+              const currentRate = runningWorkingDays > 0 ? (runningPresentDays / runningWorkingDays) * 100 : 100;
+              if (currentRate < empVal) isPenaltyTriggered = true;
+            }
+            if (!isPenaltyTriggered && (options.isCompanyPenalty || options.isDeptPenalty)) {
+              isPenaltyTriggered = true;
+            }
+          }
+          
+          if (isPenaltyTriggered) {
             dynamicFactor = advancedLeaveDeduction.deductionMultiplier || 2;
           }
         }
@@ -1205,10 +1264,31 @@ const calculateWorkerProductivity = (productivityParameters) => {
         currentMonthMissedCount++;
 
         let factor = 1;
-        // Apply 2X penalty for absences if monthly limit exceeded
-        if (advancedLeaveDeduction && advancedLeaveDeduction.monthlyLimitRuleEnabled) {
-          const limit = advancedLeaveDeduction.monthlyLimit || 0;
-          if (currentMonthMissedCount > limit) {
+        // Apply penalties for absences if rules are triggered
+        if (advancedLeaveDeduction) {
+          let isPenaltyTriggered = false;
+          
+          // Monthly Limit Rule
+          if (advancedLeaveDeduction.monthlyLimitRuleEnabled) {
+            if (currentMonthMissedCount > (advancedLeaveDeduction.monthlyLimit || 0)) {
+              isPenaltyTriggered = true;
+            }
+          }
+          
+          // Attendance Rule
+          if (!isPenaltyTriggered && advancedLeaveDeduction.attendanceRuleEnabled) {
+            const thresh = advancedLeaveDeduction.thresholds || {};
+            if (thresh.employee?.enabled ?? true) {
+              const empVal = thresh.employee?.value ?? thresh.employee ?? 90;
+              const currentRate = runningWorkingDays > 0 ? (runningPresentDays / runningWorkingDays) * 100 : 100;
+              if (currentRate < empVal) isPenaltyTriggered = true;
+            }
+            if (!isPenaltyTriggered && (options.isCompanyPenalty || options.isDeptPenalty)) {
+              isPenaltyTriggered = true;
+            }
+          }
+          
+          if (isPenaltyTriggered) {
             factor = advancedLeaveDeduction.deductionMultiplier || 2;
           }
         }
@@ -1262,6 +1342,11 @@ const calculateWorkerProductivity = (productivityParameters) => {
       }
     } else {
       processMissedDay(date);
+      // Update running working days for missed days too (absent/leave/holiday)
+      // Actually, only count as working day if it's not a Sunday (holidays and leaves still count towards the month's base)
+      if (!isSunday(date)) {
+        runningWorkingDays++;
+      }
     }
   });
 

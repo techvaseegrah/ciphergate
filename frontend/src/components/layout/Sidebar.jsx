@@ -18,7 +18,6 @@ const Sidebar = ({
   const [triggerLogoAnimation, setTriggerLogoAnimation] = useState(false);
   const [clickedItem, setClickedItem] = useState(null); // Track clicked item
   const location = useLocation();
-
   const { subdomain } = useContext(appContext);
 
   // Theme Colors
