@@ -18,7 +18,7 @@ const renewalSchema = new mongoose.Schema({
   },
   domain_notified: { type: Boolean, default: false },
 
-  // Server / Hosting
+  // Server / hosting
   server_provider: { type: String },
   server_plan: { type: String },
   server_expiry_date: { type: Date },
