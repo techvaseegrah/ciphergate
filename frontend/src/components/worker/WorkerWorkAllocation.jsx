@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import appContext from '../../context/AppContext';
 import { useSocket } from '../../context/SocketContextNew';
-import { getTickets, updateTicket } from '../../services/ticketService';
+import { getTickets, updateTicket, getTicketCompletions, deleteSubTaskProof } from '../../services/ticketService';
+import SubTaskProofModal from './modals/SubTaskProofModal';
 import Spinner from '../common/Spinner';
 import { useAuth } from '../../hooks/useAuth';
 import {
     Search, CheckSquare, AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
-    Minus, X, User, AlignLeft, Calendar
+    Minus, X, User, AlignLeft, Calendar, Users, Paperclip, CheckCircle2, History, Upload
 } from 'lucide-react';
 
 const IssueIcon = ({ type }) => {
@@ -52,6 +53,12 @@ const WorkerWorkAllocation = () => {
     const [dragOverCol, setDragOverCol] = useState(null);
     const [touchDraggedTicket, setTouchDraggedTicket] = useState(null);
 
+    // Completion states
+    const [ticketCompletions, setTicketCompletions] = useState([]);
+    const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+    const [activeSubTask, setActiveSubTask] = useState(null);
+    const [isFetchingCompletions, setIsFetchingCompletions] = useState(false);
+
     const columns = ['To Do', 'In Progress', 'Review', 'Done'];
 
     useEffect(() => {
@@ -60,13 +67,25 @@ const WorkerWorkAllocation = () => {
         }
     }, [subdomain, user]);
 
+    useEffect(() => {
+        if (selectedTicket) {
+            fetchCompletions(selectedTicket._id);
+        } else {
+            setTicketCompletions([]);
+        }
+    }, [selectedTicket]);
+
     // Socket listeners for real-time updates
     useEffect(() => {
         if (!socket || !user?._id) return;
 
         socket.on('ticket:created', (newTicket) => {
-            // Only add if assigned to this worker
-            if (newTicket.assignee?._id === user._id || newTicket.assignee === user._id) {
+            // Only add if assigned to this worker (check both singular and plural)
+            const isAssignedToMe = (newTicket.assignees || []).some(a => (a._id || a) === user._id) ||
+                newTicket.assignee?._id === user._id ||
+                newTicket.assignee === user._id;
+
+            if (isAssignedToMe) {
                 setTickets(prev => {
                     if (prev.find(t => t._id === newTicket._id)) return prev;
                     return [newTicket, ...prev];
@@ -75,7 +94,9 @@ const WorkerWorkAllocation = () => {
         });
 
         socket.on('ticket:updated', (updatedTicket) => {
-            const isAssignedToMe = updatedTicket.assignee?._id === user._id || updatedTicket.assignee === user._id;
+            const isAssignedToMe = (updatedTicket.assignees || []).some(a => (a._id || a) === user._id) ||
+                updatedTicket.assignee?._id === user._id ||
+                updatedTicket.assignee === user._id;
 
             setTickets(prev => {
                 const alreadyExists = prev.find(t => t._id === updatedTicket._id);
@@ -103,6 +124,20 @@ const WorkerWorkAllocation = () => {
             });
         });
 
+        socket.on('subtask:completion_updated', ({ ticketId, subTaskId, workerId, completion }) => {
+            if (selectedTicket && selectedTicket._id === ticketId) {
+                setTicketCompletions(prev => {
+                    const exists = prev.findIndex(c => c._id === completion._id);
+                    if (exists !== -1) {
+                        const updated = [...prev];
+                        updated[exists] = completion;
+                        return updated;
+                    }
+                    return [...prev, completion];
+                });
+            }
+        });
+
         socket.on('ticket:deleted', ({ id }) => {
             setTickets(prev => prev.filter(t => t._id !== id));
             if (selectedTicket?._id === id) {
@@ -115,6 +150,7 @@ const WorkerWorkAllocation = () => {
             socket.off('ticket:created');
             socket.off('ticket:updated');
             socket.off('ticket:deleted');
+            socket.off('subtask:completion_updated');
         };
     }, [socket, user, selectedTicket]);
 
@@ -123,10 +159,28 @@ const WorkerWorkAllocation = () => {
         try {
             const ticketsData = await getTickets({ subdomain, assignee: user._id });
             setTickets(ticketsData);
+            
+            // Sync selected ticket if open
+            if (selectedTicket) {
+                const updated = ticketsData.find(t => t._id === selectedTicket._id);
+                if (updated) setSelectedTicket(updated);
+            }
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCompletions = async (ticketId) => {
+        setIsFetchingCompletions(true);
+        try {
+            const data = await getTicketCompletions(ticketId);
+            setTicketCompletions(data);
+        } catch (error) {
+            console.error('Error fetching completions:', error);
+        } finally {
+            setIsFetchingCompletions(false);
         }
     };
 
@@ -200,9 +254,74 @@ const WorkerWorkAllocation = () => {
         setDragOverCol(null);
     };
 
+    const handleDrop = async (e, targetStatus) => {
+        e.preventDefault();
+        setDragOverCol(null);
+        const ticketId = e.dataTransfer.getData('ticketId');
+        if (!ticketId) return;
+
+        if (targetStatus === 'Done') return;
+
+        updateStatus(ticketId, targetStatus);
+    };
+
+    const toggleChecklistItem = async (index, item) => {
+        const myCompletion = ticketCompletions.find(c => c.subTaskId === item._id && c.workerId?._id === user._id);
+
+        if (myCompletion && myCompletion.isCompleted) {
+            // Already completed, maybe offer to view/edit?
+            // For now, let's just show the proofs or allow re-upload
+            setActiveSubTask({ ...item, index });
+            setIsProofModalOpen(true);
+            return;
+        }
+
+        // Not completed, open upload modal
+        setActiveSubTask({ ...item, index });
+        setIsProofModalOpen(true);
+    };
+
+    const handleProofUploadSuccess = (newCompletion) => {
+        setTicketCompletions(prev => {
+            const exists = prev.findIndex(c => c._id === newCompletion._id);
+            if (exists !== -1) {
+                const updated = [...prev];
+                updated[exists] = newCompletion;
+                return updated;
+            }
+            return [...prev, newCompletion];
+        });
+
+        // Refetch to sync overall ticket status and progress
+        fetchData();
+    };
+
+    const updateSelectedTicketStatus = async (status) => {
+        // Prevent worker from marking as Done manually
+        if (status === 'Done') {
+            alert('Only Admin can mark tasks as Done. Please move to Review.');
+            return;
+        }
+
+        const updatedTicket = { ...selectedTicket, status };
+        setSelectedTicket(updatedTicket);
+        setTickets(tickets.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+
+        try {
+            await updateTicket(updatedTicket._id, { status, subdomain });
+        } catch (error) {
+            console.error('Update failed', error);
+        }
+    };
+
     const updateStatus = async (ticketId, targetStatus) => {
         const ticket = tickets.find(t => t._id === ticketId);
         if (!ticket || ticket.status === targetStatus) return;
+
+        // Prevent worker from dragging to Done
+        if (targetStatus === 'Done') {
+            return;
+        }
 
         const updatedTickets = tickets.map(t =>
             t._id === ticketId ? { ...t, status: targetStatus } : t
@@ -214,54 +333,6 @@ const WorkerWorkAllocation = () => {
         } catch (error) {
             console.error('Error upgrading ticket:', error);
             fetchData();
-        }
-    };
-
-    const handleDrop = async (e, targetStatus) => {
-        e.preventDefault();
-        setDragOverCol(null);
-        const ticketId = e.dataTransfer.getData('ticketId');
-        if (!ticketId) return;
-        updateStatus(ticketId, targetStatus);
-    };
-
-    const toggleChecklistItem = async (index) => {
-        const updatedChecklist = [...selectedTicket.checklist];
-        updatedChecklist[index].completed = !updatedChecklist[index].completed;
-        updatedChecklist[index].completedAt = updatedChecklist[index].completed ? new Date() : null;
-
-        // Auto move to Done if all items are completed
-        const allCompleted = updatedChecklist.every(item => item.completed);
-        let updatedStatus = selectedTicket.status;
-        if (allCompleted && updatedChecklist.length > 0) {
-            updatedStatus = 'Done';
-        }
-
-        const updatedTicket = { ...selectedTicket, checklist: updatedChecklist, status: updatedStatus };
-        setSelectedTicket(updatedTicket);
-        setTickets(tickets.map(t => t._id === updatedTicket._id ? updatedTicket : t));
-
-        try {
-            await updateTicket(updatedTicket._id, {
-                checklist: updatedChecklist,
-                status: updatedStatus,
-                subdomain
-            });
-        } catch (error) {
-            console.error('Update failed', error);
-            // Optionally revert local state here if critical
-        }
-    };
-
-    const updateSelectedTicketStatus = async (status) => {
-        const updatedTicket = { ...selectedTicket, status };
-        setSelectedTicket(updatedTicket);
-        setTickets(tickets.map(t => t._id === updatedTicket._id ? updatedTicket : t));
-
-        try {
-            await updateTicket(updatedTicket._id, { status, subdomain });
-        } catch (error) {
-            console.error('Update failed', error);
         }
     };
 
@@ -332,7 +403,7 @@ const WorkerWorkAllocation = () => {
                                     <div
                                         key={ticket._id}
                                         id={ticket._id}
-                                        draggable
+                                        draggable={status !== 'Done' && status !== 'Review'}
                                         onDragStart={(e) => handleDragStart(e, ticket._id)}
                                         onDragEnd={(e) => handleDragEnd(e, ticket._id)}
                                         onTouchStart={(e) => handleTouchStart(e, ticket._id)}
@@ -344,6 +415,11 @@ const WorkerWorkAllocation = () => {
                                             ${ticket.issueType === 'Bug' ? 'border-l-4 border-l-red-500' : ticket.issueType === 'Story' ? 'border-l-4 border-l-teal-500' : ticket.issueType === 'Epic' ? 'border-l-4 border-l-purple-500' : 'border-l-4 border-l-blue-500'}`}
                                     >
                                         <div className="flex gap-2 mb-1 flex-wrap">
+                                            {ticket.team && (
+                                                <span key="team-badge" className="bg-teal-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider flex items-center gap-1 shadow-sm">
+                                                    <Users className="w-2.5 h-2.5" /> Team: {ticket.team}
+                                                </span>
+                                            )}
                                             {ticket.labels && ticket.labels.map(lbl => (
                                                 <span key={lbl} className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">{lbl}</span>
                                             ))}
@@ -358,7 +434,18 @@ const WorkerWorkAllocation = () => {
 
                                         <div className="text-sm font-medium text-gray-800 leading-snug mb-3 group-hover:text-teal-700 transition-colors">
                                             {ticket.title}
+                                            {ticket.status === 'Review' && (
+                                                <span className="ml-2 inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold uppercase border border-blue-100">
+                                                    Waiting for Review
+                                                </span>
+                                            )}
                                         </div>
+
+                                        {ticket.feedback && (
+                                            <div className="mb-3 px-2 py-1.5 bg-orange-50 border-l-2 border-orange-400 rounded text-[11px] text-orange-700 italic">
+                                                Admin: {ticket.feedback}
+                                            </div>
+                                        )}
 
                                         {ticket.checklist && ticket.checklist.length > 0 && (
                                             <div className="mb-4">
@@ -376,7 +463,7 @@ const WorkerWorkAllocation = () => {
                                         )}
 
                                         <div className="flex flex-wrap gap-2 mb-4 lg:hidden">
-                                            {status !== 'To Do' && (
+                                            {status !== 'To Do' && status !== 'Done' && status !== 'Review' && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -388,7 +475,7 @@ const WorkerWorkAllocation = () => {
                                                     Move Back
                                                 </button>
                                             )}
-                                            {status !== 'Done' && (
+                                            {status !== 'Done' && status !== 'Review' && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -397,7 +484,7 @@ const WorkerWorkAllocation = () => {
                                                     }}
                                                     className="flex-1 py-1.5 bg-teal-50 text-teal-700 rounded-lg border border-teal-100 text-[10px] font-bold uppercase tracking-wider"
                                                 >
-                                                    Move Next
+                                                    {status === 'In Progress' ? 'Submit for Review' : 'Move Next'}
                                                 </button>
                                             )}
                                         </div>
@@ -418,7 +505,14 @@ const WorkerWorkAllocation = () => {
                                                     <PriorityIcon priority={ticket.priority} />
                                                 </div>
                                                 <div className="px-2 py-1 rounded bg-teal-50 text-teal-700 flex items-center justify-center text-xs font-bold border border-teal-100 shadow-sm">
-                                                    {ticket.assignee ? ticket.assignee.name : <span className="flex items-center text-gray-500"><User className="w-3.5 h-3.5 mr-1" /> Unassigned</span>}
+                                                    {ticket.assignees && ticket.assignees.length > 0 ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <User className="w-3.5 h-3.5 mr-0.5" />
+                                                            {ticket.assignees.length > 1 ? `Me + ${ticket.assignees.length - 1}` : 'Me'}
+                                                        </div>
+                                                    ) : (
+                                                        ticket.assignee ? ticket.assignee.name : 'Me'
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -465,46 +559,157 @@ const WorkerWorkAllocation = () => {
                                             <div className="space-y-4">
                                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
                                                     <span className="text-sm font-bold text-gray-500">
-                                                        Progress: <span className="text-teal-600">{selectedTicket.checklist.filter(i => i.completed).length} / {selectedTicket.checklist.length}</span> completed
+                                                        My Progress: <span className="text-teal-600">
+                                                            {selectedTicket.checklist.filter(item => {
+                                                                const comp = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                                return comp && (comp.status === 'Submitted' || comp.status === 'Approved');
+                                                            }).length} / {selectedTicket.checklist.length}
+                                                        </span> completed
+                                                        {selectedTicket.checklist.some(item => {
+                                                            const comp = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                            return comp && comp.status === 'Submitted';
+                                                        }) && (
+                                                                <span className="ml-2 text-[10px] text-orange-500 animate-pulse">(Waiting for approval)</span>
+                                                            )}
                                                     </span>
                                                     <span className="text-sm font-extrabold text-teal-600">
-                                                        {Math.round((selectedTicket.checklist.filter(i => i.completed).length / selectedTicket.checklist.length) * 100)}%
+                                                        {selectedTicket.checklist.length > 0 ? Math.round((selectedTicket.checklist.filter(item => ticketCompletions.some(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id && c.isCompleted)).length / selectedTicket.checklist.length) * 100) : 0}%
                                                     </span>
                                                 </div>
 
                                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-6 shadow-inner">
                                                     <div
                                                         className="bg-teal-500 h-2 rounded-full transition-all duration-500 shadow-sm"
-                                                        style={{ width: `${(selectedTicket.checklist.filter(i => i.completed).length / selectedTicket.checklist.length) * 100}%` }}
+                                                        style={{ width: `${selectedTicket.checklist.length > 0 ? (selectedTicket.checklist.filter(item => ticketCompletions.some(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id && c.isCompleted)).length / selectedTicket.checklist.length) * 100 : 0}%` }}
                                                     ></div>
                                                 </div>
 
-                                                <ul className="space-y-3">
-                                                    {selectedTicket.checklist.map((item, idx) => (
-                                                        <li key={idx} className="flex items-start group">
-                                                            <div className="flex items-center h-6">
-                                                                <input
-                                                                    id={`item-${idx}`}
-                                                                    name={`item-${idx}`}
-                                                                    type="checkbox"
-                                                                    checked={item.completed}
-                                                                    onChange={() => toggleChecklistItem(idx)}
-                                                                    className="h-4.5 w-4.5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded cursor-pointer transition-colors shadow-sm"
-                                                                />
-                                                            </div>
-                                                            <div className="ml-3 text-sm leading-6">
-                                                                <label
-                                                                    htmlFor={`item-${idx}`}
-                                                                    className={`font-semibold cursor-pointer transition-all ${item.completed ? 'text-gray-400 line-through' : 'text-gray-700 hover:text-teal-700'}`}
-                                                                >
-                                                                    {item.text}
-                                                                </label>
-                                                                {item.completed && item.completedAt && (
-                                                                    <p className="text-[10px] text-gray-400 font-medium">Completed on {new Date(item.completedAt).toLocaleString()}</p>
-                                                                )}
-                                                            </div>
-                                                        </li>
-                                                    ))}
+                                                <ul className="space-y-4">
+                                                    {selectedTicket.checklist.map((item, idx) => {
+                                                        const myCompletion = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                        const status = myCompletion?.status || 'Pending';
+                                                        const isDone = status === 'Submitted' || status === 'Approved';
+                                                        const isRejected = status === 'Rejected';
+
+                                                        // Determine styles based on status
+                                                        let itemBg = "bg-white border-gray-100";
+                                                        if (status === 'Submitted') itemBg = "bg-blue-50/40 border-blue-200";
+                                                        if (status === 'Approved') itemBg = "bg-teal-50/40 border-teal-200";
+                                                        if (status === 'Rejected') itemBg = "bg-red-50/40 border-red-200";
+
+                                                        return (
+                                                            <li key={item._id || idx} className={`${itemBg} border rounded-xl p-4 shadow-sm transition-all group`}>
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className="flex items-center h-6">
+                                                                        <input
+                                                                            id={`item-${idx}`}
+                                                                            type="checkbox"
+                                                                            checked={isDone}
+                                                                            disabled={isDone} // Locked after submit/approve
+                                                                            onChange={() => !isDone && toggleChecklistItem(idx, item)}
+                                                                            className={`h-5 w-5 rounded transition-colors shadow-sm ${isDone ? 'text-teal-600 bg-teal-50 cursor-not-allowed' : 'text-teal-600 border-gray-300 cursor-pointer focus:ring-teal-500'}`}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <label
+                                                                                htmlFor={`item-${idx}`}
+                                                                                className={`text-sm font-bold block cursor-pointer transition-all ${isDone ? 'text-gray-400 line-through' : 'text-gray-700 hover:text-teal-700'}`}
+                                                                            >
+                                                                                {item.text}
+                                                                            </label>
+                                                                            {status === 'Submitted' && (
+                                                                                <span className="text-[9px] font-extrabold bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Submitted</span>
+                                                                            )}
+                                                                            {status === 'Approved' && (
+                                                                                <span className="text-[9px] font-extrabold bg-teal-100 text-teal-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Approved</span>
+                                                                            )}
+                                                                            {status === 'Rejected' && (
+                                                                                <span className="text-[9px] font-extrabold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Rejected</span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {status === 'Submitted' && (
+                                                                            <div className="flex flex-col gap-1 mt-1">
+                                                                                <p className="text-[11px] text-blue-600 font-bold flex items-center gap-1">
+                                                                                    <CheckCircle2 className="w-3.5 h-3.5" /> ✔ Proof uploaded
+                                                                                </p>
+                                                                                <p className="text-[10px] text-gray-500 font-medium flex items-center gap-1">
+                                                                                    <span className="animate-pulse">⏳</span> Waiting for admin approval
+                                                                                </p>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {status === 'Approved' && (
+                                                                            <p className="text-[11px] text-teal-600 font-bold flex items-center gap-1 mt-1">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5" /> Completed & Approved
+                                                                            </p>
+                                                                        )}
+
+                                                                        {status === 'Rejected' && (
+                                                                            <p className="text-[11px] text-red-600 font-bold flex items-center gap-1 mt-1">
+                                                                                <X className="w-3.5 h-3.5" /> Rejected – Please re-upload proof
+                                                                            </p>
+                                                                        )}
+
+                                                                        {status === 'Pending' && (
+                                                                            <p className="text-[11px] text-gray-400 font-bold flex items-center gap-1 mt-1">
+                                                                                <AlertCircle className="w-3 h-3" /> Proof upload required for completion
+                                                                            </p>
+                                                                        )}
+
+                                                                        {myCompletion && myCompletion.proofFiles && myCompletion.proofFiles.length > 0 && (
+                                                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                                                {myCompletion.proofFiles.map((file, fIdx) => (
+                                                                                    <a
+                                                                                        key={file._id || fIdx}
+                                                                                        href={file.url}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-100 rounded-lg text-[10px] text-gray-500 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 transition-all font-medium shadow-sm"
+                                                                                    >
+                                                                                        <Paperclip className="w-3 h-3" />
+                                                                                        {file.name}
+                                                                                    </a>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex gap-2">
+                                                                        {myCompletion && (
+                                                                            <button
+                                                                                onClick={() => toggleChecklistItem(idx, item)}
+                                                                                title="Update proof files"
+                                                                                className={`p-2 rounded-lg transition-all flex items-center gap-2 ${isRejected ? 'bg-red-600 text-white hover:bg-red-700 shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-teal-50 hover:text-teal-600'}`}
+                                                                            >
+                                                                                {isRejected ? (
+                                                                                    <>
+                                                                                        <Upload className="w-4 h-4" />
+                                                                                        <span className="text-[10px] font-bold uppercase hidden sm:inline">Reupload</span>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        {status === 'Approved' ? <File className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                                                                                        <span className="text-[10px] font-bold uppercase hidden sm:inline">{status === 'Approved' ? 'View' : 'Update'}</span>
+                                                                                    </>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                        {!myCompletion && (
+                                                                            <button
+                                                                                onClick={() => toggleChecklistItem(idx, item)}
+                                                                                className="p-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-md flex items-center gap-2 transition-all"
+                                                                            >
+                                                                                <Upload className="w-4 h-4" />
+                                                                                <span className="text-[10px] font-bold uppercase hidden sm:inline">Upload</span>
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </li>
+                                                        );
+                                                    })}
                                                 </ul>
                                             </div>
                                         ) : (
@@ -520,7 +725,7 @@ const WorkerWorkAllocation = () => {
                             <div className="w-full md:w-[35%] overflow-y-auto p-6 md:p-8 text-sm bg-gray-50/30 border-t md:border-t-0 custom-scrollbar">
                                 <div className="space-y-6">
 
-                                    <div>
+                                    <div className="flex flex-col gap-3">
                                         <select
                                             value={selectedTicket.status}
                                             onChange={(e) => updateSelectedTicketStatus(e.target.value)}
@@ -531,6 +736,21 @@ const WorkerWorkAllocation = () => {
                                                 <option key={status} value={status}>{status}</option>
                                             ))}
                                         </select>
+
+                                        {selectedTicket.status === 'In Progress' && (
+                                            <button
+                                                onClick={() => updateSelectedTicketStatus('Review')}
+                                                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-4 rounded-lg text-xs uppercase shadow-sm transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <CheckSquare className="w-4 h-4" /> Confirm and Submit for Review
+                                            </button>
+                                        )}
+
+                                        {selectedTicket.status === 'Review' && (
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-[11px] text-blue-700 font-bold uppercase text-center shadow-inner">
+                                                Waiting for Admin Approval
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm text-gray-800">
@@ -538,9 +758,22 @@ const WorkerWorkAllocation = () => {
 
                                         <div className="space-y-5">
                                             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                                <span className="w-24 text-gray-500 font-semibold text-xs uppercase">Assignee</span>
-                                                <div className="flex-1 font-medium bg-gray-50 border border-gray-200 p-2 rounded-lg text-sm text-gray-700">
-                                                    {selectedTicket.assignee ? selectedTicket.assignee.name : 'Unassigned'}
+                                                <span className="w-24 text-gray-500 font-semibold text-xs uppercase">Assignees</span>
+                                                <div className="flex-1 font-medium bg-gray-50 border border-gray-200 p-2 rounded-lg text-sm text-gray-700 flex flex-wrap gap-1.5">
+                                                    {selectedTicket.team && (
+                                                        <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-teal-200 flex items-center gap-1 shadow-sm">
+                                                            <Users className="w-3 h-3" /> Team: {selectedTicket.team}
+                                                        </span>
+                                                    )}
+                                                    {selectedTicket.assignees && selectedTicket.assignees.length > 0 ? (
+                                                        selectedTicket.assignees.map(a => (
+                                                            <span key={a._id || a} className={`px-2 py-0.5 rounded text-[10px] font-bold border shadow-sm ${(a._id || a) === user._id ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-gray-600 border-gray-200'}`}>
+                                                                {a.name || 'Worker'}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="bg-teal-600 text-white px-2 py-0.5 rounded text-[10px] font-bold border border-teal-700">Me</span>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -608,6 +841,18 @@ const WorkerWorkAllocation = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Sub-Task Proof Upload Modal */}
+            {isProofModalOpen && activeSubTask && (
+                <SubTaskProofModal
+                    isOpen={isProofModalOpen}
+                    onClose={() => { setIsProofModalOpen(false); setActiveSubTask(null); }}
+                    ticketId={selectedTicket._id}
+                    subTaskId={activeSubTask._id}
+                    subTaskText={activeSubTask.text}
+                    onUploadSuccess={handleProofUploadSuccess}
+                />
             )}
 
             {/* Custom Scrollbar Styles appended for webkit */}

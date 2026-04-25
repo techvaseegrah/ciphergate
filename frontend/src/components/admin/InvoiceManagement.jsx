@@ -5,6 +5,7 @@ import AdvancedInvoice from './AdvancedInvoice';
 import InvoiceHistory from './InvoiceHistory';
 import UnifiedInvoiceHistory from './UnifiedInvoiceHistory';
 import AdminDeleteHistory from './AdminDeleteHistory'; // Add this import
+import RenewalModal from './RenewalModal';
 import { getInvoices, getAllInvoices, createInvoice, updateInvoice, deleteInvoice, updateAdminLastViewed } from '../../services/invoiceService';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -15,6 +16,10 @@ const InvoiceManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+
+  // Renewal Modal State
+  const [isRenewalModalOpen, setIsRenewalModalOpen] = useState(false);
+  const [renewalInvoiceData, setRenewalInvoiceData] = useState(null);
 
   // Load invoices from backend on component mount
   useEffect(() => {
@@ -60,6 +65,15 @@ const InvoiceManagement = () => {
         // Refresh invoices list
         await fetchInvoices();
         toast.success('Invoice saved successfully!');
+
+        // Automatically trigger renewal modal after save
+        setRenewalInvoiceData({
+            id: response.data.invoiceNo,
+            mongoId: response.data._id,
+            customerName: invoiceData.customerName,
+            customerContact: invoiceData.customerContact
+        });
+        setIsRenewalModalOpen(true);
       } else {
         toast.error('Failed to save invoice: ' + response.message);
       }
@@ -178,6 +192,21 @@ const InvoiceManagement = () => {
           <AdminDeleteHistory />
         )}
       </div>
+
+      {renewalInvoiceData && (
+        <RenewalModal
+          isOpen={isRenewalModalOpen}
+          onClose={() => setIsRenewalModalOpen(false)}
+          invoiceId={renewalInvoiceData.mongoId}
+          displayInvoiceNo={renewalInvoiceData.id}
+          clientName={renewalInvoiceData.customerName}
+          clientWhatsappInitial={(() => {
+            const contact = renewalInvoiceData.customerContact || '';
+            const match = contact.match(/\d{10}/);
+            return match ? match[0] : '';
+          })()}
+        />
+      )}
     </div>
   );
 };

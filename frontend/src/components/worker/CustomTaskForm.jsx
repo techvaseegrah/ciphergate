@@ -92,19 +92,19 @@ const CustomTaskForm = () => {
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow mb-6">
-      <h2 className="text-lg font-semibold mb-4">Submit Custom Task</h2>
+    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm mb-4">
+      <h2 className="text-md font-bold mb-3">Submit Custom Task</h2>
 
       <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
             Task Description
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border rounded-md"
-            rows="3"
+            className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0d9488]/20 transition-all"
+            rows="2"
             placeholder="Describe the task you've completed..."
             disabled={submitting}
           ></textarea>
@@ -112,7 +112,7 @@ const CustomTaskForm = () => {
 
         <button
           type="submit"
-          className={`px-4 py-2 rounded-md text-white ${submitting ? 'bg-[#0d9488]' : 'bg-[#0d9488] hover:bg-white hover:text-[#0d9488] border-2 border-[#0d9488]'
+          className={`px-4 py-1.5 rounded-lg text-white text-sm font-semibold ${submitting ? 'bg-[#0d9488]' : 'bg-[#0d9488] hover:bg-[#0f766e] transition-colors'
             }`}
           disabled={submitting}
         >

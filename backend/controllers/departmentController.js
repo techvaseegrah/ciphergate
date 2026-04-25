@@ -34,7 +34,8 @@ const createDepartment = asyncHandler(async (req, res) => {
 
     // Get worker count
     const workerCount = await Worker.countDocuments({
-      department: department._id
+      department: department._id,
+      status: { $ne: 'Relieved' }
     });
 
     // Prepare response
@@ -77,7 +78,7 @@ const getDepartments = asyncHandler(async (req, res) => {
       departments.map(async (department) => {
         // Find all workers in this department, selecting only name & photo
         const employees = await Worker
-          .find({ department: department._id })
+          .find({ department: department._id, status: { $ne: 'Relieved' } })
           .select('name photo');
 
         // Calculate attendance percentage for this department
@@ -177,7 +178,8 @@ const updateDepartment = asyncHandler(async (req, res) => {
 
     // Get worker count
     const workerCount = await Worker.countDocuments({
-      department: department._id
+      department: department._id,
+      status: { $ne: 'Relieved' }
     });
 
     // Prepare response

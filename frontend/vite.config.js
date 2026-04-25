@@ -131,6 +131,10 @@ export default defineConfig({
                 changeOrigin: true,
                 ws: true,   // <-- enables WebSocket proxying in Vite
             },
+            '/uploads': {
+                target: 'http://localhost:5001',
+                changeOrigin: true,
+            },
         },
     },
 })

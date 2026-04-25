@@ -5,6 +5,7 @@ const Department = require('../models/Department');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
+const EmployeeHistory = require('../models/EmployeeHistory');
 // const nodemailer = require('nodemailer');
 // const QRCode = require('qrcode');
 
@@ -106,6 +107,13 @@ const createWorker = asyncHandler(async (req, res) => {
       totalPoints: 0
     });
 
+    await EmployeeHistory.create({
+      employee: worker._id,
+      actionType: 'Created',
+      performedBy: req.user ? req.user._id : null,
+      afterData: worker.toObject()
+    });
+
     res.status(201).json({
       _id: worker._id,
       name: worker.name,
@@ -119,6 +127,7 @@ const createWorker = asyncHandler(async (req, res) => {
       photo: worker.photo,
       batch: worker.batch, // ADDED THIS
       faceEmbeddings: worker.faceEmbeddings, // ADDED THIS
+      faceEnrolled: worker.faceEnrolled,
       employeeType: worker.employeeType,
       class: worker.class,
       status: worker.status
@@ -177,7 +186,18 @@ const getWorkers = asyncHandler(async (req, res) => {
       ? req.body.subdomain
       : req.body;
 
-    const workers = await Worker.find({ subdomain })
+    const query = { subdomain };
+    const statusParam = req.query.status || req.body.status;
+    if (statusParam) {
+      if (statusParam !== 'all') {
+        query.status = statusParam;
+      }
+    } else {
+      // Cross-module consistency fix: Only active by default
+      query.status = 'Active';
+    }
+
+    const workers = await Worker.find(query)
       .select('-password')
       .populate('department', 'name');
 
@@ -204,8 +224,15 @@ const getPublicWorkers = asyncHandler(async (req, res) => {
       ? req.body.subdomain
       : req.body;
 
-    const workers = await Worker.find({ subdomain })
-      .select('name username subdomain department photo employeeType class')
+    const query = { subdomain };
+    if (req.query.status && req.query.status === 'all') {
+      // allow fetching all if explicitly requested
+    } else {
+      query.status = 'Active';
+    }
+
+    const workers = await Worker.find(query)
+      .select('name username subdomain department photo employeeType class status')
       .populate('department', 'name');
 
     const transformedWorkers = workers.map(worker => ({
@@ -260,7 +287,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue } = req.body; // ADDED faceEmbeddings
+    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status } = req.body; // ADDED status
     const updateData = {};
 
     // Validate department if provided
@@ -271,6 +298,11 @@ const updateWorker = asyncHandler(async (req, res) => {
         throw new Error('Invalid department');
       }
       updateData.department = department;
+    }
+
+    // Update status if provided
+    if (status) {
+      updateData.status = status;
     }
 
     // Update name if provided
@@ -342,12 +374,44 @@ const updateWorker = asyncHandler(async (req, res) => {
       updateData.perDaySalary = numericSalary / 30;
     }
 
+    const beforeData = worker.toObject();
+
+    // Determine if any change actually occurred
+    const hasStatusChanged = updateData.status && updateData.status !== worker.status;
+    const hasOtherChanges = Object.keys(updateData).some(key => {
+      // Skip status as we check it separately
+      if (key === 'status' || key === 'password') return false;
+      
+      // Basic comparison for other fields
+      return String(updateData[key]) !== String(worker[key]);
+    });
+    const passwordChanged = !!password;
+
+    if (!hasStatusChanged && !hasOtherChanges && !passwordChanged) {
+        return res.json(worker);
+    }
+
     // Perform the update
     const updatedWorker = await Worker.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true, runValidators: true }
     ).populate('department', 'name');
+
+    let actionType = 'Updated';
+    if (hasStatusChanged) {
+       if (updateData.status === 'Relieved') actionType = 'Relieved';
+       else if (updateData.status === 'Active' && worker.status === 'Deleted') actionType = 'Restored';
+       else if (updateData.status === 'Active' && worker.status === 'Relieved') actionType = 'Restored';
+    }
+
+    await EmployeeHistory.create({
+      employee: updatedWorker._id,
+      actionType,
+      performedBy: req.user ? req.user._id : null,
+      beforeData,
+      afterData: updatedWorker.toObject()
+    });
 
     res.json({
       _id: updatedWorker._id,
@@ -360,6 +424,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       photo: updatedWorker.photo,
       batch: updatedWorker.batch, // ADDED this to the response
       faceEmbeddings: updatedWorker.faceEmbeddings, // ADDED this to the response
+      faceEnrolled: updatedWorker.faceEnrolled,
       employeeType: updatedWorker.employeeType,
       class: updatedWorker.class,
       status: updatedWorker.status
@@ -383,16 +448,20 @@ const deleteWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    // Optional: Delete worker's photo file if exists
-    if (worker.photo) {
-      const photoPath = path.join(__dirname, '../uploads', worker.photo);
-      if (fs.existsSync(photoPath)) {
-        fs.unlinkSync(photoPath);
-      }
-    }
+    const beforeWorker = worker.toObject();
 
-    await worker.deleteOne();
-    res.json({ message: 'Worker removed successfully' });
+    worker.status = 'Deleted';
+    await worker.save();
+
+    await EmployeeHistory.create({
+      employee: worker._id,
+      actionType: 'Deleted',
+      performedBy: req.user ? req.user._id : null,
+      beforeData: beforeWorker,
+      afterData: worker.toObject()
+    });
+
+    res.json({ message: 'Worker soft-deleted successfully' });
   } catch (error) {
     console.error('Delete Worker Error:', error);
     res.status(400);
@@ -452,7 +521,10 @@ const resetWorkerActivities = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getWorkersByDepartment = asyncHandler(async (req, res) => {
   try {
-    const workers = await Worker.find({ department: req.params.departmentId })
+    const workers = await Worker.find({ 
+      department: req.params.departmentId,
+      status: { $ne: 'Relieved' }
+    })
       .select('-password')
       .populate('department', 'name');
 
@@ -494,6 +566,7 @@ const getWorkerByRfid = asyncHandler(async (req, res) => {
         subdomain: worker.subdomain,
         department: worker.department ? worker.department.name : 'N/A',
         photo: worker.photo,
+        faceEnrolled: worker.faceEnrolled,
         employeeType: worker.employeeType,
         class: worker.class
       }
@@ -502,6 +575,28 @@ const getWorkerByRfid = asyncHandler(async (req, res) => {
     console.error('Get Worker by RFID Error:', error);
     res.status(400);
     throw new Error(error.message || 'Failed to retrieve worker');
+  }
+});
+
+// @desc    Get complete employee history
+// @route   GET /api/workers/history
+// @access  Private/Admin
+const getEmployeeHistory = asyncHandler(async (req, res) => {
+  try {
+    const filters = {};
+    if (req.query.employee) filters.employee = req.query.employee;
+    if (req.query.actionType) filters.actionType = req.query.actionType;
+
+    const history = await EmployeeHistory.find(filters)
+      .populate('employee', 'name username status')
+      .populate('performedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(history);
+  } catch (error) {
+    console.error('Get Employee History Error:', error);
+    res.status(500);
+    throw new Error('Failed to retrieve employee history');
   }
 });
 
@@ -516,5 +611,6 @@ module.exports = {
   getWorkersByDepartment,
   getPublicWorkers,
   generateId,
-  getWorkerByRfid
+  getWorkerByRfid,
+  getEmployeeHistory
 };

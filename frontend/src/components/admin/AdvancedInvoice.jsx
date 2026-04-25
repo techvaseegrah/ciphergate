@@ -45,7 +45,7 @@ const AdvancedInvoice = ({ onInvoiceSave, initialData, isPreviewMode = false }) 
     ],
     bankName = 'ICICI',
     accountNumber = '612805036053',
-    ifscCode = 'ICIC000612',
+    ifscCode = 'ICIC0006128',
     upiId = 'techvaseegrah.ibz@icici',
     gstEnabled = false,
     saleType = 'Intrastate',

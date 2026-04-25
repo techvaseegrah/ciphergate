@@ -128,17 +128,31 @@ const getLeaveApplyStats = asyncHandler(async (req, res) => {
     }
   }
 
+  const paidLeaveConfig = settings?.paidLeaveConfig || { enabled: false, leavesPerMonth: 1 };
+
+  // 5. Paid Leave Count (Current Month)
+  const paidLeaveUsed = await Leave.countDocuments({
+    worker: workerId,
+    subdomain,
+    leaveType: 'Paid Leave',
+    startDate: { $gte: startOfMonth, $lte: endOfMonth },
+    status: { $ne: 'Rejected' }
+  });
+
   res.status(200).json({
     stats: {
       companyAttendance: Math.round(companyAttendanceRate),
       deptAttendance: Math.round(deptAttendanceRate),
       personalAttendance: Math.round(workerAttendanceRate),
       leavesTaken: leaveCount,
-      allowedLimit: advancedSettings.monthlyLimit
+      allowedLimit: advancedSettings.monthlyLimit,
+      paidLeaveUsed,
+      paidLeaveLimit: paidLeaveConfig.leavesPerMonth
     },
     willApply2X,
     reasons,
-    advancedSettings
+    advancedSettings,
+    paidLeaveConfig
   });
 });
 
@@ -198,13 +212,46 @@ const createLeave = asyncHandler(async (req, res) => {
     throw new Error('Please provide all required fields');
   }
 
+  // Check if worker is relieved
+  const worker = await Worker.findById(req.user._id);
+  if (worker && worker.status === 'Relieved') {
+    res.status(403);
+    throw new Error('Relieved employees cannot apply for leave.');
+  }
+
   // If the leave type is 'Permission', startTime and endTime become mandatory
   if (leaveType === 'Permission' && (!startTime || !endTime)) {
     res.status(400);
     throw new Error('Start Time and End Time are required for Permission leave');
   }
-
   const document = req.file ? req.file.filename : null;
+  const settings = await Settings.findOne({ subdomain });
+  const paidLeaveConfig = settings?.paidLeaveConfig || { enabled: false, leavesPerMonth: 1 };
+
+  // Special validation for Paid Leave
+  if (leaveType === 'Paid Leave') {
+    if (!paidLeaveConfig.enabled) {
+      res.status(400);
+      throw new Error('Paid Leave is currently disabled by admin.');
+    }
+
+    const now_val = new Date();
+    const startOfMonth_val = new Date(now_val.getFullYear(), now_val.getMonth(), 1);
+    const endOfMonth_val = new Date(now_val.getFullYear(), now_val.getMonth() + 1, 0);
+
+    const paidLeaveUsedCount = await Leave.countDocuments({
+      worker: req.user._id,
+      subdomain,
+      leaveType: 'Paid Leave',
+      startDate: { $gte: startOfMonth_val, $lte: endOfMonth_val },
+      status: { $ne: 'Rejected' }
+    });
+
+    if (paidLeaveUsedCount + parseFloat(totalDays) > paidLeaveConfig.leavesPerMonth) {
+      res.status(400);
+      throw new Error(`Paid leave limit exceeded for this month. You have ${Math.max(0, paidLeaveConfig.leavesPerMonth - paidLeaveUsedCount)} days remaining.`);
+    }
+  }
 
   // Deduction calculation moved to salary calculation (productivityCalculator)
   const deductionFactor = 1;
@@ -215,6 +262,7 @@ const createLeave = asyncHandler(async (req, res) => {
     worker: req.user._id,
     subdomain,
     leaveType,
+    isPaidLeave: leaveType === 'Paid Leave',
     startDate,
     endDate,
     totalDays: totalDays || 0,

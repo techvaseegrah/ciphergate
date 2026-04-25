@@ -22,6 +22,13 @@ const createTask = asyncHandler(async (req, res) => {
     throw new Error('Please provide task data or select at least one topic/subtopic.');
   }
 
+  // Check if worker is relieved
+  const worker_val = await Worker.findById(workerId);
+  if (worker_val && worker_val.status === 'Relieved') {
+    res.status(403);
+    throw new Error('Relieved employees cannot submit tasks.');
+  }
+
   // Calculate task points
   let taskPoints = 0;
   // Sum values from the data object (columns)
@@ -208,6 +215,11 @@ const createCustomTask = asyncHandler(async (req, res) => {
     console.log('Worker not found:', workerId);
     res.status(400);
     throw new Error('Worker not found');
+  }
+
+  if (workerExists.status === 'Relieved') {
+    res.status(403);
+    throw new Error('Relieved employees cannot create custom tasks.');
   }
 
   const task = await Task.create({

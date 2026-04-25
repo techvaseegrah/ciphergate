@@ -1,7 +1,17 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { useLocation } from 'react-router-dom'; // Added useLocation import
+import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaPlus, FaEdit, FaTrash, FaCamera } from 'react-icons/fa';
+import { 
+  FaPlus, FaEdit, FaTrash, FaCamera, FaHistory, FaSearch, 
+  FaFilter, FaSortAmountDown, FaEllipsisV, FaUserCheck, 
+  FaUserMinus, FaUserTimes, FaBuilding, FaLayerGroup 
+} from 'react-icons/fa';
+import { 
+  MoreVertical, Search, Filter, UserCheck, UserMinus, 
+  UserX, Download, RefreshCw, Calendar, ArrowUpDown 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import WorkerHistoryModal from './WorkerHistoryModal';
 import { getWorkers, createWorker, updateWorker, deleteWorker, getUniqueId } from '../../services/workerService';
 import { getDepartments } from '../../services/departmentService';
 import { getSettings } from '../../services/settingsService';
@@ -13,23 +23,32 @@ import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
 import QRCode from 'qrcode';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import FaceCapture from './FaceCapture'; // Import FaceCapture component
+import FaceCapture from './FaceCapture';
 
 const WorkerManagement = () => {
   const location = useLocation(); // Added useLocation hook
   const nameInputRef = useRef(null);
   const [workers, setWorkers] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [batches, setBatches] = useState([]); // <-- This line was missing
+  const [batches, setBatches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Advanced Filter States
+  const [statusFilter, setStatusFilter] = useState('Active');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [batchFilter, setBatchFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('newest');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
-  const [showFaceCapture, setShowFaceCapture] = useState(false); // State for face capture modal
-  const [selectedWorkerForFace, setSelectedWorkerForFace] = useState(null); // Worker selected for face capture
-  const [workerFaceEmbeddings, setWorkerFaceEmbeddings] = useState([]); // Store face embeddings for worker
+  const [showFaceCapture, setShowFaceCapture] = useState(false);
+  const [selectedWorkerForFace, setSelectedWorkerForFace] = useState(null);
+  const [workerFaceEmbeddings, setWorkerFaceEmbeddings] = useState([]);
+  const [activeTab, setActiveTab] = useState('active'); // active, archived
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
@@ -57,6 +76,8 @@ const WorkerManagement = () => {
     faceEmbeddings: [] // Add face embeddings to form data
   });
 
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
   // Subdomain
   const { subdomain } = useContext(appContext);
 
@@ -67,7 +88,7 @@ const WorkerManagement = () => {
 
     try {
       const [workersData, departmentsData, settingsData] = await Promise.all([
-        getWorkers({ subdomain }),
+        getWorkers({ subdomain, status: 'all' }),
         getDepartments({ subdomain }),
         getSettings({ subdomain })
       ]);
@@ -93,6 +114,15 @@ const WorkerManagement = () => {
 
   useEffect(() => {
     loadData();
+    
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024); // Card view for screens smaller than 1024px
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const getWorkerId = async () => {
@@ -107,40 +137,74 @@ const WorkerManagement = () => {
     getWorkerId();
   }, []);
 
-  // Handle form input change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  // Advanced Filtering and Sorting Logic
+  const processedWorkers = useMemo(() => {
+    if (!Array.isArray(workers)) return { active: [], archived: [] };
 
-  // Filter workers
-  const filteredWorkers = Array.isArray(workers)
-    ? workers.filter(
-      worker => {
-        // Check if there's a department filter in the URL
-        const urlParams = new URLSearchParams(location.search);
-        const departmentFilter = urlParams.get('department');
+    let filtered = workers.filter(worker => {
+      // Search Box Filter (Name, Username, RFID)
+      const searchMatch = 
+        worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        worker.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        // Apply department filter if present
-        const matchesDepartment = departmentFilter
-          ? worker.department === departmentFilter || worker.department?._id === departmentFilter
-          : true;
+      // Status Match - IGNORED here because we use TABS for status separation
+      const statusMatch = true; // statusFilter === 'All' || worker.status === statusFilter || (!worker.status && statusFilter === 'Active');
 
-        // Apply search term filter
-        const matchesSearch = worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()));
+      // Department Filter - Robust matching for both ID and Name
+      const deptId = typeof worker.department === 'object' ? worker.department?._id : worker.department;
+      // Find the name of the selected filter if it's an ID
+      const selectedDept = departments.find(d => d._id === departmentFilter);
+      
+      const deptMatch = departmentFilter === 'All' || 
+                        deptId === departmentFilter || 
+                        worker.department === departmentFilter || // Exact match
+                        worker.department === selectedDept?.name || // Match by name if worker.department is a string
+                        worker.department?.name === selectedDept?.name; // Match by name if worker.department is an object
 
-        return matchesDepartment && matchesSearch;
+      // Batch Filter
+      const batchMatch = batchFilter === 'All' || worker.batch === batchFilter;
+
+      return searchMatch && statusMatch && deptMatch && batchMatch;
+    });
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-az':
+          return a.name.localeCompare(b.name);
+        case 'name-za':
+          return b.name.localeCompare(a.name);
+        case 'newest':
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        case 'oldest':
+          return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        default:
+          return 0;
       }
-    )
-    : [];
+    });
+
+    // Split into Active vs Archived (for visual separation)
+    const active = filtered.filter(w => w.status === 'Active' || !w.status);
+    const archived = filtered.filter(w => w.status === 'Relieved' || w.status === 'Deleted');
+
+    return { active, archived };
+  }, [workers, searchTerm, statusFilter, departmentFilter, batchFilter, sortBy]);
+
+  // Combined list for display
+  const displayWorkers = [...processedWorkers.active, ...processedWorkers.archived];
 
   useEffect(() => {
     if (isAddModalOpen) {
       nameInputRef.current?.focus();
     }
   }, [isAddModalOpen]);
+
+  // Handle form input change
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   // Open add worker modal
   const openAddModal = () => {
@@ -387,13 +451,49 @@ const WorkerManagement = () => {
       toast.error(error.message || 'Failed to update employee');
     }
   };
-  // Handle delete worker
+  // Helper for status colors
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Active': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span>;
+      case 'Relieved': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">Relieved</span>;
+      case 'Deleted':
+      case 'Archived': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Archived</span>;
+      default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span>;
+    }
+  };
+
+  const getFaceEnrollBadge = (faceEnrolled) => {
+    if (faceEnrolled) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+          Captured
+        </span>
+      );
+    }
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
+        Not Captured
+      </span>
+    );
+  };
+
+  const handleStatusChange = async (workerId, newStatus) => {
+    try {
+      await updateWorker(workerId, { status: newStatus });
+      toast.success(`Employee marked as ${newStatus}`);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
   const handleDeleteWorker = async () => {
     try {
       await deleteWorker(selectedWorker._id);
       setWorkers(prev => prev.filter(worker => worker._id !== selectedWorker._id));
       setIsDeleteModalOpen(false);
       toast.success('Employee deleted successfully');
+      loadData();
     } catch (error) {
       toast.error(error.message || 'Failed to delete employee');
     }
@@ -404,163 +504,141 @@ const WorkerManagement = () => {
     {
       header: 'Name',
       accessor: 'name',
+      width: '300px',
+      headerAlign: 'text-left',
+      align: 'text-left',
       render: (record) => {
-          // Resolve photo URL:
-          // - New uploads: relative path like "/uploads/workers/filename.jpg"
-          //   → prepend API base so it works in both dev and prod
-          // - Old Supabase URLs: absolute https://... (broken) → use avatar fallback
-          // - No photo: use avatar fallback
-          const getPhotoSrc = (photo, name) => {
-            const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0d9488&color=fff`;
-            if (!photo) return avatarFallback;
-            if (photo.startsWith('/uploads/')) {
-              // Relative backend URL — prepend origin in production, use as-is via Vite proxy in dev
-              return photo;
-            }
-            if (photo.startsWith('http')) {
-              // Old Supabase URL — these are broken, fall back to avatar
-              return avatarFallback;
-            }
-            return avatarFallback;
-          };
-          return (
-            <div className="flex items-center">
+        const getPhotoSrc = (photo, name) => {
+          const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0d9488&color=fff`;
+          if (!photo) return avatarFallback;
+          return photo.startsWith('/uploads/') ? photo : avatarFallback;
+        };
+        const isMuted = record.status === 'Relieved' || record.status === 'Deleted';
+        return (
+          <div className={`flex items-center space-x-3 ${isMuted ? 'opacity-60' : ''}`}>
+            <div className="relative">
               <img
                 src={getPhotoSrc(record.photo, record.name)}
-                alt="Employee"
-                className="w-8 h-8 rounded-full mr-2 object-cover"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}&background=0d9488&color=fff`;
-                }}
+                alt={record.name}
+                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}&background=0d9488&color=fff`; }}
               />
-              <span>{record.name}</span>
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${record.status === 'Active' || !record.status ? 'bg-green-500' : 'bg-gray-400'}`}></div>
             </div>
-          );
-        },
+            <div className="flex flex-col text-left">
+              <span className="font-semibold text-gray-900 truncate max-w-[180px]">{record.name}</span>
+              <span className="text-xs text-gray-500">ID: {record.rfid || 'N/A'}</span>
+            </div>
+          </div>
+        );
+      },
     },
     {
       header: 'Username',
       accessor: 'username',
+      width: '150px',
+      headerAlign: 'text-left',
+      align: 'text-left',
+      render: (record) => <span className="text-gray-600 font-medium">{record.username}</span>
     },
     {
       header: 'Department',
       accessor: 'department',
-      render: (record) => (
-        <span>
-          {typeof record.department === 'object'
-            ? record.department.name
-            : (departments.find(dept => dept._id === record.department)?.name || record.department || 'N/A')}
-        </span>
-      ),
-    },
-    {
-      header: 'Batch',
-      accessor: 'batch',
+      width: '180px',
+      headerAlign: 'text-left',
+      align: 'text-left',
+      render: (record) => {
+        const deptName = typeof record.department === 'object' ? record.department.name : (departments.find(dept => dept._id === record.department)?.name || record.department || 'N/A');
+        return (
+          <div className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 max-w-max">
+            <FaBuilding className="text-gray-400 text-xs" />
+            <span className="text-xs font-medium text-gray-700">{deptName}</span>
+          </div>
+        );
+      }
     },
     {
       header: 'RFID',
       accessor: 'rfid',
+      width: '120px',
+      headerAlign: 'text-left',
+      align: 'text-left',
+      render: (record) => <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-800">{record.rfid}</code>
     },
     {
       header: 'Face Enroll',
-      accessor: 'faceEnroll',
-      render: (record) => {
-        const isCaptured = record.faceEmbeddings && record.faceEmbeddings.length > 0;
-
-        if (isCaptured) {
-          return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              <svg className="-ml-0.5 mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
-                <circle cx="4" cy="4" r="3" />
-              </svg>
-              Captured
-            </span>
-          );
-        }
-
-        return (
-          <button
-            onClick={() => openFaceCaptureModal(record)}
-            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-          >
-            <FaCamera className="mr-1" />
-            Not Captured
-          </button>
-        );
-      }
+      accessor: 'faceEnrolled',
+      width: '140px',
+      headerAlign: 'text-center',
+      align: 'text-center',
+      render: (record) => getFaceEnrollBadge(record.faceEnrolled)
     },
     {
       header: 'Status',
       accessor: 'status',
-      render: (record) => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'Relieved'
-          ? 'bg-red-100 text-red-800'
-          : 'bg-green-100 text-green-800'
-          }`}>
-          {record.status || 'Active'}
-        </span>
-      ),
-    },
-    {
-      header: 'Original Cert. Status',
-      accessor: 'original_certificate_status',
-      render: (record) => {
-        let statusText = 'Not Submitted';
-        let statusColor = 'bg-gray-100 text-gray-800';
-
-        switch (record.original_certificate_status) {
-          case 'submitted':
-            statusText = 'Submitted';
-            statusColor = 'bg-blue-100 text-blue-800';
-            break;
-          case 'returned':
-            statusText = 'Returned';
-            statusColor = 'bg-green-100 text-green-800';
-            break;
-          case 'not_submitted':
-          default:
-            statusText = 'Not Submitted';
-            statusColor = 'bg-yellow-100 text-yellow-800';
-            break;
-        }
-
-        return (
-          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}`}>
-            {statusText}
-          </span>
-        );
-      }
+      width: '120px',
+      render: (record) => getStatusBadge(record.status)
     },
     {
       header: 'Actions',
       accessor: 'actions',
+      width: '150px',
       render: (record) => {
         const isRelieved = record.status === 'Relieved';
+        const isDeleted = record.status === 'Deleted';
+        const isActive = record.status === 'Active' || !record.status;
+        
         return (
-          <div className="flex space-x-2">
-            <button
-              onClick={() => !isRelieved && openEditModal(record)}
-              className={`text-blue-500 hover:text-blue-700 ${isRelieved ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={isRelieved}
-              title={isRelieved ? "Relieved Employee" : "Edit"}
-            >
-              <FaEdit />
-            </button>
+          <div className="flex items-center justify-end space-x-2">
+            {isActive ? (
+              <>
+                <button
+                  onClick={() => openEditModal(record)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  title="Edit"
+                >
+                  <FaEdit size={16} />
+                </button>
+                <button
+                  onClick={() => handleStatusChange(record._id, 'Relieved')}
+                  className="p-2 text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                  title="Mark as Relieved"
+                >
+                  <UserMinus size={16} />
+                </button>
+              </>
+            ) : isRelieved ? (
+              <>
+                <button
+                   disabled
+                   className="p-2 text-gray-400 cursor-not-allowed opacity-50"
+                   title="Already Relieved"
+                >
+                   <UserMinus size={16} />
+                </button>
+                <button
+                  onClick={() => handleStatusChange(record._id, 'Active')}
+                  className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                  title="Restore to Active"
+                >
+                  <RefreshCw size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => handleStatusChange(record._id, 'Active')}
+                className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                title="Restore to Active"
+              >
+                <RefreshCw size={16} />
+              </button>
+            )}
             <button
               onClick={() => openDeleteModal(record)}
-              className="text-red-500 hover:text-red-700"
+              className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
               title="Delete"
             >
-              <FaTrash />
-            </button>
-            <button
-              onClick={() => !isRelieved && openFaceCaptureModal(record)}
-              className={`text-green-500 hover:text-green-700 ${isRelieved ? 'opacity-50 cursor-not-allowed' : ''}`}
-              disabled={isRelieved}
-              title={isRelieved ? "Relieved Employee" : "Capture Face"}
-            >
-              <FaCamera />
+              <FaTrash size={16} />
             </button>
           </div>
         );
@@ -568,40 +646,364 @@ const WorkerManagement = () => {
     },
   ];
 
+  // Mobile Card Component
+  const WorkerCard = ({ worker }) => {
+    const isMuted = worker.status === 'Relieved' || worker.status === 'Deleted';
+    const deptName = typeof worker.department === 'object' ? worker.department.name : (departments.find(dept => dept._id === worker.department)?.name || worker.department || 'N/A');
+
+    return (
+      <motion.div 
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`bg-white p-4 rounded-xl border ${isMuted ? 'border-gray-200 bg-gray-50/50' : 'border-gray-100 shadow-sm'} mb-3`}
+      >
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <img
+                src={worker.photo?.startsWith('/uploads/') ? worker.photo : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0d9488&color=fff`}
+                alt={worker.name}
+                className={`w-12 h-12 rounded-full object-cover border-2 border-white ${isMuted ? 'grayscale opacity-60' : ''}`}
+                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0d9488&color=fff`; }}
+              />
+              <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${worker.status === 'Active' || !worker.status ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+            </div>
+            <div>
+              <h3 className={`font-bold ${isMuted ? 'text-gray-500' : 'text-gray-900'} leading-tight`}>{worker.name}</h3>
+              <p className="text-xs text-gray-500">@{worker.username}</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {getStatusBadge(worker.status)}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Department</p>
+            <p className="text-xs font-semibold text-gray-700 truncate">{deptName}</p>
+          </div>
+          <div className="bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">ID / RFID</p>
+            <p className="text-xs font-mono font-semibold text-gray-700">{worker.rfid}</p>
+          </div>
+          <div className="bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Face Enroll</p>
+            {getFaceEnrollBadge(worker.faceEnrolled)}
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => openEditModal(worker)}
+              className="px-3 py-1.5 text-xs font-bold bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+              disabled={isMuted}
+            >
+              Edit
+            </button>
+            <button 
+              onClick={() => openFaceCaptureModal(worker)}
+              className="px-3 py-1.5 text-xs font-bold bg-green-50 text-green-600 rounded-lg hover:bg-green-100"
+              disabled={isMuted}
+            >
+              Face
+            </button>
+          </div>
+          <div className="flex space-x-2">
+            {worker.status === 'Active' || !worker.status ? (
+              <button 
+                onClick={() => handleStatusChange(worker._id, 'Relieved')}
+                className="p-1 px-3 text-xs font-bold text-orange-600 hover:bg-orange-50 rounded-lg"
+              >
+                Relieve
+              </button>
+            ) : worker.status === 'Relieved' ? (
+              <>
+                <button 
+                  disabled
+                  className="p-1 px-3 text-xs font-bold text-gray-400 opacity-50 cursor-not-allowed"
+                >
+                  Relieved
+                </button>
+                <button 
+                  onClick={() => handleStatusChange(worker._id, 'Active')}
+                  className="p-1 px-3 text-xs font-bold text-green-600 hover:bg-green-50 rounded-lg"
+                >
+                  Restore
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => handleStatusChange(worker._id, 'Active')}
+                className="p-1 px-3 text-xs font-bold text-green-600 hover:bg-green-50 rounded-lg"
+              >
+                Restore
+              </button>
+            )}
+            <button 
+               onClick={() => openDeleteModal(worker)}
+               className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+            >
+              <FaTrash size={14} />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employee Management</h1>
-        <Button variant="primary" onClick={openAddModal}>
-          <FaPlus className="mr-2 inline" /> Add Employee
-        </Button>
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Employee Management</h1>
+          <p className="text-gray-500 mt-1">Manage, filter and track your workforce efficiently.</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button variant="outline" onClick={() => setIsHistoryModalOpen(true)} className="flex items-center shadow-sm">
+            <FaHistory className="mr-2" /> History
+          </Button>
+          <Button variant="primary" onClick={openAddModal} className="flex items-center shadow-md !bg-[#0d9488] !border-[#0d9488]">
+            <FaPlus className="mr-2" /> Add Employee
+          </Button>
+        </div>
+      </div>
+      
+      {/* Tabs Switcher */}
+      <div className="flex items-center space-x-1 p-1 bg-gray-100 rounded-2xl mb-8 w-fit shadow-inner">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex items-center space-x-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'active' ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-teal-600 hover:bg-white/50'}`}
+        >
+          <UserCheck size={18} className={activeTab === 'active' ? 'text-teal-600' : 'text-gray-400'} />
+          <span>Active Employees</span>
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'active' ? 'bg-teal-100 text-teal-600' : 'bg-gray-200 text-gray-500'}`}>
+            {processedWorkers.active.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('archived')}
+          className={`flex items-center space-x-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'archived' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-orange-600 hover:bg-white/50'}`}
+        >
+          <UserX size={18} className={activeTab === 'archived' ? 'text-orange-600' : 'text-gray-400'} />
+          <span>Relieved & Archived</span>
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'archived' ? 'bg-orange-100 text-orange-600' : 'bg-gray-200 text-gray-500'}`}>
+            {processedWorkers.archived.length}
+          </span>
+        </button>
       </div>
 
-      <Card>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 space-y-4 md:space-y-0">
-          <div className="flex-1">
+      {/* Advanced Control Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search Box */}
+          <div className="relative lg:col-span-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
             <input
               type="text"
-              placeholder="Search employees..."
-              className="form-input w-full md:w-64"
+              placeholder="Search name, rfid..."
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-        </div>
 
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Spinner size="lg" />
+          {/* Status Filter */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Filter className="h-4 w-4 text-gray-400" />
+            </div>
+            <select
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0d9488] transition-all appearance-none"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="All">All Statuses</option>
+              <option value="Active">Active Only</option>
+              <option value="Relieved">Relieved Only</option>
+              <option value="Deleted">Archived Only</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <FaFilter className="h-3 w-3 text-gray-400" />
+            </div>
           </div>
-        ) : (
-          <Table
-            columns={columns}
-            data={filteredWorkers}
-            isLoading={isLoading}
-          />
-        )}
-      </Card>
+
+          {/* Department Filter */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaBuilding className="h-4 w-4 text-gray-400" />
+            </div>
+            <select
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0d9488] transition-all appearance-none"
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+            >
+              <option value="All">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept._id} value={dept._id}>{dept.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Batch Filter */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaLayerGroup className="h-4 w-4 text-gray-400" />
+            </div>
+            <select
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0d9488] transition-all appearance-none"
+              value={batchFilter}
+              onChange={(e) => setBatchFilter(e.target.value)}
+            >
+              <option value="All">All Batches</option>
+              {batches.map(batch => (
+                <option key={batch._id} value={batch.batchName}>{batch.batchName}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sorting */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <ArrowUpDown className="h-4 w-4 text-gray-400" />
+            </div>
+            <select
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0d9488] transition-all appearance-none"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="newest">Recently Added</option>
+              <option value="name-az">Name (A-Z)</option>
+              <option value="name-za">Name (Z-A)</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div 
+              key="loader"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm"
+            >
+              <Spinner size="xl" />
+              <p className="mt-4 text-gray-500 animate-pulse font-medium">Fetching employee records...</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-6"
+            >
+              {/* Conditional Tab Rendering */}
+              {activeTab === 'active' ? (
+                <div>
+                  <div className="flex items-center space-x-2 mb-4 px-2">
+                    <UserCheck className="h-5 w-5 text-green-500" />
+                    <h2 className="text-lg font-bold text-gray-900">Active Employees</h2>
+                    <span className="bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                      {processedWorkers.active.length}
+                    </span>
+                  </div>
+                  
+                  {isMobile ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {processedWorkers.active.map(worker => (
+                        <WorkerCard key={worker._id} worker={worker} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                      <Table
+                        columns={columns}
+                        data={processedWorkers.active}
+                        striped={false}
+                        hover={true}
+                      />
+                    </div>
+                  )}
+                  
+                  {processedWorkers.active.length === 0 && (
+                    <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <p className="text-gray-500 font-medium">No active employees found.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center space-x-2 mb-4 px-2">
+                    <UserX className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-bold text-gray-500">Relieved & Archived</h2>
+                    <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                      {processedWorkers.archived.length}
+                    </span>
+                  </div>
+                  
+                  {isMobile ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {processedWorkers.archived.map(worker => (
+                        <WorkerCard key={worker._id} worker={worker} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50/50 rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                      <Table
+                        columns={columns}
+                        data={processedWorkers.archived}
+                        striped={false}
+                        hover={true}
+                      />
+                    </div>
+                  )}
+
+                  {processedWorkers.archived.length === 0 && (
+                    <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <p className="text-gray-500 font-medium">No relief/archived records found.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Empty State */}
+              {displayWorkers.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 shadow-sm text-center px-4">
+                  <div className="bg-gray-50 p-4 rounded-full mb-4">
+                    <Search className="h-10 w-10 text-gray-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">No employees found</h3>
+                  <p className="text-gray-500 max-w-xs mt-1">We couldn't find any employees matching your current filters. Try adjusting your search term.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-6"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setStatusFilter('All');
+                      setDepartmentFilter('All');
+                      setBatchFilter('All');
+                    }}
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Add Employee Modal */}
       <Modal
@@ -953,6 +1355,20 @@ const WorkerManagement = () => {
           </Button>
         </div>
       </Modal>
+
+      {showFaceCapture && selectedWorkerForFace && (
+        <FaceCapture
+          workerId={selectedWorkerForFace._id}
+          onCaptured={handleFacesCaptured}
+          onClose={() => setShowFaceCapture(false)}
+        />
+      )}
+
+      <WorkerHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        onRestore={loadData}
+      />
     </div>
   );
 };

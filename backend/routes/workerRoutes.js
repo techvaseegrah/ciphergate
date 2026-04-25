@@ -39,7 +39,8 @@ const {
   resetWorkerActivities,
   getPublicWorkers,
   generateId,
-  getWorkerByRfid
+  getWorkerByRfid,
+  getEmployeeHistory
 } = require('../controllers/workerController');
 const { protect, adminOnly, adminOrWorker } = require('../middleware/authMiddleware');
 
@@ -47,6 +48,7 @@ router.route('/').post(protect, adminOnly, createWorker);
 router.route('/all').post(protect, adminOrWorker, getWorkers);
 router.route('/generate-id').get(protect, generateId);
 router.route('/get-worker-by-rfid').post(getWorkerByRfid);
+router.route('/history').get(protect, adminOnly, getEmployeeHistory);
 
 router.post('/public', getPublicWorkers);
 

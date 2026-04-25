@@ -9,11 +9,23 @@ exports.createCertificate = async (req, res) => {
 
         // If it's a Relieving Letter and workerId is provided, update worker status
         if (type === 'Relieving' && workerId) {
-            await Worker.findByIdAndUpdate(workerId, {
+            const beforeWorker = await Worker.findById(workerId);
+            const updatedWorker = await Worker.findByIdAndUpdate(workerId, {
                 status: 'Relieved',
                 relievedAt: new Date(),
                 relievingLetterId: newCertificate._id
-            });
+            }, { new: true });
+
+            const EmployeeHistory = require('../models/EmployeeHistory');
+            if (updatedWorker) {
+                await EmployeeHistory.create({
+                    employee: updatedWorker._id,
+                    actionType: 'Relieved',
+                    performedBy: req.user ? req.user._id : null,
+                    beforeData: beforeWorker ? beforeWorker.toObject() : {},
+                    afterData: updatedWorker.toObject()
+                });
+            }
         }
 
         res.status(201).json(newCertificate);

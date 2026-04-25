@@ -101,7 +101,7 @@ const workerSchema = mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Active', 'Relieved'],
+    enum: ['Active', 'Relieved', 'Deleted'],
     default: 'Active'
   },
   relievedAt: {
@@ -121,7 +121,13 @@ const workerSchema = mongoose.Schema({
     ref: 'Certificate'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+workerSchema.virtual('faceEnrolled').get(function() {
+  return Array.isArray(this.faceEmbeddings) && this.faceEmbeddings.length > 0;
 });
 
 module.exports = mongoose.model('Worker', workerSchema);

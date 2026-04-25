@@ -26,6 +26,14 @@ const ticketSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Worker'
     },
+    assignees: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Worker'
+    }],
+    team: {
+        type: String,
+        trim: true
+    },
     priority: {
         type: String,
         enum: ['Low', 'Medium', 'High'],
@@ -56,6 +64,10 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         trim: true
     }],
+    feedback: {
+        type: String,
+        trim: true
+    },
     reporter: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Worker'

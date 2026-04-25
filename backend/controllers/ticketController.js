@@ -50,11 +50,15 @@ exports.getTickets = async (req, res) => {
 
         // Add optional assignee filter
         if (req.query.assignee) {
-            query.assignee = req.query.assignee;
+            query.$or = [
+                { assignee: req.query.assignee },
+                { assignees: { $in: [req.query.assignee] } }
+            ];
         }
 
         const tickets = await Ticket.find(query)
-            .populate('assignee', 'name username')
+            .populate('assignee', 'name username status')
+            .populate('assignees', 'name username department status')
             .sort({ createdAt: -1 });
 
         res.status(200).json(tickets);
@@ -68,7 +72,7 @@ exports.getTickets = async (req, res) => {
 // @access  Private/Admin
 exports.createTicket = async (req, res) => {
     try {
-        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist } = req.body;
+        const { title, description, assignee, assignees, team, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist } = req.body;
         const subdomain = req.user?.subdomain || req.body.subdomain;
         const reporter = req.user?._id;
 
@@ -76,6 +80,8 @@ exports.createTicket = async (req, res) => {
             title,
             description,
             assignee: assignee || undefined,
+            assignees: assignees || [],
+            team: team || undefined,
             priority,
             status,
             issueType,
@@ -90,8 +96,11 @@ exports.createTicket = async (req, res) => {
 
         const savedTicket = await newTicket.save();
 
-        // Populate assignee before returning
-        await savedTicket.populate('assignee', 'name username');
+        // Populate assignees before returning
+        await savedTicket.populate([
+            { path: 'assignee', select: 'name username status' },
+            { path: 'assignees', select: 'name username department status' }
+        ]);
 
         // Socket emission
         const io = getIO();
@@ -109,7 +118,7 @@ exports.createTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
     try {
         const ticketId = req.params.id;
-        const { title, description, assignee, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist } = req.body;
+        const { title, description, assignee, assignees, team, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist, feedback } = req.body;
 
         const ticket = await Ticket.findById(ticketId);
 
@@ -126,13 +135,24 @@ exports.updateTicket = async (req, res) => {
         if (title !== undefined) ticket.title = title;
         if (description !== undefined) ticket.description = description;
         if (assignee !== undefined) ticket.assignee = assignee;
+        if (assignees !== undefined) ticket.assignees = assignees;
+        if (team !== undefined) ticket.team = team;
         if (priority !== undefined) ticket.priority = priority;
-        if (status !== undefined) ticket.status = status;
+        
+        // Status Update Logic with Validation
+        if (status !== undefined) {
+            if (status === 'Done' && req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Non-admin users cannot mark tasks as Done. Move to Review instead.' });
+            }
+            ticket.status = status;
+        }
+
         if (issueType !== undefined) ticket.issueType = issueType;
         if (storyPoints !== undefined) ticket.storyPoints = storyPoints;
         if (labels !== undefined) ticket.labels = labels;
         if (startDate !== undefined) ticket.startDate = startDate;
         if (endDate !== undefined) ticket.endDate = endDate;
+        if (feedback !== undefined) ticket.feedback = feedback;
 
         // Ensure checklist is updated if provided
         if (checklist !== undefined) {
@@ -142,13 +162,18 @@ exports.updateTicket = async (req, res) => {
             ticket.checklist = parseChecklist(description, ticket.checklist);
         }
 
-        // Auto move to Done if all checklist items are completed
+        // Auto move to Review (not Done) if all checklist items are completed
         if (ticket.checklist && ticket.checklist.length > 0 && ticket.checklist.every(item => item.completed)) {
-            ticket.status = 'Done';
+            if (ticket.status !== 'Done' && ticket.status !== 'Review') {
+                ticket.status = 'Review';
+            }
         }
 
         const updatedTicket = await ticket.save();
-        await updatedTicket.populate('assignee', 'name username');
+        await updatedTicket.populate([
+            { path: 'assignee', select: 'name username status' },
+            { path: 'assignees', select: 'name username department status' }
+        ]);
 
         // Socket emission
         const io = getIO();

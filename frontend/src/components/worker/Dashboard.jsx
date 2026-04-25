@@ -27,7 +27,7 @@ const Dashboard = () => {
   const { subdomain } = useContext(appContext);
   const [notifications, setNotifications] = useState([]);
   const { user } = useAuth();
-  console.log(user);
+  console.log('User Auth Data:', user);
   const [isLoading, setIsLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -40,21 +40,22 @@ const Dashboard = () => {
   const [accessControl, setAccessControl] = useState({ rfidAttendance: true, faceAttendance: true });
   const [salaryData, setSalaryData] = useState({
     baseSalary: 0,
-    finalSalary: 0,
-    actualEarnedSalary: 0,
-    totalDeductions: 0
+    finalSalary: 0
   });
 
   const fetchSalary = async () => {
     try {
       const data = await getMySalaryReport();
-      console.log("Salary API Raw Data:", data); // Debug logging
-      setSalaryData({
+      console.log("Salary API Raw Response:", data); // Debug logging
+      
+      // Map correct fields: baseSalary is the fixed salary, finalSalary is the actual payout
+      const mappedData = {
         baseSalary: data.baseSalary ?? 0,
-        finalSalary: data.finalSalary ?? data.baseSalary ?? 0,
-        actualEarnedSalary: data.actualEarnedSalary ?? 0,
-        totalDeductions: data.totalDeductions ?? 0
-      });
+        finalSalary: data.finalSalary ?? 0
+      };
+      
+      console.log("Mapped Salary UI Data:", mappedData); // Debug logging
+      setSalaryData(mappedData);
     } catch (error) {
       console.error('Failed to fetch salary report:', error);
     }
@@ -64,7 +65,6 @@ const Dashboard = () => {
     setIsLoading(true);
     try {
       const data = await readNotification(subdomain);
-      console.log(data.notifications);
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
     } catch (err) {
       toast.error('Failed to fetch notifications');
@@ -124,7 +124,9 @@ const Dashboard = () => {
       }
     };
 
-    loadDashboardData();
+    if (user) {
+      loadDashboardData();
+    }
   }, [user]);
 
   const handleAttendanceMarked = () => {
@@ -145,7 +147,6 @@ const Dashboard = () => {
   }
 
   return (
-    // Added w-full overflow-x-hidden to prevent horizontal scrolling
     <div className="w-full overflow-x-hidden">
       {/* Face Attendance Popup */}
       {showFaceAttendance && (
@@ -170,99 +171,90 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Improved responsive grid for salary cards */}
+      {/* Modern 2-Card Salary System */}
       <div
-        className="mb-6 rounded-3xl p-6 shadow-lg bg-white text-gray-800 relative overflow-hidden border border-gray-100"
+        className="mb-4 rounded-2xl p-4 shadow-sm bg-white text-gray-800 relative overflow-hidden border border-gray-100"
       >
         {/* Decorative circles */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#0d9488] opacity-5 rounded-full -mr-10 -mt-10"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#0d9488] opacity-5 rounded-full -ml-10 -mb-10"></div>
+        <div className="absolute top-0 right-0 w-24 h-24 bg-[#0d9488] opacity-5 rounded-full -mr-8 -mt-8"></div>
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-[#0d9488] opacity-5 rounded-full -ml-8 -mb-8"></div>
 
         <div className="relative z-10">
           <motion.h2
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 120, damping: 20, duration: 0.5 }}
-            className="text-2xl font-bold mb-2 text-[#0d9488]"
+            className="text-xl font-bold mb-1 text-[#0d9488]"
           >
             Welcome, {user?.name || user?.username}!
           </motion.h2>
-          <p className="text-gray-600 text-sm mb-6">
+          <p className="text-gray-500 text-xs mb-4">
             Your workspace at{' '}
             <motion.span
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 120, damping: 20, duration: 0.5 }}
               className="font-bold text-[#0d9488]"
             >
               {user?.subdomain}
             </motion.span>
           </p>
 
-          {/* Responsive grid that works well on all screen sizes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Base Salary with Icon */}
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-200">
-                  <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {/* Card 1: Base Salary */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm transition-all hover:shadow-md flex items-center h-24">
+              <div className="flex items-center space-x-3 w-full">
+                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-100 shadow-sm">
+                  <FaMoneyBillAlt className="h-5 w-5 text-[#0d9488]" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-600 truncate">Base Monthly Salary</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Base Salary</p>
+                  <p className="text-[9px] text-gray-400 leading-none mb-1">Fixed monthly salary</p>
                   <CountUp
                     start={0}
-                    end={salaryData.baseSalary || 0}
-                    duration={1}
+                    end={salaryData.baseSalary}
+                    duration={1.5}
                     prefix="₹"
                     decimals={2}
-                    className="text-xl font-bold text-gray-800 truncate"
+                    className="text-lg font-bold text-gray-800"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Final Monthly Salary with Icon - HIGHLIGHTED */}
-            <div className="bg-[#0d9488] p-4 rounded-xl border border-[#0d9488] shadow-md">
-              <div className="flex items-center space-x-3">
-                <div className="bg-white p-2 rounded-lg flex-shrink-0">
-                  <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
+            {/* Card 2: Final Salary */}
+            <div className="bg-[#0d9488] p-4 rounded-xl shadow-md transition-all hover:scale-[1.01] flex items-center h-24">
+              <div className="flex items-center space-x-3 w-full text-white">
+                <div className="bg-white/20 p-2 rounded-lg flex-shrink-0 backdrop-blur-sm border border-white/20">
+                  <FaMoneyBillAlt className="h-5 w-5 text-white" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-white opacity-90 truncate">Final Monthly Salary</p>
-                  <div
-                    title={
-                      `Actual Earned: ₹${(salaryData.actualEarnedSalary || 0).toFixed(2)} | ` +
-                      `Total Deductions: ₹${(salaryData.totalDeductions || 0).toFixed(2)}`
-                    }
-                  >
-                    <CountUp
-                      start={0}
-                      end={salaryData.finalSalary || 0}
-                      duration={1}
-                      prefix="₹"
-                      decimals={2}
-                      className="text-2xl font-bold text-white truncate"
-                    />
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-tight">Final Salary</p>
+                  <p className="text-[9px] text-white/60 leading-none mb-1">Calculated salary + project earnings</p>
+                  <CountUp
+                    start={0}
+                    end={salaryData.finalSalary}
+                    duration={1.5}
+                    prefix="₹"
+                    decimals={2}
+                    className="text-xl font-bold text-white"
+                  />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Attendance Cards */}
+          {/* Quick Actions / Attendance */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {accessControl.faceAttendance && (
               <div
-                className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
+                className="bg-white p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
                 onClick={() => setShowFaceAttendance(true)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-200 group-hover:bg-[#0d9488] group-hover:border-[#0d9488] transition-colors">
-                    <FaCamera className="h-6 w-6 text-[#0d9488] group-hover:text-white" />
+                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-100 group-hover:bg-[#0d9488] transition-colors">
+                    <FaCamera className="h-5 w-5 text-[#0d9488] group-hover:text-white" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-600 truncate">Face Attendance</p>
-                    <p className="text-sm font-bold text-[#0d9488] truncate">
-                      Mark Attendance
-                    </p>
+                    <p className="text-xs font-medium text-gray-500">Face Attendance</p>
+                    <p className="text-xs font-bold text-[#0d9488]">Mark Attendance</p>
                   </div>
                 </div>
               </div>
@@ -270,20 +262,18 @@ const Dashboard = () => {
 
             {accessControl.rfidAttendance && (
               <div
-                className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
+                className="bg-white p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
                 onClick={() => setShowRFIDAttendance(true)}
               >
                 <div className="flex items-center space-x-3">
-                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-200 group-hover:bg-[#0d9488] group-hover:border-[#0d9488] transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#0d9488] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-100 group-hover:bg-[#0d9488] transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#0d9488] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-600 truncate">RFID Attendance</p>
-                    <p className="text-sm font-bold text-[#0d9488] truncate">
-                      Mark Attendance
-                    </p>
+                    <p className="text-xs font-medium text-gray-500">RFID Attendance</p>
+                    <p className="text-xs font-bold text-[#0d9488]">Mark Attendance</p>
                   </div>
                 </div>
               </div>
@@ -292,52 +282,51 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {
-        Array.isArray(notifications) && notifications.length > 0 && (
-          <Card
-            title={
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="truncate">Latest Notification</span>
-              </div>
-            }
-            className="mb-6"
-          >
-            <div className="w-full">
-              <p className="whitespace-normal break-words">
-                {notifications[0]?.messageData || "No notifications found."}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">
-                {new Date(notifications[0]?.createdAt).toLocaleString()}
-              </p>
+      {Array.isArray(notifications) && notifications.length > 0 && (
+        <Card
+          title={
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="text-sm font-bold">Latest Notification</span>
             </div>
-          </Card>
-        )
-      }
+          }
+          className="mb-4"
+          padding="p-3"
+        >
+          <div className="w-full">
+            <p className="text-sm whitespace-normal break-words text-gray-600">
+              {notifications[0]?.messageData || "No notifications found."}
+            </p>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {new Date(notifications[0]?.createdAt).toLocaleString()}
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* My Fines Section */}
       <MyFines />
 
-      <Card className="mb-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <Card className="mb-4" padding="p-4">
+        <h2 className="text-lg font-bold mb-3 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span className="truncate">Submit Custom Task</span>
+          <span>Submit Custom Task</span>
         </h2>
         <CustomTaskForm />
       </Card>
 
-      <h1 className="text-2xl font-bold mb-6 flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <h1 className="text-xl font-bold mb-4 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
-        <span className="truncate">Employee Dashboard</span>
+        <span>Employee Dashboard</span>
       </h1>
 
-      <Card className="mb-6">
+      <Card className="mb-4" padding="p-4">
         <TaskForm
           topics={topics}
           columns={columns}
@@ -348,10 +337,10 @@ const Dashboard = () => {
       <Card
         title={
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <span className="truncate">Your Recent Activity</span>
+            <span>Your Recent Activity</span>
           </div>
         }
       >
@@ -361,8 +350,7 @@ const Dashboard = () => {
           </p>
         ) : (
           <div className="space-y-4">
-            {/* CONDITIONAL RENDERING OF TASKS */}
-            {(showAllRecentTasks ? tasks : tasks.slice(0, 5)).map((task) => ( //
+            {(showAllRecentTasks ? tasks : tasks.slice(0, 5)).map((task) => (
               <div
                 key={task._id}
                 className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0"
@@ -372,7 +360,7 @@ const Dashboard = () => {
                     <p className="font-medium truncate">
                       Submitted task: {task.points} points
                     </p>
-                    <p className="text-sm text-gray-500 truncate">
+                    <p className="text-sm text-gray-500">
                       {new Date(task.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -388,7 +376,7 @@ const Dashboard = () => {
                       {task.topics.map((topic, index) => (
                         <span
                           key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full truncate max-w-[120px]"
+                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
                         >
                           {topic?.name || 'Unknown Topic'}
                         </span>
@@ -398,22 +386,19 @@ const Dashboard = () => {
                 )}
               </div>
             ))}
-            {/* END CONDITIONAL RENDERING OF TASKS */}
 
-            {/* "View All / Show Less" BUTTON */}
-            {tasks.length > 5 && ( // Only show if more than 5 tasks exist
+            {tasks.length > 5 && (
               <button
-                onClick={() => setShowAllRecentTasks(!showAllRecentTasks)} // Toggle visibility
-                className="mt-4 w-full py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md flex items-center justify-center" //
+                onClick={() => setShowAllRecentTasks(!showAllRecentTasks)}
+                className="mt-4 w-full py-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md flex items-center justify-center"
               >
-                {showAllRecentTasks ? ( // Change text and icon based on state
-                  <>Show Less <FaChevronUp className="ml-1" /></> //
+                {showAllRecentTasks ? (
+                  <>Show Less <FaChevronUp className="ml-1" /></>
                 ) : (
-                  <>View All ({tasks.length}) Tasks <FaChevronDown className="ml-1" /></> //
+                  <>View All ({tasks.length}) Tasks <FaChevronDown className="ml-1" /></>
                 )}
               </button>
             )}
-            {/* END "View All / Show Less" BUTTON */}
           </div>
         )}
       </Card>

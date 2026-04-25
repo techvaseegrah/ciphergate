@@ -146,3 +146,67 @@ export const getDeveloperProjectsSummary = async (subdomain, month, year) => {
     throw error.response ? error.response.data : new Error('Failed to get developer projects summary');
   }
 };
+
+// ─── Hybrid Salary Project (SalaryProject) ───
+
+export const getSalaryProjects = async (subdomain, month, year) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.get('/salary/salary-projects', {
+      params: { subdomain, month, year },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to get salary projects');
+  }
+};
+
+export const createSalaryProject = async (projectData) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.post('/salary/salary-projects', projectData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to create salary project');
+  }
+};
+
+export const updateSalaryProject = async (projectId, projectData) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.put(`/salary/salary-projects/${projectId}`, projectData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to update salary project');
+  }
+};
+
+export const deleteSalaryProjectById = async (projectId) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.delete(`/salary/salary-projects/${projectId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to delete salary project');
+  }
+};
+
+export const getSalaryProjectsForWorker = async (workerId, subdomain, fromDate, toDate) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.get(`/salary/salary-projects-for-worker/${workerId}`, {
+      params: { subdomain, fromDate, toDate },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to get salary projects for worker');
+  }
+};

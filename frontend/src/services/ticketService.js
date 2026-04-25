@@ -41,3 +41,37 @@ export const deleteTicket = async (id) => {
         throw error.response?.data?.message || 'Error deleting ticket';
     }
 };
+
+// Get completions for a ticket
+export const getTicketCompletions = async (ticketId) => {
+    try {
+        const response = await api.get(`${API_URL}/${ticketId}/completions`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Error fetching completions';
+    }
+};
+
+// Upload sub-task proof
+export const uploadSubTaskProof = async (formData) => {
+    try {
+        const response = await api.post(`${API_URL}/completions/upload`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Error uploading proof';
+    }
+};
+
+// Delete proof file
+export const deleteSubTaskProof = async (completionId, fileId) => {
+    try {
+        const response = await api.delete(`${API_URL}/completions/${completionId}/proof/${fileId}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Error deleting proof file';
+    }
+};

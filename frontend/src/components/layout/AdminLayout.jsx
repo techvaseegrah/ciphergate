@@ -47,6 +47,7 @@ import CustomTasks from '../admin/CustomTasks';
 import AttendanceManagement from '../admin/AttendanceManagement';
 import NotificationManagement from '../admin/NotificationManagement';
 import SalaryManagement from '../admin/SalaryManagement';
+import SalaryProjectManagement from '../admin/SalaryProjectManagement';
 import EmployeeCompensation from '../admin/EmployeeCompensation';
 import DeveloperCompensation from '../admin/DeveloperCompensation';
 import GoWhatsIntegration from '../admin/GoWhatsIntegration';
@@ -64,6 +65,7 @@ import ExperienceCertificate from '../admin/ExperienceCertificate';
 import CommunityFund from '../admin/CommunityFund'; // ADD THIS
 import WorkAllocation from '../admin/WorkAllocation';
 import KpiManagement from '../admin/KpiManagement';
+import RenewalManagement from '../admin/RenewalManagement';
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -136,6 +138,11 @@ const AdminLayout = () => {
       label: 'Employees'
     },
     {
+      to: '/admin/attendance',
+      icon: <FaRegCalendarCheck />,
+      label: 'Attendance'
+    },
+    {
       label: 'Salary Management',
       isDropdown: true,
       icon: <FaDollarSign />,
@@ -144,6 +151,11 @@ const AdminLayout = () => {
           to: '/admin/salary',
           icon: <FaDollarSign />,
           label: 'Salary'
+        },
+        {
+          to: '/admin/salary-projects',
+          icon: <FaDollarSign />,
+          label: 'Salary Projects'
         },
         {
           to: '/admin/compensation',
@@ -164,15 +176,16 @@ const AdminLayout = () => {
       badge: newInvoices > 0 ? newInvoices : null
     },
     {
+      to: '/admin/renewals',
+      icon: <FaClipboardList />, // Reusing icon for simplicity since we can't easily add new lucide/fa icons without looking.
+      label: 'Renewals'
+    },
+    {
       to: '/admin/community-fund',
       icon: <FaDollarSign />, // Or a more specific icon if available like FaHandHoldingUsd but importing FaDollarSign is safe
       label: 'Community Fund'
     },
-    {
-      to: '/admin/attendance',
-      icon: <FaRegCalendarCheck />,
-      label: 'Attendance'
-    },
+
     {
       to: '/admin/departments',
       icon: <FaBuilding />,
@@ -194,6 +207,12 @@ const AdminLayout = () => {
           label: 'KPI Management'
         }
       ]
+    },
+    {
+      to: '/admin/leaves',
+      icon: <FaCalendarAlt />,
+      label: 'Leave Requests',
+      badge: pendingLeaves > 0 ? pendingLeaves : null
     },
     {
       to: '/admin/food-requests',
@@ -257,12 +276,7 @@ const AdminLayout = () => {
       icon: <FaClipboardList />,
       label: 'Custom Tasks'
     },
-    {
-      to: '/admin/leaves',
-      icon: <FaCalendarAlt />,
-      label: 'Leave Requests',
-      badge: pendingLeaves > 0 ? pendingLeaves : null
-    },
+
     {
       to: '/admin/gowhats',
       icon: <FaWhatsapp />,
@@ -343,6 +357,7 @@ const AdminLayout = () => {
             <Route path="compensation" element={<EmployeeCompensation />} />
             <Route path="developer-compensation" element={<DeveloperCompensation />} />
             <Route path="salary" element={<SalaryManagement />} />
+            <Route path="salary-projects" element={<SalaryProjectManagement />} />
             <Route path="attendance" element={<AttendanceManagement />} />
             <Route path="attendance/:id" element={<WorkerAttendance />} />
             <Route path="departments" element={<DepartmentManagement />} />
@@ -371,6 +386,7 @@ const AdminLayout = () => {
             <Route path="acceptance-letter" element={<AcceptanceLetter />} />
             <Route path="relieving-letter" element={<RelievingLetter />} />
             <Route path="experience-certificate" element={<ExperienceCertificate />} />
+            <Route path="renewals" element={<RenewalManagement />} />
 
             {/* Test Management Routes */}
             <Route path="test/generate-questions" element={

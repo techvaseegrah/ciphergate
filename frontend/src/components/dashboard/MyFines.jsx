@@ -51,30 +51,30 @@ const MyFines = () => {
     const totalFines = fines.reduce((sum, fine) => sum + (fine.amount || 0), 0);
 
     return (
-        <Card className="mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">My Fines</h2>
+        <Card className="mb-4" padding="p-4">
+            <h2 className="text-lg font-bold mb-3 text-gray-800">My Fines</h2>
 
-            <div className="flex flex-col md:flex-row gap-4 mb-6 items-end">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4 items-end">
                 <div className="flex-1 w-full">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">From Date</label>
                     <input
                         type="date"
                         value={fromDate}
                         onChange={(e) => setFromDate(e.target.value)}
-                        className="form-input w-full"
+                        className="form-input w-full h-9 text-sm"
                     />
                 </div>
                 <div className="flex-1 w-full">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">To Date</label>
                     <input
                         type="date"
                         value={toDate}
                         onChange={(e) => setToDate(e.target.value)}
-                        className="form-input w-full"
+                        className="form-input w-full h-9 text-sm"
                     />
                 </div>
-                <div className="w-full md:w-auto">
-                    <Button onClick={handleFilter} className="w-full">
+                <div className="w-full sm:w-auto">
+                    <Button onClick={handleFilter} className="w-full h-9 px-4 text-sm">
                         Filter
                     </Button>
                 </div>

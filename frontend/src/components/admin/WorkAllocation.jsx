@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import appContext from '../../context/AppContext';
 import { useSocket } from '../../context/SocketContextNew';
-import { getTickets, createTicket, updateTicket, deleteTicket } from '../../services/ticketService';
+import { getTickets, createTicket, updateTicket, deleteTicket, getTicketCompletions } from '../../services/ticketService';
 import { getWorkers } from '../../services/workerService';
 import Spinner from '../common/Spinner';
 import {
     Search, Plus, Trash2, CheckSquare,
     AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
     Minus, X, User, AlignLeft, LayoutDashboard, Flag, List, ListOrdered,
-    Calendar, Clock, Check, ChevronDown, BarChart2
+    Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText
 } from 'lucide-react';
 import {
     Select,
@@ -17,6 +17,61 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
+// 🔹 Optimized Title Input to prevent lag/cursor jump
+const TitleInput = ({ initialValue, onUpdate }) => {
+    const [localValue, setLocalValue] = useState(initialValue || '');
+    const timerRef = useRef(null);
+
+    useEffect(() => {
+        setLocalValue(initialValue || '');
+    }, [initialValue]);
+
+    const handleChange = (e) => {
+        const val = e.target.value;
+        setLocalValue(val);
+        
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+            onUpdate(val);
+        }, 800);
+    };
+
+    return (
+        <textarea
+            autoFocus
+            value={localValue}
+            onChange={handleChange}
+            className="w-full text-xl font-bold text-gray-800 border-none bg-transparent rounded-xl p-0 resize-none focus:outline-none transition-all leading-tight placeholder-gray-200"
+            placeholder="Untitled Workspace..."
+            rows={1}
+        />
+    );
+};
+
+// 🔹 Auto-growing Textarea for compact feedback
+const AutoGrowingTextarea = ({ value, onChange, placeholder, className }) => {
+    const textareaRef = useRef(null);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className={`${className} resize-none overflow-hidden min-h-[40px]`}
+            rows={1}
+        />
+    );
+};
+
 
 const IssueIcon = ({ type }) => {
     switch (type) {
@@ -37,6 +92,52 @@ const PriorityIcon = ({ priority }) => {
     }
 };
 
+const TagInput = ({ tags, onChange, placeholder }) => {
+    const [inputValue, setInputValue] = useState('');
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const tag = inputValue.trim().replace(/,/g, '');
+            if (tag && !tags.includes(tag)) {
+                onChange([...tags, tag]);
+                setInputValue('');
+            }
+        } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+            onChange(tags.slice(0, -1));
+        }
+    };
+
+    const removeTag = (tagToRemove) => {
+        onChange(tags.filter(tag => tag !== tagToRemove));
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-white border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all min-h-[42px] w-full shadow-sm">
+            {tags.map((tag, index) => (
+                <span key={index} className="flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 text-xs font-bold rounded-md border border-teal-100 animate-in zoom-in-95 duration-200">
+                    {tag}
+                    <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeTag(tag); }} 
+                        className="hover:text-teal-900 transition-colors"
+                    >
+                        <X className="w-3 h-3" />
+                    </button>
+                </span>
+            ))}
+            <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={tags.length === 0 ? placeholder : ''}
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm p-1 outline-none placeholder-gray-400 min-w-[80px]"
+            />
+        </div>
+    );
+};
+
 const getTicketKey = (id) => id ? `CG-${id.substring(id.length - 4).toUpperCase()}` : '';
 
 const isOverdue = (endDate, status) => {
@@ -46,6 +147,178 @@ const isOverdue = (endDate, status) => {
     const end = new Date(endDate);
     end.setHours(0, 0, 0, 0);
     return end < today;
+};
+
+const MultiSelect = ({ options, selected, onChange, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (id) => {
+        if (selected.includes(id)) {
+            onChange(selected.filter(item => item !== id));
+        } else {
+            onChange([...selected, id]);
+        }
+    };
+
+    const selectedOptions = options.filter(opt => selected.includes(opt.id));
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <div 
+                className="flex flex-wrap items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl min-h-[48px] cursor-pointer hover:border-teal-500 transition-all shadow-sm group"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                {selectedOptions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 w-[calc(100%-24px)]">
+                        {selectedOptions.map(opt => (
+                            <span key={opt.id} className="flex items-center gap-1.5 px-2.5 py-1 bg-teal-50 text-teal-700 text-[10px] font-bold rounded-lg border border-teal-100 shadow-sm animate-in zoom-in-90">
+                                {opt.name}
+                                <X className="w-3 h-3 hover:text-red-500 transition-colors" onClick={(e) => { e.stopPropagation(); toggleOption(opt.id); }} />
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <span className="text-gray-400 text-sm font-medium">{placeholder}</span>
+                )}
+                <ChevronDown className={`w-4 h-4 ml-auto text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''} group-hover:text-teal-500`} />
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[300] max-h-60 overflow-y-auto animate-in zoom-in-95 duration-200">
+                    <div className="p-2 space-y-1">
+                        {options.map(opt => (
+                                <div 
+                                    key={opt.id} 
+                                    className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${selected.includes(opt.id) ? 'bg-teal-50 text-teal-700' : 'hover:bg-gray-50 text-gray-700'} ${opt.status === 'Relieved' ? 'opacity-60 grayscale' : ''}`}
+                                    onClick={() => toggleOption(opt.id)}
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium">{opt.name}</span>
+                                        {opt.status === 'Relieved' && <span className="text-[10px] text-orange-600 font-bold">Relieved</span>}
+                                    </div>
+                                    {selected.includes(opt.id) && <Check className="w-4 h-4" />}
+                                </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) => {
+    const [assignmentType, setAssignmentType] = useState('Individual'); // Team, Individual, Both
+    
+    useEffect(() => {
+        if (selectedTicket.team && selectedTicket.assignees?.length > 0) {
+            // Check if all team members are in assignees
+            const teamMembers = workers.filter(w => w.department === selectedTicket.team).map(w => w._id);
+            const hasExtra = selectedTicket.assignees.some(id => !teamMembers.includes(typeof id === 'object' ? id._id : id));
+            if (hasExtra) setAssignmentType('Both');
+            else setAssignmentType('Team');
+        } else if (selectedTicket.team) {
+            setAssignmentType('Team');
+        } else {
+            setAssignmentType('Individual');
+        }
+    }, [selectedTicket._id]);
+
+    const handleTypeChange = (type) => {
+        setAssignmentType(type);
+        if (type === 'Individual') {
+            updateSelectedTicket({ team: '' });
+        }
+    };
+
+    const handleTeamChange = (team) => {
+        updateSelectedTicket({ team });
+        if (assignmentType === 'Team') {
+            const teamMembers = workers.filter(w => w.department === team).map(w => w._id);
+            updateSelectedTicket({ assignees: teamMembers });
+        } else if (assignmentType === 'Both') {
+            const teamMembers = workers.filter(w => w.department === team).map(w => w._id);
+            const currentAssignees = (selectedTicket.assignees || []).map(a => typeof a === 'object' ? a._id : a);
+            const merged = [...new Set([...teamMembers, ...currentAssignees])];
+            updateSelectedTicket({ assignees: merged });
+        }
+    };
+
+    const handleEmployeeChange = (employeeIds) => {
+        let finalIds = [...employeeIds];
+        if (assignmentType === 'Team' || assignmentType === 'Both') {
+            if (selectedTicket.team) {
+                const teamMembers = workers.filter(w => w.department === selectedTicket.team).map(w => w._id);
+                finalIds = [...new Set([...teamMembers, ...finalIds])];
+            }
+        }
+        updateSelectedTicket({ assignees: finalIds });
+    };
+
+    const currentAssigneeIds = (selectedTicket.assignees || []).map(a => typeof a === 'object' ? a._id : a);
+    const teamMembersCount = selectedTicket.team ? workers.filter(w => w.department === selectedTicket.team).length : 0;
+    const finalCount = currentAssigneeIds.length;
+
+    return (
+        <div className="space-y-5">
+            <div className="flex flex-col gap-2">
+                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Assign To</span>
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+                    {['Team', 'Individual', 'Both'].map(type => (
+                        <button
+                            key={type}
+                            onClick={() => handleTypeChange(type)}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${assignmentType === type ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            {type}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {(assignmentType === 'Team' || assignmentType === 'Both') && (
+                <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
+                    <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Select Team</span>
+                    <Select value={selectedTicket.team || ''} onValueChange={handleTeamChange}>
+                        <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-sm shadow-sm rounded-lg">
+                            <SelectValue placeholder="Select a team..." />
+                        </SelectTrigger>
+                        <SelectContent className="z-[300]">
+                            {[...new Set(workers.map(w => w.department).filter(Boolean))].map(team => (
+                                <SelectItem key={team} value={team}>{team}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {selectedTicket.team && (
+                        <div className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 border border-teal-100 rounded-lg text-teal-700 text-[11px] font-bold mt-1">
+                            <Users className="w-3.5 h-3.5" />
+                            Team: {selectedTicket.team} ({teamMembersCount} members)
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {(assignmentType === 'Individual' || assignmentType === 'Both') && (
+                <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
+                    <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Select Employees</span>
+                    <MultiSelect 
+                        options={workers.map(w => ({ id: w._id, name: w.name, status: w.status }))}
+                        selected={currentAssigneeIds}
+                        onChange={handleEmployeeChange}
+                        placeholder="Add employees..."
+                    />
+                </div>
+            )}
+        </div>
+    );
 };
 
 const WorkAllocation = () => {
@@ -76,9 +349,23 @@ const WorkAllocation = () => {
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, ticket: null });
     const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
+    // Completion states for breakdown
+    const [ticketCompletions, setTicketCompletions] = useState([]);
+    const [isFetchingCompletions, setIsFetchingCompletions] = useState(false);
+    const [proofViewer, setProofViewer] = useState({ isOpen: false, files: [], userName: '', subTaskText: '' });
+    const [zoomedImage, setZoomedImage] = useState(null);
+
     const columns = ['To Do', 'In Progress', 'Review', 'Done'];
 
     useEffect(() => { fetchData(); }, [subdomain]);
+
+    useEffect(() => {
+        if (selectedTicket && selectedTicket._id !== 'new') {
+            fetchCompletions(selectedTicket._id);
+        } else {
+            setTicketCompletions([]);
+        }
+    }, [selectedTicket?._id]);
 
     // Socket listeners for real-time updates
     useEffect(() => {
@@ -105,10 +392,25 @@ const WorkAllocation = () => {
             }
         });
 
+        socket.on('subtask:completion_updated', ({ ticketId, subTaskId, workerId, completion }) => {
+            if (selectedTicket && selectedTicket._id === ticketId) {
+                setTicketCompletions(prev => {
+                    const exists = prev.findIndex(c => c._id === completion._id);
+                    if (exists !== -1) {
+                        const updated = [...prev];
+                        updated[exists] = completion;
+                        return updated;
+                    }
+                    return [...prev, completion];
+                });
+            }
+        });
+
         return () => {
             socket.off('ticket:created');
             socket.off('ticket:updated');
             socket.off('ticket:deleted');
+            socket.off('subtask:completion_updated');
         };
     }, [socket, selectedTicket]);
 
@@ -125,6 +427,18 @@ const WorkAllocation = () => {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCompletions = async (ticketId) => {
+        setIsFetchingCompletions(true);
+        try {
+            const data = await getTicketCompletions(ticketId);
+            setTicketCompletions(data);
+        } catch (error) {
+            console.error('Error fetching completions:', error);
+        } finally {
+            setIsFetchingCompletions(false);
         }
     };
 
@@ -257,6 +571,30 @@ const WorkAllocation = () => {
             updates.assignee = worker || null;
         }
 
+        // Handle multiple assignees if they are IDs
+        if (updates.hasOwnProperty('assignees') && Array.isArray(updates.assignees)) {
+            updates.assignees = updates.assignees.map(id => {
+                if (typeof id === 'string') {
+                    return workers.find(w => w._id === id) || id;
+                }
+                return id;
+            });
+        }
+
+        // Date Validation: If End Date is before Start Date, auto-correct it.
+        if (updates.hasOwnProperty('startDate') || updates.hasOwnProperty('endDate')) {
+            const currentStart = updates.startDate !== undefined ? updates.startDate : selectedTicket.startDate;
+            const currentEnd = updates.endDate !== undefined ? updates.endDate : selectedTicket.endDate;
+            
+            if (currentStart && currentEnd) {
+                const start = new Date(currentStart);
+                const end = new Date(currentEnd);
+                if (end < start) {
+                    updates.endDate = currentStart;
+                }
+            }
+        }
+
         const updatedTicket = { ...selectedTicket, ...updates };
         setSelectedTicket(updatedTicket);
 
@@ -326,11 +664,13 @@ const WorkAllocation = () => {
         updatedChecklist[index].completed = !updatedChecklist[index].completed;
         updatedChecklist[index].completedAt = updatedChecklist[index].completed ? new Date() : null;
 
-        // Auto move to Done if all items are completed
+        // Auto move to Review if all items are completed
         const allCompleted = updatedChecklist.every(item => item.completed);
         let updatedStatus = selectedTicket.status;
         if (allCompleted && updatedChecklist.length > 0) {
-            updatedStatus = 'Done';
+            if (updatedStatus !== 'Done' && updatedStatus !== 'Review') {
+                updatedStatus = 'Review';
+            }
         }
 
         const updatedTicket = { ...selectedTicket, checklist: updatedChecklist, status: updatedStatus };
@@ -386,10 +726,14 @@ const WorkAllocation = () => {
         let matchesTeam = true;
         if (filterTeam) {
             if (filterTeam === 'unassigned') {
-                matchesTeam = !t.assignee;
+                matchesTeam = !t.assignee && (!t.assignees || t.assignees.length === 0);
             } else {
-                const assigneeWorker = workers.find(w => w._id === t.assignee?._id);
-                matchesTeam = assigneeWorker && assigneeWorker.department === filterTeam;
+                if (t.team) {
+                    matchesTeam = t.team === filterTeam;
+                } else {
+                    const assigneeWorker = workers.find(w => w._id === (t.assignee?._id || t.assignee));
+                    matchesTeam = assigneeWorker && assigneeWorker.department === filterTeam;
+                }
             }
         }
 
@@ -492,8 +836,8 @@ const WorkAllocation = () => {
                         <button
                             onClick={() => {
                                 setInlineCreateStatus(null);
-                                setSelectedTicket({
-                                    _id: 'new', title: '', description: '', priority: 'Medium', status: 'To Do', issueType: 'Task', storyPoints: 0, labels: [], assignee: null, startDate: '', endDate: '', checklist: [{ text: '', completed: false }]
+                                 setSelectedTicket({
+                                    _id: 'new', title: '', description: '', priority: 'Medium', status: 'To Do', issueType: 'Task', storyPoints: 0, labels: [], assignee: null, assignees: [], team: '', startDate: '', endDate: '', checklist: [{ text: '', completed: false }]
                                 });
                                 setModalFilterTeam('');
                                 setIsModalOpen(true);
@@ -544,8 +888,7 @@ const WorkAllocation = () => {
                                                 startDate: ticket.startDate ? new Date(ticket.startDate).toISOString().split('T')[0] : '',
                                                 endDate: ticket.endDate ? new Date(ticket.endDate).toISOString().split('T')[0] : ''
                                             });
-                                            const assigneeWorker = workers.find(w => w._id === (ticket.assignee?._id || ticket.assignee));
-                                            setModalFilterTeam(assigneeWorker?.department || '');
+                                            setModalFilterTeam(ticket.team || '');
                                             setIsModalOpen(true);
                                         }}
                                         className={`p-4 rounded-xl shadow-sm border cursor-pointer hover:shadow-md hover:border-teal-100 active:cursor-grabbing transition-all group active:scale-[0.98] 
@@ -553,6 +896,11 @@ const WorkAllocation = () => {
                                             ${ticket.issueType === 'Bug' ? 'border-l-4 border-l-red-500' : ticket.issueType === 'Story' ? 'border-l-4 border-l-teal-500' : ticket.issueType === 'Epic' ? 'border-l-4 border-l-purple-500' : 'border-l-4 border-l-blue-500'}`}
                                     >
                                         <div className="flex gap-2 mb-1 flex-wrap">
+                                            {ticket.team && (
+                                                <span key="team-badge" className="bg-teal-600 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider flex items-center gap-1">
+                                                    <Users className="w-2.5 h-2.5" /> Team: {ticket.team}
+                                                </span>
+                                            )}
                                             {ticket.labels && ticket.labels.map(lbl => (
                                                 <span key={lbl} className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">{lbl}</span>
                                             ))}
@@ -581,6 +929,12 @@ const WorkAllocation = () => {
                                             </button>
                                         </div>
 
+                                        {ticket.feedback && (
+                                            <div className="mb-3 px-2 py-1.5 bg-orange-50 border-l-2 border-orange-400 rounded text-[11px] text-orange-700 italic font-medium">
+                                                Review Feedback: {ticket.feedback}
+                                            </div>
+                                        )}
+
                                         {ticket.checklist && ticket.checklist.length > 0 && (
                                             <div className="mb-4">
                                                 <div className="flex justify-between items-center mb-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
@@ -596,30 +950,63 @@ const WorkAllocation = () => {
                                             </div>
                                         )}
 
-                                        <div className="flex flex-wrap gap-2 mb-3 lg:hidden">
-                                            {status !== 'To Do' && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const prevStatus = columns[columns.indexOf(status) - 1];
-                                                        updateStatus(ticket._id, prevStatus);
-                                                    }}
-                                                    className="flex-1 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 text-[10px] font-bold uppercase tracking-wider"
-                                                >
-                                                    Move Back
-                                                </button>
-                                            )}
-                                            {status !== 'Done' && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const nextStatus = columns[columns.indexOf(status) + 1];
-                                                        updateStatus(ticket._id, nextStatus);
-                                                    }}
-                                                    className="flex-1 py-1 bg-teal-50 text-teal-700 rounded border border-teal-100 text-[10px] font-bold uppercase tracking-wider"
-                                                >
-                                                    Move Next
-                                                </button>
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {status === 'Review' ? (
+                                                <>
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            updateStatus(ticket._id, 'Done');
+                                                        }}
+                                                        className="flex-1 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-green-700 transition-colors shadow-sm"
+                                                    >
+                                                        <Check className="w-3 h-3" /> Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            const reason = window.prompt("Reason for rejection (optional):");
+                                                            if (reason !== null) {
+                                                                try {
+                                                                    await updateTicket(ticket._id, { status: 'In Progress', feedback: reason, subdomain });
+                                                                    setTickets(tickets.map(t => t._id === ticket._id ? { ...t, status: 'In Progress', feedback: reason } : t));
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="flex-1 py-1.5 bg-red-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 hover:bg-red-600 transition-colors shadow-sm"
+                                                    >
+                                                        <X className="w-3 h-3" /> Reject
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {status !== 'To Do' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const prevStatus = columns[columns.indexOf(status) - 1];
+                                                                updateStatus(ticket._id, prevStatus);
+                                                            }}
+                                                            className="flex-1 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 text-[10px] font-bold uppercase tracking-wider"
+                                                        >
+                                                            Move Back
+                                                        </button>
+                                                    )}
+                                                    {status !== 'Done' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const nextStatus = columns[columns.indexOf(status) + 1];
+                                                                updateStatus(ticket._id, nextStatus);
+                                                            }}
+                                                            className="flex-1 py-1 bg-teal-50 text-teal-700 rounded border border-teal-100 text-[10px] font-bold uppercase tracking-wider"
+                                                        >
+                                                            Move Next
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
 
@@ -639,7 +1026,24 @@ const WorkAllocation = () => {
                                                     <PriorityIcon priority={ticket.priority} />
                                                 </div>
                                                 <div className="px-2 py-1 rounded bg-teal-50 text-teal-700 flex items-center justify-center text-xs font-bold border border-teal-100 shadow-sm">
-                                                    {ticket.assignee ? ticket.assignee.name : <span className="flex items-center text-gray-500"><User className="w-3.5 h-3.5 mr-1" /> Unassigned</span>}
+                                                    {ticket.assignees && ticket.assignees.length > 0 ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <User className="w-3.5 h-3.5 mr-0.5" />
+                                                            {ticket.assignees.length === 1 ? (
+                                                                <span className={ticket.assignees[0].status === 'Relieved' ? 'line-through opacity-50' : ''}>
+                                                                    {ticket.assignees[0].name} {ticket.assignees[0].status === 'Relieved' && '(Relieved)'}
+                                                                </span>
+                                                            ) : (
+                                                                <span>{ticket.assignees[0].name} +{ticket.assignees.length - 1}</span>
+                                                            )}
+                                                        </div>
+                                                    ) : ticket.assignee ? (
+                                                        <span className={ticket.assignee.status === 'Relieved' ? 'line-through opacity-50' : ''}>
+                                                            {ticket.assignee.name} {ticket.assignee.status === 'Relieved' && '(Relieved)'}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center text-gray-500"><User className="w-3.5 h-3.5 mr-1" /> Unassigned</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -686,329 +1090,402 @@ const WorkAllocation = () => {
                 </div>
             </div>
 
-            {/* Responsive Detail Modal */}
+            {/* Full-Screen Workspace Task Modal */}
             {isModalOpen && selectedTicket && (
-                <div className="fixed inset-0 bg-black/60 z-[100] flex flex-col items-center justify-end sm:justify-center backdrop-blur-[2px] transition-all duration-300">
-                    <div className="bg-white rounded-t-[2.5rem] sm:rounded-2xl shadow-2xl w-full sm:max-w-5xl h-[92vh] sm:h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+                <div className="fixed inset-0 bg-black/60 z-[150] flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300 p-4">
+                    <div className="bg-white rounded-2xl lg:rounded-3xl shadow-2xl w-full max-w-[1400px] h-[95vh] lg:h-[92vh] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden border border-white/20">
 
                         {/* Header */}
-                        <div className="px-6 py-4 flex justify-between items-center text-gray-600 shrink-0 border-b border-gray-100 bg-gray-50/50">
-                            <div className="flex items-center space-x-2 text-sm font-semibold bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
-                                <IssueIcon type={selectedTicket.issueType} />
-                                <span className="uppercase text-gray-700">{selectedTicket._id === 'new' ? 'New Task' : selectedTicket.issueType}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                {selectedTicket._id !== 'new' && (
-                                    <button onClick={handleDeleteTicket} className="p-2 hover:bg-red-50 rounded-lg text-gray-500 hover:text-red-600 transition-colors" title="Delete Task">
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                        <div className="px-6 py-4 lg:px-8 lg:py-5 flex justify-between items-center text-gray-600 shrink-0 border-b border-gray-100 bg-gray-50/30">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center space-x-2 text-xs font-bold bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-200 uppercase tracking-widest text-teal-600">
+                                    <IssueIcon type={selectedTicket.issueType} />
+                                    <span>{selectedTicket._id === 'new' ? 'New Workspace' : `Task: ${selectedTicket._id.substring(selectedTicket._id.length-6).toUpperCase()}`}</span>
+                                </div>
+                                {selectedTicket.team && (
+                                    <div className="bg-teal-50 text-teal-700 px-3 py-2 rounded-xl text-[10px] font-bold uppercase border border-teal-100 flex items-center gap-1.5 shadow-sm">
+                                        <Users className="w-3.5 h-3.5" /> Team: {selectedTicket.team}
+                                    </div>
                                 )}
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors bg-gray-100">
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                {selectedTicket._id === 'new' && (
+                                     <button
+                                        disabled={!selectedTicket.title}
+                                        onClick={async () => {
+                                            setLoading(true);
+                                            try {
+                                                const taskToSave = { ...selectedTicket, subdomain };
+                                                if (taskToSave.assignees) {
+                                                    taskToSave.assignees = taskToSave.assignees.map(a => typeof a === 'object' ? a._id : a);
+                                                }
+                                                const newT = await createTicket(taskToSave);
+                                                setTickets([newT, ...tickets]);
+                                                setIsModalOpen(false);
+                                            } catch (e) {
+                                                console.error('Save failed', e);
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }}
+                                        className="bg-teal-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-teal-700 transition-all shadow-md active:scale-[0.98] flex items-center gap-2 group disabled:opacity-50"
+                                     >
+                                         <Check className="w-4 h-4" /> Create Workspace
+                                     </button>
+                                )}
+                                <button onClick={() => setIsModalOpen(false)} className="p-2.5 hover:bg-red-50 hover:text-red-500 rounded-xl text-gray-400 transition-all bg-gray-100 border border-gray-200">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Body */}
-                        <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden font-sans custom-scrollbar bg-white">
-                            {/* Main Content Area */}
-                            <div className="w-full md:w-[65%] md:overflow-y-auto px-4 sm:px-6 py-6 md:border-r border-gray-100 custom-scrollbar">
-                                <textarea
-                                    autoFocus
-                                    value={selectedTicket.title}
-                                    onChange={(e) => updateSelectedTicket({ title: e.target.value })}
-                                    className="w-full text-xl sm:text-2xl font-bold text-gray-800 border-2 border-transparent hover:border-gray-100 focus:border-teal-500 focus:bg-white rounded-xl p-2 sm:p-3 -ml-0 sm:-ml-3 mb-4 sm:mb-6 resize-none focus:outline-none transition-colors leading-tight"
-                                    placeholder="Task Title"
-                                    rows={2}
-                                />
-
-                                <div className="mb-6">
-                                    {selectedTicket._id !== 'new' && selectedTicket.createdAt && (
-                                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 text-[10px] font-bold text-gray-400 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                                            <div className="flex items-center gap-1.5 uppercase tracking-widest whitespace-nowrap">
-                                                <Calendar className="w-4 h-4 text-teal-500" />
-                                                <span>Created on <span className="text-gray-700 ml-1 font-extrabold">{new Date(selectedTicket.createdAt).toLocaleDateString('en-GB')}</span></span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 uppercase tracking-widest sm:pl-4 sm:border-l border-gray-200 whitespace-nowrap">
-                                                <Clock className="w-4 h-4 text-teal-500" />
-                                                <span>Last edited <span className="text-gray-700 ml-1 font-extrabold">{new Date(selectedTicket.updatedAt).toLocaleDateString('en-GB')} {new Date(selectedTicket.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span></span>
-                                            </div>
+                        {/* Body - Responsive Layout */}
+                        <div className="flex-1 overflow-y-auto lg:overflow-hidden bg-white">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[30%_25%_45%] lg:h-full divide-y md:divide-y-0 lg:divide-x divide-gray-100">
+                                
+                                {/* 🔹 COLUMN 1: Task Input & Checklist (LEFT) */}
+                                <div className="lg:h-full flex flex-col px-4 py-4 lg:px-6 lg:py-6 lg:overflow-hidden">
+                                    <div className="shrink-0 mb-3 lg:mb-4">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <AlignLeft className="w-3.5 h-3.5 text-teal-600" />
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Workspace Definition</span>
                                         </div>
-                                    )}
-                                    <div className="flex justify-between items-center mb-3">
-                                        <label className="text-sm font-bold text-gray-700 flex items-center">
-                                            <List className="w-4 h-4 mr-2 text-teal-600" /> Task Checklist
-                                        </label>
+                                        <TitleInput 
+                                            initialValue={selectedTicket.title} 
+                                            onUpdate={(newTitle) => updateSelectedTicket({ title: newTitle }, true)} 
+                                        />
+                                        
+                                        {selectedTicket._id !== 'new' && selectedTicket.createdAt && (
+                                            <div className="flex items-center gap-4 mt-2 text-[9px] font-bold text-gray-400">
+                                                <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+                                                    <Calendar className="w-3 h-3" />
+                                                    <span>Created: {new Date(selectedTicket.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+                                                    <History className="w-3 h-3" />
+                                                    <span>Mod: {new Date(selectedTicket.updatedAt).toLocaleTimeString()}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {selectedTicket._id !== 'new' && selectedTicket.checklist && selectedTicket.checklist.length > 0 && (
-                                        <div className="mb-4 bg-white border border-teal-100 rounded-xl p-3 shadow-sm">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Execution Progress</span>
-                                                <span className="text-[10px] font-extrabold bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full border border-teal-100">
-                                                    {selectedTicket.checklist.filter(i => i.completed).length} / {selectedTicket.checklist.length} POINTS DONE
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-100 rounded-full h-1.5 shadow-inner overflow-hidden">
-                                                <div
-                                                    className="bg-teal-500 h-1.5 rounded-full transition-all duration-500 shadow-sm"
-                                                    style={{ width: `${(selectedTicket.checklist.filter(i => i.completed).length / selectedTicket.checklist.length) * 100}%` }}
-                                                ></div>
-                                            </div>
+                                    <div className="flex-1 flex flex-col min-h-[200px] lg:min-h-0 bg-gray-50/30 rounded-2xl p-3 lg:p-4 border border-gray-100/50">
+                                        <div className="flex justify-between items-center mb-2 shrink-0">
+                                            <label className="text-xs font-bold text-gray-700 flex items-center">
+                                                <List className="w-4 h-4 mr-2 text-teal-600" /> Task Checklist
+                                            </label>
+                                            <span className="text-[9px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100">
+                                                {selectedTicket.checklist?.length || 0} SUB-TASKS
+                                            </span>
                                         </div>
-                                    )}
 
-                                    <div className="space-y-1 bg-gray-50/50 border border-gray-200 rounded-xl p-4 min-h-[12rem] shadow-inner mb-6">
-                                        {(selectedTicket.checklist && selectedTicket.checklist.length > 0 ? selectedTicket.checklist : [{ text: '', completed: false }]).map((item, idx) => (
-                                            <div key={idx} className="flex items-center gap-3 group py-1.5 px-2 hover:bg-white rounded-lg transition-all">
-                                                <div className="flex items-center h-6">
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 pb-2">
+                                            {(selectedTicket.checklist && selectedTicket.checklist.length > 0 ? selectedTicket.checklist : [{ text: '', completed: false }]).map((item, idx) => (
+                                                <div key={idx} className="flex items-start gap-3 group py-1.5 px-3 bg-white hover:bg-teal-50/30 rounded-xl transition-all border border-gray-100 hover:border-teal-100 shadow-sm">
+                                                    <div className="flex items-center h-5 mt-0.5">
+                                                        <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${item.completed ? 'bg-teal-500 border-teal-500 text-white' : 'border-gray-200'}`}>
+                                                            {item.completed && <Check className="w-3.5 h-3.5" />}
+                                                        </div>
+                                                    </div>
                                                     <input
-                                                        type="checkbox"
-                                                        checked={item.completed}
-                                                        onChange={() => toggleChecklistItem(idx)}
-                                                        className="h-5 w-5 text-teal-600 border-gray-300 rounded cursor-pointer transition-all shadow-sm focus:ring-teal-500"
+                                                        autoFocus={idx > 0 && item.text === ''}
+                                                        value={item.text}
+                                                        onChange={(e) => updateChecklistItemText(idx, e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') { e.preventDefault(); addChecklistItem(idx); }
+                                                            else if (e.key === 'Backspace' && item.text === '' && (selectedTicket.checklist || []).length > 1) { e.preventDefault(); removeChecklistItem(idx); }
+                                                        }}
+                                                        className={`flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold text-gray-700 placeholder-gray-300 outline-none ${item.completed ? 'text-gray-400 line-through italic' : ''}`}
+                                                        placeholder="Next sub-task..."
                                                     />
+                                                    <button
+                                                        onClick={() => removeChecklistItem(idx)}
+                                                        className="p-1.5 text-orange-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg bg-orange-50/50 hover:bg-red-100/50"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                                <input
-                                                    autoFocus={idx > 0 && item.text === ''}
-                                                    value={item.text}
-                                                    onChange={(e) => updateChecklistItemText(idx, e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            addChecklistItem(idx);
-                                                        } else if (e.key === 'Backspace' && item.text === '' && (selectedTicket.checklist || []).length > 1) {
-                                                            e.preventDefault();
-                                                            removeChecklistItem(idx);
-                                                            // Focus previous input logic could be added here
-                                                        }
-                                                    }}
-                                                    className={`flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold text-gray-700 placeholder-gray-400 outline-none ${item.completed ? 'text-gray-400 line-through italic' : ''}`}
-                                                    placeholder="Describe this step..."
-                                                />
-                                                <button
-                                                    onClick={() => removeChecklistItem(idx)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all rounded-md hover:bg-red-50"
-                                                    title="Remove Item"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                         <button
                                             onClick={() => addChecklistItem()}
-                                            className="mt-4 flex items-center gap-2 text-teal-600 hover:text-teal-700 text-xs font-extrabold uppercase tracking-wider transition-all px-2 py-2 hover:bg-teal-50 rounded-lg w-fit"
+                                            className="mt-2 flex items-center justify-center gap-2 text-teal-600 hover:bg-teal-600 hover:text-white text-[10px] font-extrabold uppercase tracking-widest transition-all p-2.5 bg-white border border-dashed border-teal-200 rounded-xl group shadow-sm active:scale-95"
                                         >
-                                            <Plus className="w-4 h-4" /> Add Next Point
+                                            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" /> Add Next Point
                                         </button>
                                     </div>
 
+                                    {/* REFINED FIXED Planning Section at Bottom */}
+                                    <div className="shrink-0 mt-2 pt-2 border-t border-gray-100 px-1 pb-1">
+                                        <div className="bg-white border border-gray-200 rounded-[1.25rem] shadow-sm overflow-hidden">
+                                            <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <LayoutDashboard className="w-4 h-4 text-teal-600" />
+                                                    <h3 className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Resource Timeline & Tags</h3>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`w-2 h-2 rounded-full ${isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'bg-red-500 animate-pulse' : 'bg-teal-500'}`}></span>
+                                                    <span className="text-[8px] font-bold text-gray-400 uppercase">{isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'Overdue' : 'Active'}</span>
+                                                </div>
+                                            </div>
 
+                                            <div className="p-2 lg:p-3 space-y-2 lg:space-y-3">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1.5">
+                                                        <Calendar className="w-3 h-3 text-teal-600" /> Timeline Period
+                                                    </label>
+                                                    <div className="flex items-center gap-2 bg-gray-50/80 p-1 rounded-xl border border-gray-100">
+                                                        <div className="relative flex-1">
+                                                            <input 
+                                                                type="date" 
+                                                                value={selectedTicket.startDate || ''} 
+                                                                onChange={(e) => updateSelectedTicket({ startDate: e.target.value })} 
+                                                                className="w-full bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500 shadow-sm" 
+                                                            />
+                                                            <span className="absolute -top-4 left-1 text-[8px] font-bold text-teal-600/50 uppercase">Start</span>
+                                                        </div>
+                                                        <div className="text-gray-300 font-bold">→</div>
+                                                        <div className="relative flex-1">
+                                                            <input 
+                                                                type="date" 
+                                                                value={selectedTicket.endDate || ''} 
+                                                                onChange={(e) => updateSelectedTicket({ endDate: e.target.value })} 
+                                                                className={`w-full border-none rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500 shadow-sm ${isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-gray-700 border border-gray-100'}`} 
+                                                            />
+                                                            <span className="absolute -top-4 left-1 text-[8px] font-bold text-teal-600/50 uppercase">End</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="h-0.5 bg-gray-50 mx-1"></div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1.5">
+                                                        <Zap className="w-3 h-3 text-orange-500" /> Priority Matrix
+                                                    </label>
+                                                    <div className="flex gap-2">
+                                                        {['Low', 'Medium', 'High'].map(p => (
+                                                            <button 
+                                                                key={p} 
+                                                                onClick={() => updateSelectedTicket({ priority: p })}
+                                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase transition-all flex-1 border-2 ${selectedTicket.priority === p 
+                                                                    ? (p === 'High' ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-100' : p === 'Medium' ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-100' : 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-100') 
+                                                                    : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
+                                                            >
+                                                                {p}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {selectedTicket._id === 'new' && (
-                                    <div className="mt-6 flex justify-end">
-                                        <button
-                                            onClick={async () => {
-                                                setLoading(true);
-                                                try {
-                                                    const taskToSave = { ...selectedTicket, subdomain };
-                                                    if (taskToSave.assignee === 'all' && modalFilterTeam) {
-                                                        const teamWorkers = workers.filter(w => w.department === modalFilterTeam);
-                                                        const creations = teamWorkers.map(w => {
-                                                            const individualTask = { ...taskToSave, assignee: w._id };
-                                                            return createTicket(individualTask);
-                                                        });
-                                                        const newTickets = await Promise.all(creations);
-                                                        setTickets([...newTickets, ...tickets]);
-                                                    } else {
-                                                        if (taskToSave.assignee && typeof taskToSave.assignee === 'object') {
-                                                            taskToSave.assignee = taskToSave.assignee._id;
-                                                        }
-                                                        const newT = await createTicket(taskToSave);
-                                                        setTickets([newT, ...tickets]);
-                                                    }
-                                                    setIsModalOpen(false);
-                                                } catch (e) {
-                                                    console.error('Save failed', e);
-                                                } finally {
-                                                    setLoading(false);
-                                                }
-                                            }}
-                                            className="bg-teal-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-700 transition-all shadow-md active:scale-95"
-                                            disabled={!selectedTicket.title}
-                                        >
-                                            Save Task
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                {/* 🔹 COLUMN 2: Phase Status & Controls (CENTER) */}
+                                <div className="lg:h-full flex flex-col p-4 lg:p-5 overflow-y-auto custom-scrollbar bg-gray-50/10 lg:border-r border-gray-100">
+                                    <div className="space-y-4">
+                                        {/* Status Control */}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <History className="w-3.5 h-3.5 text-teal-600" />
+                                                <span className="text-gray-400 font-bold text-[9px] uppercase tracking-wider">Phase Status</span>
+                                            </div>
+                                            <Select value={selectedTicket.status} onValueChange={(val) => updateSelectedTicket({ status: val })}>
+                                                <SelectTrigger className="w-full bg-white border-gray-200 h-11 text-xs font-bold shadow-sm rounded-xl">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="z-[250]">
+                                                    {columns.map(col => (
+                                                        <SelectItem key={col} value={col}>{col.toUpperCase()}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
 
-                            {/* Sidebar Details Area */}
-                            <div className="w-full md:w-[35%] md:overflow-y-auto p-5 sm:p-6 md:p-8 text-sm bg-gray-50/50 border-t md:border-t-0 custom-scrollbar">
-                                <div className="space-y-6">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Status \u0026 Properties</h3>
-                                    <div>
-                                        <Select value={selectedTicket.status} onValueChange={(val) => updateSelectedTicket({ status: val })}>
-                                            <SelectTrigger className="w-full md:w-auto bg-white border-gray-300 text-xs font-bold h-11 px-4 py-2 uppercase shadow-sm">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="z-[200]">
-                                                {columns.map(status => (
-                                                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                        {/* Assignment Center */}
+                                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-white">
+                                            <AssignmentSection 
+                                               selectedTicket={selectedTicket}
+                                               updateSelectedTicket={updateSelectedTicket}
+                                               workers={workers}
+                                            />
 
-                                    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm text-gray-800">
-                                        <div className="space-y-5">
-                                            <div className="flex flex-col gap-2">
-                                                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Team Name</span>
-                                                <Select value={modalFilterTeam} onValueChange={(val) => {
-                                                    setModalFilterTeam(val === "all_teams_modal" ? "" : val);
-                                                    updateSelectedTicket({ assignee: null });
-                                                }}>
-                                                    <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-sm shadow-sm">
-                                                        <SelectValue placeholder="All Teams" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="z-[200]">
-                                                        <SelectItem value="all_teams_modal">All Teams (Show all employees)</SelectItem>
-                                                        {[...new Set(workers.map(w => w.department).filter(Boolean))].map(team => (
-                                                            <SelectItem key={team} value={team}>{team}</SelectItem>
+                                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Flag className="w-3 h-3 text-teal-600" />
+                                                        <span className="text-gray-400 font-bold text-[9px] uppercase tracking-wider">Work Type</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {['Task', 'Bug', 'Story', 'Epic'].map(type => (
+                                                            <button 
+                                                                key={type}
+                                                                onClick={() => updateSelectedTicket({ issueType: type })}
+                                                                className={`px-3 py-2 rounded-xl text-[10px] font-extrabold uppercase transition-all flex items-center justify-center gap-1.5 border-2 ${selectedTicket.issueType === type 
+                                                                    ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-sm' 
+                                                                    : 'bg-gray-50 border-transparent text-gray-400 hover:border-gray-200'}`}
+                                                            >
+                                                                <IssueIcon type={type} />
+                                                                {type}
+                                                            </button>
                                                         ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="flex flex-col gap-2">
-                                                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Assignee</span>
-                                                <Select
-                                                    value={selectedTicket.assignee?._id || (typeof selectedTicket.assignee === 'string' ? selectedTicket.assignee : "unassigned_modal")}
-                                                    onValueChange={(val) => updateSelectedTicket({ assignee: val === "unassigned_modal" ? null : val })}
-                                                >
-                                                    <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-sm shadow-sm">
-                                                        <SelectValue placeholder="Unassigned" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="z-[200]">
-                                                        <SelectItem value="unassigned_modal">Unassigned</SelectItem>
-                                                        {modalFilterTeam && (
-                                                            <SelectItem value="all" className="bg-teal-50 font-bold">ALL TEAM MEMBERS ({workers.filter(w => w.department === modalFilterTeam).length})</SelectItem>
-                                                        )}
-                                                        {workers
-                                                            .filter(w => !modalFilterTeam || w.department === modalFilterTeam)
-                                                            .map(w => (
-                                                                <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>
-                                                            ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="flex flex-col gap-2">
-                                                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Issue Type</span>
-                                                <Select value={selectedTicket.issueType} onValueChange={(val) => updateSelectedTicket({ issueType: val })}>
-                                                    <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-sm flex items-center gap-2 shadow-sm">
-                                                        <div className="flex items-center gap-2">
-                                                            <IssueIcon type={selectedTicket.issueType} />
-                                                            <SelectValue />
-                                                        </div>
-                                                    </SelectTrigger>
-                                                    <SelectContent className="z-[200]">
-                                                        <SelectItem value="Task">Task</SelectItem>
-                                                        <SelectItem value="Bug">Bug</SelectItem>
-                                                        <SelectItem value="Story">Story</SelectItem>
-                                                        <SelectItem value="Epic">Epic</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-                                                <div className="flex flex-col gap-2">
-                                                    <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Priority</span>
-                                                    <Select value={selectedTicket.priority} onValueChange={(val) => updateSelectedTicket({ priority: val })}>
-                                                        <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-xs px-2 shadow-sm">
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                <PriorityIcon priority={selectedTicket.priority} />
-                                                                <SelectValue />
-                                                            </div>
-                                                        </SelectTrigger>
-                                                        <SelectContent className="z-[200]">
-                                                            <SelectItem value="Low">Low</SelectItem>
-                                                            <SelectItem value="Medium">Medium</SelectItem>
-                                                            <SelectItem value="High">High</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col gap-2">
-                                                    <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Story Points</span>
-                                                    <input
-                                                        type="text"
-                                                        value={selectedTicket.storyPoints || ''}
-                                                        onChange={(e) => updateSelectedTicket({ storyPoints: parseInt(e.target.value) || 0 })}
-                                                        placeholder="0"
-                                                        className="w-full font-medium bg-gray-50 border border-gray-200 hover:border-teal-100 p-2.5 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm transition-all"
-                                                        min="0"
+
+                                                <div className="flex flex-col gap-2 pt-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <MessageSquare className="w-3 h-3 text-orange-500" />
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Resolution Feedback</span>
+                                                    </div>
+                                                    <AutoGrowingTextarea
+                                                        value={selectedTicket.feedback || ''}
+                                                        onChange={(newVal) => updateSelectedTicket({ feedback: newVal }, true)}
+                                                        className="w-full bg-orange-50/50 border-none rounded-xl p-3 text-xs font-medium text-orange-800 placeholder-orange-300 focus:ring-2 focus:ring-orange-200 transition-all"
+                                                        placeholder="Add review notes..."
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <div className="flex flex-col gap-2">
-                                                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Labels</span>
-                                                <input
-                                                    type="text"
-                                                    value={selectedTicket.labels?.join(', ') || ''}
-                                                    onChange={(e) => {
-                                                        const labels = e.target.value.split(',').map(l => l.trim()).filter(Boolean);
-                                                        updateSelectedTicket({ labels });
-                                                    }}
-                                                    placeholder="frontend, urgent..."
-                                                    className="w-full font-medium bg-gray-50 border border-gray-200 hover:border-teal-100 p-2.5 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm placeholder-gray-400 transition-all"
-                                                />
-                                            </div>
+                                        {selectedTicket._id !== 'new' && (
+                                            <button
+                                                onClick={() => handleDeleteTicket(selectedTicket)}
+                                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-red-100 bg-red-50/30 text-red-600 hover:bg-red-500 hover:text-white transition-all font-bold text-[9px] uppercase tracking-widest group shadow-sm active:scale-95"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" /> Permanently Delete
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
 
-                                            <div className="pt-2 border-t border-gray-100">
-                                                <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider mb-2 block">Scheduling</span>
-                                                <div className="space-y-3">
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[11px] text-gray-500 font-semibold">Start Date</label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="date"
-                                                                value={selectedTicket.startDate || ''}
-                                                                onChange={(e) => updateSelectedTicket({ startDate: e.target.value })}
-                                                                className="w-full font-medium bg-gray-50 border border-gray-200 hover:border-teal-100 p-2.5 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm transition-all pr-10"
-                                                            />
-                                                            <Calendar className="w-4 h-4 absolute right-3 top-3 text-gray-400 pointer-events-none" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <label className="text-[11px] text-gray-500 font-semibold">End Date</label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="date"
-                                                                value={selectedTicket.endDate || ''}
-                                                                onChange={(e) => updateSelectedTicket({ endDate: e.target.value })}
-                                                                className={`w-full font-medium p-2.5 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm transition-all pr-10 ${isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'bg-red-50 border-red-300 text-red-900' : 'bg-gray-50 border border-gray-200 hover:border-teal-100'}`}
-                                                            />
-                                                            <Calendar className="w-4 h-4 absolute right-3 top-3 text-gray-400 pointer-events-none" />
-                                                        </div>
-                                                    </div>
+                                {/* 🔹 COLUMN 3: Execution & Analytics (RIGHT - MOVED FROM CENTER) */}
+                                <div className="lg:h-full flex flex-col px-4 py-4 lg:px-6 lg:py-6 lg:overflow-hidden bg-gray-50/20">
+                                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                                        
+                                        {/* Progress Card */}
+                                        {selectedTicket._id !== 'new' && (
+                                            <div className="bg-white border border-teal-100/50 rounded-2xl p-4 shadow-sm mb-6 shrink-0 relative overflow-hidden">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <BarChart2 className="w-3.5 h-3.5 text-teal-500" />
+                                                        Overall Completion
+                                                    </span>
+                                                    <span className="text-[11px] font-extrabold bg-teal-50 text-teal-600 px-2 py-0.5 rounded-full border border-teal-100">
+                                                        {Math.round((selectedTicket.checklist?.filter(i => i.completed).length / selectedTicket.checklist?.length) * 100) || 0}% DONE
+                                                    </span>
                                                 </div>
+                                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden shadow-inner flex">
+                                                    <div
+                                                        className="bg-teal-500 h-2 transition-all duration-1000 ease-out"
+                                                        style={{ width: `${(selectedTicket.checklist?.filter(i => i.completed).length / (selectedTicket.checklist?.length || 1)) * 100}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Execution Breakdown Area (SCROLLABLE) */}
+                                        <div className="flex-1 flex flex-col min-h-0">
+                                            <div className="flex items-center gap-2 mb-4 shrink-0">
+                                                <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                                                    <Users className="w-4 h-4 text-teal-600" />
+                                                </div>
+                                                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Resource Execution Graph</h3>
+                                            </div>
+                                            
+                                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-4 pb-6">
+                                                {isFetchingCompletions ? (
+                                                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                                                        <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                                        <p className="text-xs font-bold uppercase tracking-widest">Loading Analytics...</p>
+                                                    </div>
+                                                ) : selectedTicket._id !== 'new' && selectedTicket.assignees?.length > 0 ? (
+                                                    selectedTicket.checklist?.map((item, idx) => {
+                                                        const itemCompletions = ticketCompletions.filter(c => c.subTaskId === item._id);
+                                                        return (
+                                                            <div key={item._id || idx} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                                                <div className="bg-gray-50/80 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[9px] font-black bg-teal-100 text-teal-700 px-2 py-0.5 rounded border border-teal-200">
+                                                                            ST-{String(idx + 1).padStart(2, '0')}
+                                                                        </span>
+                                                                        <span className="text-xs font-bold text-gray-800 truncate max-w-[220px]">{item.text || `Point ${idx + 1}`}</span>
+                                                                    </div>
+                                                                    <div className="flex -space-x-1.5">
+                                                                        {selectedTicket.assignees.slice(0, 5).map(w => (
+                                                                            <div key={w._id || w} className={`w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-extrabold shadow-sm ${itemCompletions.some(c => (c.workerId?._id || c.workerId) === (w._id || w)) ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                                                                {(w.name || 'W').charAt(0)}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="p-3 space-y-3">
+                                                                    {selectedTicket.assignees.map(worker => {
+                                                                        const workerId = worker._id || worker;
+                                                                        const comp = itemCompletions.find(c => (c.workerId?._id || c.workerId) === workerId);
+                                                                        const isDone = comp && comp.isCompleted;
+                                                                        const hasProof = comp?.proofFiles?.length > 0;
+
+                                                                        return (
+                                                                            <div key={workerId} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:border-teal-200 hover:shadow-sm transition-all group">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[10px] font-black text-teal-600 shadow-sm">
+                                                                                        {(worker.name || 'W').charAt(0).toUpperCase()}
+                                                                                    </div>
+                                                                                    <span className="text-sm font-bold text-gray-700">{worker.name || 'Worker'}</span>
+                                                                                </div>
+
+                                                                                <div className="flex items-center gap-3">
+                                                                                    {/* Status Badge */}
+                                                                                    {isDone ? (
+                                                                                        <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-green-100 shadow-sm">
+                                                                                            <CheckCircle2 className="w-3.5 h-3.5" /> Done
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-orange-100 shadow-sm">
+                                                                                            <Clock className="w-3.5 h-3.5" /> Pending
+                                                                                        </span>
+                                                                                    )}
+
+                                                                                    {/* Proof Status Badge */}
+                                                                                    {hasProof ? (
+                                                                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-blue-100 shadow-sm">
+                                                                                            <Paperclip className="w-3.5 h-3.5" /> Proof
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-gray-200">
+                                                                                            <X className="w-3.5 h-3.5" /> No Proof
+                                                                                        </span>
+                                                                                    )}
+
+                                                                                    {/* View Action */}
+                                                                                    {hasProof && (
+                                                                                        <button
+                                                                                            onClick={() => setProofViewer({ isOpen: true, files: comp.proofFiles, userName: worker.name, subTaskText: item.text })}
+                                                                                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-teal-700 transition-all shadow-md shadow-teal-100 active:scale-95 ml-2 group"
+                                                                                        >
+                                                                                            <Eye className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" /> View
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+                                                        <Users className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">No Execution Data</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Dates moved above description */}
-                                    {selectedTicket._id !== 'new' && (
-                                        <div className="pt-4 border-t border-gray-100">
-                                            <button
-                                                onClick={() => handleDeleteTicket(selectedTicket)}
-                                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-red-200 bg-red-50/50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-all font-bold text-xs uppercase tracking-wider group/del"
-                                            >
-                                                <Trash2 className="w-4 h-4 group-hover/del:scale-110 transition-transform" /> Delete Task
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1067,6 +1544,129 @@ const WorkAllocation = () => {
                 )
             }
 
+            {/* Proof Viewer Modal */}
+            {proofViewer.isOpen && (
+                <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 flex justify-between items-center border-b border-gray-100 bg-gray-50/50">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800">Proof Viewer</h3>
+                                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                    {proofViewer.userName}'s work on: {proofViewer.subTaskText}
+                                </p>
+                            </div>
+                            <button onClick={() => setProofViewer({ ...proofViewer, isOpen: false })} className="p-2 hover:bg-gray-200 rounded-lg text-gray-400 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar bg-gray-50/30">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {proofViewer.files.map((file, idx) => {
+                                    const isImage = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|jfif)$/i.test(file.url);
+                                    const isPDF = file.type === 'application/pdf' || /\.pdf$/i.test(file.url);
+                                    const fileUrl = file.url;
+                                    
+                                    return (
+                                        <div key={file._id || idx} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col">
+                                            {isImage ? (
+                                                <div 
+                                                    className="aspect-video bg-gray-100 relative overflow-hidden flex items-center justify-center cursor-zoom-in"
+                                                    onClick={() => setZoomedImage({ url: fileUrl, name: file.name })}
+                                                >
+                                                    <img src={fileUrl} alt={file.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                        <div className="bg-white text-gray-800 p-2.5 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center gap-2">
+                                                            <Eye className="w-5 h-5" />
+                                                            <span className="text-[10px] font-bold uppercase pr-1">Preview</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : isPDF ? (
+                                                <div 
+                                                    className="aspect-video bg-blue-50 flex flex-col items-center justify-center p-6 text-center border-b border-gray-100 cursor-pointer hover:bg-blue-100 transition-colors"
+                                                    onClick={() => window.open(fileUrl, '_blank')}
+                                                >
+                                                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-red-500 mb-3">
+                                                        <FileText className="w-6 h-6" />
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">PDF DOCUMENT</p>
+                                                    <p className="text-[10px] text-blue-600 font-bold mt-1 uppercase">Click to Preview</p>
+                                                </div>
+                                            ) : (
+                                                <div className="aspect-video bg-gray-50 flex flex-col items-center justify-center p-6 text-center border-b border-gray-100">
+                                                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-teal-600 mb-3">
+                                                        <Paperclip className="w-6 h-6" />
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{file.type?.split('/')[1] || 'FILE'}</p>
+                                                </div>
+                                            )}
+                                            <div className="p-3 flex justify-between items-center bg-white mt-auto">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-gray-700 truncate">{file.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium">Uploaded at {new Date(file.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    {isImage && (
+                                                        <button 
+                                                            onClick={() => setZoomedImage({ url: fileUrl, name: file.name })}
+                                                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" 
+                                                            title="Preview"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <a 
+                                                        href={fileUrl} 
+                                                        download={file.name} 
+                                                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" 
+                                                        title="Download File"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox Style Image Preview */}
+            {zoomedImage && (
+                <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+                    <div className="absolute top-4 right-4 flex gap-3">
+                        <a 
+                            href={zoomedImage.url} 
+                            download={zoomedImage.name} 
+                            className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
+                            title="Download"
+                        >
+                            <Download className="w-6 h-6" />
+                        </a>
+                        <button 
+                            onClick={() => setZoomedImage(null)}
+                            className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+                    
+                    <div className="w-full h-full flex flex-col items-center justify-center">
+                        <img 
+                            src={zoomedImage.url} 
+                            alt={zoomedImage.name} 
+                            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+                        />
+                        <p className="text-white text-sm font-bold mt-6 bg-black/50 px-6 py-2 rounded-full backdrop-blur-sm border border-white/10">
+                            {zoomedImage.name}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Stats Breakdown Modal */}
             <StatsBreakdownModal
                 isOpen={isStatsModalOpen}
@@ -1086,7 +1686,10 @@ const StatsBreakdownModal = ({ isOpen, onClose, tickets, workers, columns }) => 
     const teams = [...new Set(workers.map(w => w.department || 'Unassigned').filter(Boolean))];
     const teamStats = teams.map(team => {
         const teamWorkers = workers.filter(w => (w.department || 'Unassigned') === team).map(w => w._id);
-        const teamTickets = tickets.filter(t => t.assignee && teamWorkers.includes(t.assignee._id || t.assignee));
+        const teamTickets = tickets.filter(t => 
+            (t.assignee && teamWorkers.includes(t.assignee._id || t.assignee)) ||
+            (t.assignees && t.assignees.some(a => teamWorkers.includes(a._id || a)))
+        );
 
         const stats = {};
         columns.forEach(col => {
@@ -1097,7 +1700,10 @@ const StatsBreakdownModal = ({ isOpen, onClose, tickets, workers, columns }) => 
 
     // Calculate person-wise stats
     const personStats = workers.map(worker => {
-        const workerTickets = tickets.filter(t => (t.assignee?._id || t.assignee) === worker._id);
+        const workerTickets = tickets.filter(t => 
+            (t.assignee?._id || t.assignee) === worker._id ||
+            (t.assignees && t.assignees.some(a => (a._id || a) === worker._id))
+        );
         const stats = {};
         columns.forEach(col => {
             stats[col] = workerTickets.filter(t => t.status === col).length;

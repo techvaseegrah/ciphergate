@@ -128,7 +128,11 @@ const Settings = () => {
             monthlyLimit: 2,
             deductionMultiplier: 2
         },
-        includePermission: false
+        includePermission: false,
+        paidLeaveConfig: {
+            enabled: false,
+            leavesPerMonth: 1
+        }
     });
 
     const formatTimeTo12Hour = (time24) => {
@@ -213,7 +217,11 @@ const Settings = () => {
                     longitude: fetchedSettings.attendanceLocation?.longitude || 0,
                     radius: fetchedSettings.attendanceLocation?.radius || 100
                 },
-                includePermission: fetchedSettings.includePermission ?? false
+                includePermission: fetchedSettings.includePermission ?? false,
+                paidLeaveConfig: {
+                    enabled: fetchedSettings.paidLeaveConfig?.enabled ?? false,
+                    leavesPerMonth: fetchedSettings.paidLeaveConfig?.leavesPerMonth || 1
+                }
             };
 
             setSettings(finalSettings);
@@ -386,6 +394,19 @@ const Settings = () => {
         const updatedSettings = {
             ...settings,
             advancedLeaveDeduction: updatedAdvanced
+        };
+        setSettings(updatedSettings);
+        checkForChanges(updatedSettings);
+    };
+
+    const handlePaidLeaveConfigChange = (field, value) => {
+        const updatedPaidLeave = {
+            ...settings.paidLeaveConfig,
+            [field]: value
+        };
+        const updatedSettings = {
+            ...settings,
+            paidLeaveConfig: updatedPaidLeave
         };
         setSettings(updatedSettings);
         checkForChanges(updatedSettings);
@@ -1194,6 +1215,58 @@ const Settings = () => {
                     </div>
                 </Card>
 
+                {/* Paid Leave Configuration */}
+                <Card className="mb-8 hover:shadow-lg transition-shadow duration-200">
+                    <div className="h-2 bg-gradient-to-r from-emerald-400 to-teal-400" />
+                    <div className="p-6">
+                        <h3 className="text-lg font-semibold mb-6 flex items-center text-gray-900">
+                            <div className="p-2 bg-emerald-100 rounded-lg mr-3">
+                                <FiUserCheck className="h-5 w-5 text-emerald-600" />
+                            </div>
+                            Paid Leave Configuration
+                        </h3>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700">Enable Paid Leave</label>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Allow employees to apply for paid leaves
+                                    </p>
+                                </div>
+                                <CustomToggle
+                                    checked={settings.paidLeaveConfig?.enabled}
+                                    onChange={() => handlePaidLeaveConfigChange('enabled', !settings.paidLeaveConfig?.enabled)}
+                                />
+                            </div>
+
+                            {settings.paidLeaveConfig?.enabled && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm transition-all hover:border-emerald-200">
+                                        <label className="block text-xs font-black text-gray-500 mb-2 uppercase tracking-widest">
+                                            Monthly Limit
+                                        </label>
+                                        <div className="flex items-center">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="31"
+                                                value={settings.paidLeaveConfig?.leavesPerMonth}
+                                                onChange={(e) => handlePaidLeaveConfigChange('leavesPerMonth', parseInt(e.target.value) || 0)}
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm font-bold text-gray-900"
+                                            />
+                                            <span className="ml-3 text-sm text-gray-500 font-black uppercase tracking-wider">Days</span>
+                                        </div>
+                                        <p className="mt-3 text-[10px] text-gray-400 font-medium uppercase leading-tight">
+                                            Max paid leaves per employee / month
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+
                 {/* Work Schedule Configuration */}
                 <div className="mb-8">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
@@ -1446,7 +1519,7 @@ const Settings = () => {
                 </div>
 
                 {/* Settings Summary */}
-                <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
+                {/* <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
                     <div className="p-6">
                         <h3 className="text-lg font-semibold mb-6 text-gray-900">Configuration Summary</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1580,7 +1653,7 @@ const Settings = () => {
                             </div>
                         </div>
                     </div>
-                </Card>
+                </Card> */}
             </div>
         </div>
     );

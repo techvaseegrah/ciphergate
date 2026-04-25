@@ -421,7 +421,14 @@ const LeaveRequests = () => {
 
                   <div className="flex items-center">
                     {/* Deduction Penalty Indicator */}
-                    {leave.leaveType !== 'Permission' && leave.deductionFactor > 1 && (
+                    {leave.leaveType === 'Paid Leave' && (
+                      <div className="flex flex-wrap gap-1 mr-3">
+                        <span className="bg-teal-50 text-teal-600 px-2.5 py-1 rounded-full text-[10px] font-black border border-teal-200 uppercase tracking-tight flex items-center shadow-sm">
+                          <FiDollarSign className="mr-0.5" /> SALARY: PAID (IMMEDIATE)
+                        </span>
+                      </div>
+                    )}
+                    {leave.leaveType !== 'Permission' && leave.leaveType !== 'Paid Leave' && leave.deductionFactor > 1 && (
                       <div className="flex flex-wrap gap-1 mr-3">
                         <span className="bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[10px] font-black border border-red-200 uppercase tracking-tight flex items-center shadow-sm">
                           <FiDollarSign className="mr-0.5" /> {leave.deductionFactor}X DEDUCTION

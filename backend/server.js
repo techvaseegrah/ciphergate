@@ -102,7 +102,8 @@ const startServer = async () => {
     app.use('/api/holidays', holidayRoutes);
     app.use('/api/fines', fineRoutes);
     app.use('/api/invoices', invoiceRoutes);
-    app.use('/api/community-fund', communityFundRoutes); // ADD THIS
+    app.use('/api/renewals', require('./routes/renewalRoutes')); // ADD THIS
+    app.use('/api/community-fund', communityFundRoutes);
     app.use('/api/tickets', ticketRoutes);
     app.use('/api/certificates', require('./routes/certificateRoutes'));
     app.use('/api/github', githubRoutes);

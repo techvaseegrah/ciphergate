@@ -300,6 +300,17 @@ const settingsSchema = mongoose.Schema({
   includePermission: {
     type: Boolean,
     default: false
+  },
+  // Paid Leave Configuration
+  paidLeaveConfig: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    leavesPerMonth: {
+      type: Number,
+      default: 1
+    }
   }
 }, {
   timestamps: true

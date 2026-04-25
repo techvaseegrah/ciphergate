@@ -1738,8 +1738,9 @@ const SalaryManagement = () => {
                                         <p><strong>Employee ID:</strong> {selectedWorker?.rfid}</p>
                                     </div>
                                     <div>
-                                        <p><strong>Original Salary:</strong> ₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
-                                        <p><strong>Actual Earned Salary:</strong> ₹{reportData.report.summary.finalSalary?.toFixed(2) || '0.00'}</p>
+                                        <p><strong>Base Monthly Salary:</strong> ₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                        <p><strong>SaaS Earnings:</strong> ₹{reportData.report.summary.totalSaaSSalary?.toFixed(2) || '0.00'}</p>
+                                        <p><strong>Project Earnings:</strong> <span className="text-blue-600 font-medium">+ ₹{reportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</span></p>
                                         {/* ADD FINE INFORMATION TO THE SUMMARY */}
                                         {reportData.totalFinesAmount > 0 && (
                                             <p><strong>Total Fines:</strong> <span className="text-red-600">₹{reportData.totalFinesAmount.toFixed(2)}</span></p>
@@ -1747,7 +1748,9 @@ const SalaryManagement = () => {
                                         {reportData.totalBonusAmount > 0 && (
                                             <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">₹{reportData.totalBonusAmount.toFixed(2)}</span></p>
                                         )}
-                                        <p><strong>Total Final Salary:</strong> <span className="font-bold">₹{reportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                        <div className="mt-2 pt-2 border-t border-gray-100">
+                                            <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{reportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                        </div>
                                     </div>
                                 </div>
                                 <hr className="my-4" />
@@ -1897,21 +1900,87 @@ const SalaryManagement = () => {
                                     </div>
                                 </Card>
                             )}
+                            {reportData.projectBreakdown && reportData.projectBreakdown.length > 0 && (
+                                <Card className="mb-6">
+                                    <h3 className="text-xl font-semibold mb-4">Project Breakdown</h3>
+                                    <div className="space-y-4">
+                                        {reportData.projectBreakdown.map((proj, idx) => (
+                                            <div key={proj.projectId || idx} className="border border-blue-100 rounded-xl overflow-hidden">
+                                                <div className="bg-blue-600 px-4 py-2 flex items-center justify-between">
+                                                    <span className="text-white font-semibold text-sm">{proj.projectName}</span>
+                                                    <span className="bg-white bg-opacity-20 text-white text-xs px-2 py-0.5 rounded-full">{proj.daysInReport} days this period</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4">
+                                                    <div className="text-center bg-blue-50 rounded-lg p-2">
+                                                        <p className="text-xs text-gray-500">Date Range</p>
+                                                        <p className="font-semibold text-blue-800 text-xs">{new Date(proj.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} to {new Date(proj.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
+                                                    </div>
+                                                    <div className="text-center bg-gray-50 rounded-lg p-2">
+                                                        <p className="text-xs text-gray-500">Working Days</p>
+                                                        <p className="font-bold text-gray-800">{proj.totalWorkingDays}</p>
+                                                    </div>
+                                                    <div className="text-center bg-purple-50 rounded-lg p-2">
+                                                        <p className="text-xs text-gray-500">Per Day Value</p>
+                                                        <p className="font-bold text-purple-700">&#8377;{(proj.perDayValue || 0).toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="text-center bg-red-50 rounded-lg p-2">
+                                                        <p className="text-xs text-gray-500">Total Deduction</p>
+                                                        <p className="font-bold text-red-600">&#8377;{(proj.totalDeduction || 0).toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="text-center bg-green-50 rounded-lg p-2">
+                                                        <p className="text-xs text-gray-500">Final Earnings</p>
+                                                        <p className="font-bold text-green-700">&#8377;{(proj.totalEarned || 0).toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            )}
                             <Card>
                                 <h3 className="text-xl font-semibold mb-4">Daily Breakdown</h3>
-                                <Table
-                                    columns={[
-                                        { header: 'Date', accessor: 'date' },
-                                        { header: 'Status', accessor: 'status' },
-                                        { header: 'In Time', accessor: 'inTime' },
-                                        { header: 'Out Time', accessor: 'outTime' },
-                                        { header: 'Delay Time', accessor: 'delayTime' },
-                                        { header: 'Delay Deduction', accessor: 'deductionAmount' },
-                                        { header: 'Total Salary', accessor: 'totalSalary' }
-                                    ]}
-                                    data={reportData.report.report}
-                                    noDataMessage="No daily records found for this period."
-                                />
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Work Type</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">In Time</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Out Time</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delay</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deduction</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salary</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-100">
+                                            {(reportData.report.report || []).map((row, idx) => (
+                                                <tr key={idx} className={`hover:bg-gray-50 ${row.workType === 'PROJECT' ? 'border-l-2 border-blue-400' : ''}`}>
+                                                    <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">{row.date}</td>
+                                                    <td className="px-3 py-2">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${row.status === 'Present' ? 'bg-green-100 text-green-800' : row.status === 'Sunday' ? 'bg-gray-100 text-gray-500' : row.status === 'Holiday' ? 'bg-yellow-100 text-yellow-800' : row.status === 'Absent' ? 'bg-red-100 text-red-800' : (row.status === 'Leave' || row.status === 'Paid Leave') ? 'bg-blue-100 text-blue-700' : row.status === 'Auto-Out' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {row.workType === 'PROJECT' ? (
+                                                            <div>
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">PROJECT</span>
+                                                                {row.projectName && <div className="text-[10px] text-blue-500 mt-0.5">{row.projectName}</div>}
+                                                            </div>
+                                                        ) : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">SAAS</span>}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-600">{row.inTime}</td>
+                                                    <td className="px-3 py-2 text-gray-600">{row.outTime}</td>
+                                                    <td className="px-3 py-2 text-gray-600">{row.delayTime}</td>
+                                                    <td className="px-3 py-2 text-red-600 font-medium">{row.deductionAmount}</td>
+                                                    <td className="px-3 py-2 text-green-700 font-bold">{row.totalSalary}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {(!reportData.report.report || reportData.report.report.length === 0) && (
+                                        <p className="text-center text-gray-400 py-8">No daily records found for this period.</p>
+                                    )}
+                                </div>
                             </Card>
                             <div className="flex justify-end mt-4">
                                 <Button onClick={downloadPDF} variant="outline" className="flex items-center">
@@ -1922,6 +1991,7 @@ const SalaryManagement = () => {
                     )}
                 </div>
             </Modal>
+
             {/* Delete Confirmation Modal */}
             <Modal
                 isOpen={isDeleteConfirmOpen}

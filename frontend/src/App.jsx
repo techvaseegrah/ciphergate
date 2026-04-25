@@ -28,9 +28,11 @@ import CustomTasks from './components/admin/CustomTasks';
 import AttendanceManagement from './components/admin/AttendanceManagement';
 import NotificationManagement from './components/admin/NotificationManagement';
 import SalaryManagement from './components/admin/SalaryManagement';
+import SalaryProjectManagement from './components/admin/SalaryProjectManagement';
 import GoWhatsIntegration from './components/admin/GoWhatsIntegration';
 import InternCertificate from './components/admin/InternCertificate';
 import OfferLetter from './components/admin/OfferLetter';
+import RenewalManagement from './components/admin/RenewalManagement';
 
 // Test Management Components - Lazy loaded to prevent initialization in worker sessions
 const GenerateQuestions = lazy(() => import('./components/admin/GenerateQuestions'));
@@ -162,6 +164,7 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="workers" element={<WorkerManagement />} />
                 <Route path="salary" element={<SalaryManagement />} />
+                <Route path="salary-projects" element={<SalaryProjectManagement />} />
                 <Route path="attendance" element={<AttendanceManagement />} />
                 <Route path="attendance/:id" element={<WorkerAttendance />} />
                 <Route path="departments" element={<DepartmentManagement />} />
@@ -180,6 +183,7 @@ function App() {
                 <Route path="intern-certificate" element={<InternCertificate />} />
                 <Route path="offer-letter" element={<OfferLetter />} />
                 <Route path="acceptance-letter" element={<AcceptanceLetter />} />
+                <Route path="renewals" element={<RenewalManagement />} />
 
                 {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
                 <Route path="test/generate-questions" element={

@@ -6,7 +6,29 @@ const {
     updateTicket,
     deleteTicket
 } = require('../controllers/ticketController');
+const {
+    upsertCompletion,
+    getTicketCompletions,
+    deleteProofFile,
+    reviewCompletion
+} = require('../controllers/subTaskCompletionController');
 const { protect } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 
 router.route('/')
     .get(protect, getTickets)
@@ -15,5 +37,11 @@ router.route('/')
 router.route('/:id')
     .put(protect, updateTicket)
     .delete(protect, deleteTicket);
+
+// Sub-task completion routes
+router.get('/:ticketId/completions', protect, getTicketCompletions);
+router.post('/completions/upload', protect, upload.array('proofs', 10), upsertCompletion);
+router.delete('/completions/:completionId/proof/:fileId', protect, deleteProofFile);
+router.put('/completions/:completionId/review', protect, reviewCompletion);
 
 module.exports = router;

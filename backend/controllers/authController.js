@@ -167,6 +167,11 @@ const loginWorker = asyncHandler(async (req, res) => {
     throw new Error("Worker not found, check your Company name.");
   }
 
+  if (worker.status !== 'Active') {
+    res.status(401);
+    throw new Error("Account is inactive. Please contact your administrator.");
+  }
+
   if (worker && (await bcrypt.compare(password, worker.password))) {
     res.json({
       _id: worker._id,
