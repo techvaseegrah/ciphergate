@@ -610,11 +610,12 @@ const WorkerWorkAllocation = () => {
                                                                             className={`h-5 w-5 rounded transition-colors shadow-sm ${isDone ? 'text-teal-600 bg-teal-50 cursor-not-allowed' : 'text-teal-600 border-gray-300 cursor-pointer focus:ring-teal-500'}`}
                                                                         />
                                                                     </div>
-                                                                    <div className="flex-1 min-w-0">
+                                                                    <div className="flex-1 min-w-0 mr-4">
                                                                         <div className="flex items-center gap-2 mb-1">
                                                                             <label
                                                                                 htmlFor={`item-${idx}`}
-                                                                                className={`text-sm font-bold block cursor-pointer transition-all ${isDone ? 'text-gray-400 line-through' : 'text-gray-700 hover:text-teal-700'}`}
+                                                                                className={`text-sm font-bold block cursor-pointer transition-all truncate ${isDone ? 'text-gray-400 line-through' : 'text-gray-700 hover:text-teal-700'}`}
+                                                                                title={item.text}
                                                                             >
                                                                                 {item.text}
                                                                             </label>
@@ -676,7 +677,7 @@ const WorkerWorkAllocation = () => {
                                                                         )}
                                                                     </div>
 
-                                                                    <div className="flex gap-2">
+                                                                    <div className="flex gap-2 shrink-0">
                                                                         {myCompletion && (
                                                                             <button
                                                                                 onClick={() => toggleChecklistItem(idx, item)}

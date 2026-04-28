@@ -320,8 +320,10 @@ const SalaryManagement = () => {
         const summaryData = [
             ['Employee Name', selectedWorker?.name], // Added Employee Name to match UI
             ['Employee ID', selectedWorker?.rfid],
-            ['Original Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
-            ['Actual Earned Salary', formatCurrencyForPDF(reportData.report.summary?.finalSalary || 0)],
+            ['Base Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
+            ['Total Deductions', formatCurrencyForPDF(reportData.report.totalSalaryDeduction || 0)],
+            ['Net Base Salary', formatCurrencyForPDF(reportData.report.summary?.netBaseSalary || 0)],
+            ['Project Earnings', formatCurrencyForPDF(reportData.report.summary?.totalProjectSalary || 0)],
             // ADD FINE INFORMATION TO THE SUMMARY
             ...(reportData.totalFinesAmount > 0 ? [
                 ['Total Fines', formatCurrencyForPDF(reportData.totalFinesAmount)]
@@ -339,7 +341,6 @@ const SalaryManagement = () => {
             ['Absent Deduction', formatCurrencyForPDF(reportData.report.summary?.absentDeduction || 0)],
             ['Leave Deduction', formatCurrencyForPDF(reportData.report.summary?.leaveDeduction || 0)],
             ['Permission Deduction', formatCurrencyForPDF(reportData.report.summary?.permissionDeduction || 0)],
-            ['Total Deductions', formatCurrencyForPDF(reportData.report.totalSalaryDeduction || 0)],
             ['Attendance Rate', `${Number(reportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
             ['Per Minute Salary', `Rs. ${Number(reportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
         ];
@@ -735,8 +736,10 @@ const SalaryManagement = () => {
         const summaryData = [
             ['Employee Name', selectedIndividualWorker?.name], // Added Employee Name to match UI
             ['Employee ID', workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'],
-            ['Original Salary', formatCurrencyForPDF(individualReportData.report.summary?.originalSalary || 0)],
-            ['Actual Earned Salary', formatCurrencyForPDF(individualReportData.report.summary?.finalSalary || 0)],
+            ['Base Salary', formatCurrencyForPDF(individualReportData.report.summary?.originalSalary || 0)],
+            ['Total Deductions', formatCurrencyForPDF(individualReportData.report.totalSalaryDeduction || 0)],
+            ['Net Base Salary', formatCurrencyForPDF(individualReportData.report.summary?.netBaseSalary || 0)],
+            ['Project Earnings', formatCurrencyForPDF(individualReportData.report.summary?.totalProjectSalary || 0)],
             // ADD FINE INFORMATION TO THE SUMMARY
             ...(individualReportData.totalFinesAmount > 0 ? [
                 ['Total Fines', formatCurrencyForPDF(individualReportData.totalFinesAmount)]
@@ -754,7 +757,6 @@ const SalaryManagement = () => {
             ['Absent Deduction', formatCurrencyForPDF(individualReportData.report.summary?.absentDeduction || 0)],
             ['Leave Deduction', formatCurrencyForPDF(individualReportData.report.summary?.leaveDeduction || 0)],
             ['Permission Deduction', formatCurrencyForPDF(individualReportData.report.summary?.permissionDeduction || 0)],
-            ['Total Deductions', formatCurrencyForPDF(individualReportData.report.totalSalaryDeduction || 0)],
             ['Attendance Rate', `${Number(individualReportData.report.summary?.attendanceRate || 0).toFixed(2)}%`],
             ['Per Minute Salary', `Rs. ${Number(individualReportData.report.summary?.perMinuteSalary || 0).toFixed(4)}`],
         ];
@@ -1455,16 +1457,21 @@ const SalaryManagement = () => {
                                     <p><strong>Employee ID:</strong> {workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <p><strong>Original Salary:</strong> ₹{individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
-                                    <p><strong>Actual Earned Salary:</strong> ₹{individualReportData.report.summary.finalSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Base Salary:</strong> ₹{individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Total Deductions:</strong> <span className="text-red-600">- ₹{individualReportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span></p>
+                                    <p><strong>Net Base Salary:</strong> ₹{individualReportData.report.summary.netBaseSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Project Earnings:</strong> <span className="text-blue-600 font-medium">+ ₹{individualReportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</span></p>
+                                    
                                     {/* ADD FINE INFORMATION TO THE SUMMARY */}
                                     {individualReportData.totalFinesAmount > 0 && (
-                                        <p><strong>Total Fines:</strong> <span className="text-red-600">₹{individualReportData.totalFinesAmount.toFixed(2)}</span></p>
+                                        <p><strong>Total Fines:</strong> <span className="text-red-600">- ₹{individualReportData.totalFinesAmount.toFixed(2)}</span></p>
                                     )}
                                     {individualReportData.totalBonusAmount > 0 && (
-                                        <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">₹{individualReportData.totalBonusAmount.toFixed(2)}</span></p>
+                                        <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">+ ₹{individualReportData.totalBonusAmount.toFixed(2)}</span></p>
                                     )}
-                                    <p><strong>Total Final Salary:</strong> <span className="font-bold">₹{individualReportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                    <div className="mt-2 pt-2 border-t border-gray-100">
+                                        <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{individualReportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                    </div>
                                 </div>
                             </div>
                             <hr className="my-4" />
@@ -1738,15 +1745,17 @@ const SalaryManagement = () => {
                                         <p><strong>Employee ID:</strong> {selectedWorker?.rfid}</p>
                                     </div>
                                     <div>
-                                        <p><strong>Base Monthly Salary:</strong> ₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
-                                        <p><strong>SaaS Earnings:</strong> ₹{reportData.report.summary.totalSaaSSalary?.toFixed(2) || '0.00'}</p>
+                                        <p><strong>Base Salary:</strong> ₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                        <p><strong>Total Deductions:</strong> <span className="text-red-600">- ₹{reportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span></p>
+                                        <p><strong>Net Base Salary:</strong> ₹{reportData.report.summary.netBaseSalary?.toFixed(2) || '0.00'}</p>
                                         <p><strong>Project Earnings:</strong> <span className="text-blue-600 font-medium">+ ₹{reportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</span></p>
+                                        
                                         {/* ADD FINE INFORMATION TO THE SUMMARY */}
                                         {reportData.totalFinesAmount > 0 && (
-                                            <p><strong>Total Fines:</strong> <span className="text-red-600">₹{reportData.totalFinesAmount.toFixed(2)}</span></p>
+                                            <p><strong>Total Fines:</strong> <span className="text-red-600">- ₹{reportData.totalFinesAmount.toFixed(2)}</span></p>
                                         )}
                                         {reportData.totalBonusAmount > 0 && (
-                                            <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">₹{reportData.totalBonusAmount.toFixed(2)}</span></p>
+                                            <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">+ ₹{reportData.totalBonusAmount.toFixed(2)}</span></p>
                                         )}
                                         <div className="mt-2 pt-2 border-t border-gray-100">
                                             <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{reportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>

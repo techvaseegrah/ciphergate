@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   FaPlus, FaEdit, FaTrash, FaCamera, FaHistory, FaSearch, 
@@ -8,7 +8,8 @@ import {
 } from 'react-icons/fa';
 import { 
   MoreVertical, Search, Filter, UserCheck, UserMinus, 
-  UserX, Download, RefreshCw, Calendar, ArrowUpDown 
+  UserX, Download, RefreshCw, Calendar, ArrowUpDown,
+  Users, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkerHistoryModal from './WorkerHistoryModal';
@@ -26,7 +27,8 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import FaceCapture from './FaceCapture';
 
 const WorkerManagement = () => {
-  const location = useLocation(); // Added useLocation hook
+  const location = useLocation();
+  const navigate = useNavigate();
   const nameInputRef = useRef(null);
   const [workers, setWorkers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -35,7 +37,6 @@ const WorkerManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Advanced Filter States
-  const [statusFilter, setStatusFilter] = useState('Active');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [batchFilter, setBatchFilter] = useState('All');
   const [sortBy, setSortBy] = useState('newest');
@@ -59,6 +60,8 @@ const WorkerManagement = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isRelieveModalOpen, setIsRelieveModalOpen] = useState(false);
+  const [relieveConfirmName, setRelieveConfirmName] = useState('');
   const [selectedWorker, setSelectedWorker] = useState(null);
 
   // Form states
@@ -148,24 +151,20 @@ const WorkerManagement = () => {
         worker.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (worker.rfid && worker.rfid.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Status Match - IGNORED here because we use TABS for status separation
-      const statusMatch = true; // statusFilter === 'All' || worker.status === statusFilter || (!worker.status && statusFilter === 'Active');
-
       // Department Filter - Robust matching for both ID and Name
       const deptId = typeof worker.department === 'object' ? worker.department?._id : worker.department;
-      // Find the name of the selected filter if it's an ID
       const selectedDept = departments.find(d => d._id === departmentFilter);
       
       const deptMatch = departmentFilter === 'All' || 
                         deptId === departmentFilter || 
-                        worker.department === departmentFilter || // Exact match
-                        worker.department === selectedDept?.name || // Match by name if worker.department is a string
-                        worker.department?.name === selectedDept?.name; // Match by name if worker.department is an object
+                        worker.department === departmentFilter || 
+                        worker.department === selectedDept?.name || 
+                        worker.department?.name === selectedDept?.name;
 
       // Batch Filter
       const batchMatch = batchFilter === 'All' || worker.batch === batchFilter;
 
-      return searchMatch && statusMatch && deptMatch && batchMatch;
+      return searchMatch && deptMatch && batchMatch;
     });
 
     // Sorting
@@ -189,7 +188,7 @@ const WorkerManagement = () => {
     const archived = filtered.filter(w => w.status === 'Relieved' || w.status === 'Deleted');
 
     return { active, archived };
-  }, [workers, searchTerm, statusFilter, departmentFilter, batchFilter, sortBy]);
+  }, [workers, searchTerm, departmentFilter, batchFilter, sortBy]);
 
   // Combined list for display
   const displayWorkers = [...processedWorkers.active, ...processedWorkers.archived];
@@ -249,6 +248,13 @@ const WorkerManagement = () => {
   const openDeleteModal = (worker) => {
     setSelectedWorker(worker);
     setIsDeleteModalOpen(true);
+  };
+
+  // Open relieve worker modal
+  const openRelieveModal = (worker) => {
+    setSelectedWorker(worker);
+    setRelieveConfirmName('');
+    setIsRelieveModalOpen(true);
   };
 
   // Open face capture modal
@@ -454,25 +460,22 @@ const WorkerManagement = () => {
   // Helper for status colors
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Active': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span>;
-      case 'Relieved': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">Relieved</span>;
+      case 'Active': return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">Active</span>;
+      case 'Relieved': return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">Relieved</span>;
       case 'Deleted':
-      case 'Archived': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Archived</span>;
-      default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Active</span>;
+      case 'Archived': return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Archived</span>;
+      default: return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">Active</span>;
     }
   };
 
   const getFaceEnrollBadge = (faceEnrolled) => {
-    if (faceEnrolled) {
-      return (
-        <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-          Captured
-        </span>
-      );
-    }
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
-        Not Captured
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+        faceEnrolled 
+          ? "bg-green-50 text-green-700 border-green-200" 
+          : "bg-yellow-50 text-yellow-700 border-yellow-200"
+      }`}>
+        {faceEnrolled ? 'Captured' : 'Not Captured'}
       </span>
     );
   };
@@ -504,7 +507,8 @@ const WorkerManagement = () => {
     {
       header: 'Name',
       accessor: 'name',
-      width: '300px',
+      width: '240px',
+      nowrap: false,
       headerAlign: 'text-left',
       align: 'text-left',
       render: (record) => {
@@ -515,19 +519,19 @@ const WorkerManagement = () => {
         };
         const isMuted = record.status === 'Relieved' || record.status === 'Deleted';
         return (
-          <div className={`flex items-center space-x-3 ${isMuted ? 'opacity-60' : ''}`}>
-            <div className="relative">
+          <div className={`flex items-center space-x-2 ${isMuted ? 'opacity-60' : ''}`}>
+            <div className="relative flex-shrink-0">
               <img
                 src={getPhotoSrc(record.photo, record.name)}
                 alt={record.name}
-                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
                 onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(record.name)}&background=0d9488&color=fff`; }}
               />
-              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${record.status === 'Active' || !record.status ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${record.status === 'Active' || !record.status ? 'bg-green-500' : 'bg-gray-400'}`}></div>
             </div>
-            <div className="flex flex-col text-left">
-              <span className="font-semibold text-gray-900 truncate max-w-[180px]">{record.name}</span>
-              <span className="text-xs text-gray-500">ID: {record.rfid || 'N/A'}</span>
+            <div className="flex flex-col text-left overflow-hidden">
+              <span className="text-sm font-bold text-gray-900 leading-tight whitespace-normal">{record.name}</span>
+              <span className="text-[10px] text-gray-500 font-medium">ID: {record.rfid || 'N/A'}</span>
             </div>
           </div>
         );
@@ -536,23 +540,23 @@ const WorkerManagement = () => {
     {
       header: 'Username',
       accessor: 'username',
-      width: '150px',
+      width: '120px',
       headerAlign: 'text-left',
       align: 'text-left',
-      render: (record) => <span className="text-gray-600 font-medium">{record.username}</span>
+      render: (record) => <span className="text-gray-600 font-medium text-xs truncate block">{record.username}</span>
     },
     {
       header: 'Department',
       accessor: 'department',
-      width: '180px',
+      width: '140px',
       headerAlign: 'text-left',
       align: 'text-left',
       render: (record) => {
         const deptName = typeof record.department === 'object' ? record.department.name : (departments.find(dept => dept._id === record.department)?.name || record.department || 'N/A');
         return (
-          <div className="flex items-center space-x-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 max-w-max">
-            <FaBuilding className="text-gray-400 text-xs" />
-            <span className="text-xs font-medium text-gray-700">{deptName}</span>
+          <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-gray-50 rounded-md border border-gray-100 max-w-[130px]">
+            <FaBuilding className="text-gray-400 text-[10px] flex-shrink-0" />
+            <span className="text-[10px] font-bold text-gray-700 truncate">{deptName}</span>
           </div>
         );
       }
@@ -560,15 +564,15 @@ const WorkerManagement = () => {
     {
       header: 'RFID',
       accessor: 'rfid',
-      width: '120px',
+      width: '100px',
       headerAlign: 'text-left',
       align: 'text-left',
-      render: (record) => <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-800">{record.rfid}</code>
+      render: (record) => <code className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-800 font-mono">{record.rfid}</code>
     },
     {
       header: 'Face Enroll',
       accessor: 'faceEnrolled',
-      width: '140px',
+      width: '120px',
       headerAlign: 'text-center',
       align: 'text-center',
       render: (record) => getFaceEnrollBadge(record.faceEnrolled)
@@ -576,69 +580,64 @@ const WorkerManagement = () => {
     {
       header: 'Status',
       accessor: 'status',
-      width: '120px',
+      width: '100px',
+      headerAlign: 'text-center',
+      align: 'text-center',
       render: (record) => getStatusBadge(record.status)
     },
     {
       header: 'Actions',
       accessor: 'actions',
       width: '150px',
+      sticky: 'right',
+      headerAlign: 'text-right',
+      align: 'text-right',
       render: (record) => {
         const isRelieved = record.status === 'Relieved';
-        const isDeleted = record.status === 'Deleted';
         const isActive = record.status === 'Active' || !record.status;
         
         return (
-          <div className="flex items-center justify-end space-x-2">
+          <div className="flex items-center justify-end space-x-1">
             {isActive ? (
               <>
                 <button
                   onClick={() => openEditModal(record)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit"
+                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Edit Employee"
                 >
-                  <FaEdit size={16} />
+                  <FaEdit size={14} />
                 </button>
                 <button
-                  onClick={() => handleStatusChange(record._id, 'Relieved')}
-                  className="p-2 text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-                  title="Mark as Relieved"
+                  onClick={() => openFaceCaptureModal(record)}
+                  className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                  title="Capture / Update Face"
                 >
-                  <UserMinus size={16} />
-                </button>
-              </>
-            ) : isRelieved ? (
-              <>
-                <button
-                   disabled
-                   className="p-2 text-gray-400 cursor-not-allowed opacity-50"
-                   title="Already Relieved"
-                >
-                   <UserMinus size={16} />
+                  <FaCamera size={14} />
                 </button>
                 <button
-                  onClick={() => handleStatusChange(record._id, 'Active')}
-                  className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                  title="Restore to Active"
+                  onClick={() => openRelieveModal(record)}
+                  className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                  title="Relieve Employee"
                 >
-                  <RefreshCw size={16} />
+                  <UserMinus size={14} />
                 </button>
               </>
             ) : (
               <button
                 onClick={() => handleStatusChange(record._id, 'Active')}
-                className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors flex items-center space-x-1"
                 title="Restore to Active"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={14} />
+                <span className="text-[10px] font-bold">Restore</span>
               </button>
             )}
             <button
               onClick={() => openDeleteModal(record)}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
-              title="Delete"
+              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete Employee"
             >
-              <FaTrash size={16} />
+              <FaTrash size={14} />
             </button>
           </div>
         );
@@ -698,24 +697,27 @@ const WorkerManagement = () => {
           <div className="flex space-x-1">
             <button 
               onClick={() => openEditModal(worker)}
-              className="px-3 py-1.5 text-xs font-bold bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+              className="px-2 py-1.5 text-xs font-bold bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
               disabled={isMuted}
+              title="Edit Employee"
             >
-              Edit
+              <FaEdit />
             </button>
             <button 
               onClick={() => openFaceCaptureModal(worker)}
-              className="px-3 py-1.5 text-xs font-bold bg-green-50 text-green-600 rounded-lg hover:bg-green-100"
+              className="px-2 py-1.5 text-xs font-bold bg-green-50 text-green-600 rounded-lg hover:bg-green-100"
               disabled={isMuted}
+              title="Capture / Update Face"
             >
-              Face
+              <FaCamera />
             </button>
           </div>
           <div className="flex space-x-2">
             {worker.status === 'Active' || !worker.status ? (
               <button 
-                onClick={() => handleStatusChange(worker._id, 'Relieved')}
+                onClick={() => openRelieveModal(worker)}
                 className="p-1 px-3 text-xs font-bold text-orange-600 hover:bg-orange-50 rounded-lg"
+                title="Relieve Employee"
               >
                 Relieve
               </button>
@@ -745,6 +747,7 @@ const WorkerManagement = () => {
             <button 
                onClick={() => openDeleteModal(worker)}
                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+               title="Delete Employee"
             >
               <FaTrash size={14} />
             </button>
@@ -809,31 +812,21 @@ const WorkerManagement = () => {
             <input
               type="text"
               placeholder="Search name, rfid..."
-              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all"
+              className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488] focus:border-transparent transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Filter className="h-4 w-4 text-gray-400" />
-            </div>
-            <select
-              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0d9488] transition-all appearance-none"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active Only</option>
-              <option value="Relieved">Relieved Only</option>
-              <option value="Deleted">Archived Only</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <FaFilter className="h-3 w-3 text-gray-400" />
-            </div>
-          </div>
+
 
           {/* Department Filter */}
           <div className="relative">
@@ -886,6 +879,23 @@ const WorkerManagement = () => {
             </select>
           </div>
         </div>
+
+        {/* Reset Filters Link */}
+        {(searchTerm || departmentFilter !== 'All' || batchFilter !== 'All') && (
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setDepartmentFilter('All');
+                setBatchFilter('All');
+                setSortBy('newest');
+              }}
+              className="text-xs font-bold text-[#0d9488] hover:text-teal-700 flex items-center bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 transition-all shadow-sm"
+            >
+              <RefreshCw className="h-3 w-3 mr-1.5" /> Reset All Filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -933,13 +943,30 @@ const WorkerManagement = () => {
                         data={processedWorkers.active}
                         striped={false}
                         hover={true}
+                        compact={true}
                       />
                     </div>
                   )}
                   
                   {processedWorkers.active.length === 0 && (
-                    <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                      <p className="text-gray-500 font-medium">No active employees found.</p>
+                    <div className="py-20 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                        <Users className="h-8 w-8 text-gray-300" />
+                      </div>
+                      <h3 className="text-gray-900 font-bold text-lg">No active employees found</h3>
+                      <p className="text-gray-500 font-medium max-w-xs mx-auto mt-1">Try adjusting your filters or search terms to find what you're looking for.</p>
+                      {(searchTerm || departmentFilter !== 'All' || batchFilter !== 'All') && (
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setDepartmentFilter('All');
+                            setBatchFilter('All');
+                          }}
+                          className="mt-6 text-sm font-bold text-[#0d9488] hover:underline"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -966,40 +993,36 @@ const WorkerManagement = () => {
                         data={processedWorkers.archived}
                         striped={false}
                         hover={true}
+                        compact={true}
                       />
                     </div>
                   )}
 
                   {processedWorkers.archived.length === 0 && (
-                    <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                      <p className="text-gray-500 font-medium">No relief/archived records found.</p>
+                    <div className="py-20 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                        <UserX className="h-8 w-8 text-gray-300" />
+                      </div>
+                      <h3 className="text-gray-900 font-bold text-lg">No archived employees found</h3>
+                      <p className="text-gray-500 font-medium max-w-xs mx-auto mt-1">Try adjusting your filters or search terms to find what you're looking for.</p>
+                      {(searchTerm || departmentFilter !== 'All' || batchFilter !== 'All') && (
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setDepartmentFilter('All');
+                            setBatchFilter('All');
+                          }}
+                          className="mt-6 text-sm font-bold text-[#0d9488] hover:underline"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Empty State */}
-              {displayWorkers.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-200 shadow-sm text-center px-4">
-                  <div className="bg-gray-50 p-4 rounded-full mb-4">
-                    <Search className="h-10 w-10 text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900">No employees found</h3>
-                  <p className="text-gray-500 max-w-xs mt-1">We couldn't find any employees matching your current filters. Try adjusting your search term.</p>
-                  <Button 
-                    variant="outline" 
-                    className="mt-6"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setStatusFilter('All');
-                      setDepartmentFilter('All');
-                      setBatchFilter('All');
-                    }}
-                  >
-                    Clear All Filters
-                  </Button>
-                </div>
-              )}
+
             </motion.div>
           )}
         </AnimatePresence>
@@ -1352,6 +1375,56 @@ const WorkerManagement = () => {
             onClick={handleDeleteWorker}
           >
             Delete
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Relieve Employee Modal */}
+      <Modal
+        isOpen={isRelieveModalOpen}
+        onClose={() => setIsRelieveModalOpen(false)}
+        title="Confirm Employee Relieve"
+      >
+        <div className="space-y-4">
+          <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+            <p className="text-sm text-orange-800">
+              You are about to mark <strong>{selectedWorker?.name}</strong> as relieved. 
+              This will move them to the archived list.
+            </p>
+          </div>
+          
+          <div className="form-group">
+            <label className="text-sm font-bold text-gray-700 block mb-2">
+              To confirm, type the employee name below:
+            </label>
+            <input
+              type="text"
+              className="form-input border-orange-200 focus:ring-orange-500 focus:border-orange-500"
+              placeholder="Type employee name"
+              value={relieveConfirmName}
+              onChange={(e) => setRelieveConfirmName(e.target.value)}
+            />
+            <p className="mt-1 text-[10px] text-gray-500">Expected: <span className="font-mono bg-gray-100 px-1 rounded">{selectedWorker?.name}</span></p>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-2 mt-6">
+          <Button
+            variant="outline"
+            onClick={() => setIsRelieveModalOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            className="!bg-orange-600 !border-orange-600 hover:!bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => {
+              handleStatusChange(selectedWorker._id, 'Relieved');
+              setIsRelieveModalOpen(false);
+            }}
+            disabled={relieveConfirmName !== selectedWorker?.name}
+          >
+            Confirm Relieve
           </Button>
         </div>
       </Modal>

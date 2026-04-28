@@ -279,19 +279,9 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     // Calculate total bonus amount for this period
     const totalBonusAmount = bonusesForPeriod.reduce((total, bonus) => total + bonus.amount, 0);
 
-    // Calculate the final salary with bonus logic applied
-    // This is the salary that would be paid to the worker based on your bonus calculation
-    let finalSalaryWithBonus = report.summary.finalSalary; // Default to actual earned salary (after deductions)
-
-    if (totalBonusAmount > 0 && bonusesForPeriod.length > 0) {
-      // Get the first bonus for calculation (assuming one bonus per period)
-      const bonus = bonusesForPeriod[0];
-
-      // Recalculate using the same logic as giveBonus
-      const baseSalary = worker.salary || 0;
-      const actualEarnedSalary = report.summary.finalSalary || 0;
-      const remainingBonus = Math.max(0, bonus.amount - baseSalary);
-      finalSalaryWithBonus = actualEarnedSalary + remainingBonus;
+    let finalSalaryWithBonus = report.summary.finalSalary || 0;
+    if (totalBonusAmount > 0) {
+      finalSalaryWithBonus = finalSalaryWithBonus + totalBonusAmount;
     }
 
     // ADD FINE CALCULATION FOR THE REPORT PERIOD
