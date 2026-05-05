@@ -3,43 +3,43 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminLayout from './components/layout/AdminLayout';
 
 // Public pages
-import Home from './pages/Home';
-import AdminLogin from './pages/Admin/AdminLogin';
-import AdminRegister from './pages/Admin/AdminRegister';
-import WorkerLogin from './pages/Worker/WorkerLogin';
+const Home = lazy(() => import('./pages/Home'));
+const AdminLogin = lazy(() => import('./pages/Admin/AdminLogin'));
+const AdminRegister = lazy(() => import('./pages/Admin/AdminRegister'));
+const WorkerLogin = lazy(() => import('./pages/Worker/WorkerLogin'));
 
 // Protected pages
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import WorkerDashboard from './pages/Worker/WorkerDashboard';
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const WorkerDashboard = lazy(() => import('./pages/Worker/WorkerDashboard'));
 
 // Communication page
-import Communication from './pages/Communication';
+const Communication = lazy(() => import('./pages/Communication'));
 
 // Management Pages
-import WorkerManagement from './components/admin/WorkerManagement';
-import DepartmentManagement from './components/admin/DepartmentManagement';
-import ColumnManagement from './components/admin/ColumnManagement';
-import TaskManagement from './components/admin/TaskManagement';
-import LeaveManagement from './components/admin/LeaveManagement';
-import CommentManagement from './components/admin/CommentManagement';
-import TopicManagement from './components/admin/TopicManager';
-import FoodRequestManagement from './components/admin/FoodRequestManagement';
-import CustomTasks from './components/admin/CustomTasks';
-import AttendanceManagement from './components/admin/AttendanceManagement';
-import NotificationManagement from './components/admin/NotificationManagement';
-import SalaryManagement from './components/admin/SalaryManagement';
-import SalaryProjectManagement from './components/admin/SalaryProjectManagement';
-import GoWhatsIntegration from './components/admin/GoWhatsIntegration';
-import InternCertificate from './components/admin/InternCertificate';
-import OfferLetter from './components/admin/OfferLetter';
-import RenewalManagement from './components/admin/RenewalManagement';
+const WorkerManagement = lazy(() => import('./components/admin/WorkerManagement'));
+const DepartmentManagement = lazy(() => import('./components/admin/DepartmentManagement'));
+const ColumnManagement = lazy(() => import('./components/admin/ColumnManagement'));
+const TaskManagement = lazy(() => import('./components/admin/TaskManagement'));
+const LeaveManagement = lazy(() => import('./components/admin/LeaveManagement'));
+const CommentManagement = lazy(() => import('./components/admin/CommentManagement'));
+const TopicManagement = lazy(() => import('./components/admin/TopicManager'));
+const FoodRequestManagement = lazy(() => import('./components/admin/FoodRequestManagement'));
+const CustomTasks = lazy(() => import('./components/admin/CustomTasks'));
+const AttendanceManagement = lazy(() => import('./components/admin/AttendanceManagement'));
+const NotificationManagement = lazy(() => import('./components/admin/NotificationManagement'));
+const SalaryManagement = lazy(() => import('./components/admin/SalaryManagement'));
+const SalaryProjectManagement = lazy(() => import('./components/admin/SalaryProjectManagement'));
+const GoWhatsIntegration = lazy(() => import('./components/admin/GoWhatsIntegration'));
+const InternCertificate = lazy(() => import('./components/admin/InternCertificate'));
+const OfferLetter = lazy(() => import('./components/admin/OfferLetter'));
+const RenewalManagement = lazy(() => import('./components/admin/RenewalManagement'));
 
-// Test Management Components - Lazy loaded to prevent initialization in worker sessions
+// Test Management Components
 const GenerateQuestions = lazy(() => import('./components/admin/GenerateQuestions'));
 const QuestionHistory = lazy(() => import('./components/admin/QuestionHistory'));
 const EmployeeScores = lazy(() => import('./components/admin/EmployeeScores'));
 const GlobalScoreboard = lazy(() => import('./components/admin/GlobalScoreboard'));
-import QuickTest from './components/common/QuickTest';
+const QuickTest = lazy(() => import('./components/common/QuickTest'));
 
 // Protected route component
 import PrivateRoute from './components/common/PrivateRoute';
@@ -47,18 +47,27 @@ import PrivateRoute from './components/common/PrivateRoute';
 // Context
 import appContext from './context/AppContext';
 import { useEffect, useState } from 'react';
-import WorkerAttendance from './components/admin/WorkerAttendance';
-import Settings from './components/admin/Settings';
+const WorkerAttendance = lazy(() => import('./components/admin/WorkerAttendance'));
+const Settings = lazy(() => import('./components/admin/Settings'));
 import InstallPrompt from './components/common/InstallPrompt';
 
 // NEW COMPONENTS
-
-import ForgotPassword from './components/admin/ForgotPassword';
-import ResetPassword from './components/admin/ResetPassword';
-import HolidayManagement from './components/admin/HolidayManagement';
-import AcceptanceLetter from './components/admin/AcceptanceLetter';
+const ForgotPassword = lazy(() => import('./components/admin/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/admin/ResetPassword'));
+const HolidayManagement = lazy(() => import('./components/admin/HolidayManagement'));
+const AcceptanceLetter = lazy(() => import('./components/admin/AcceptanceLetter'));
 import { SocketProvider } from './context/SocketContextNew';
 import { NotificationProvider } from './context/NotificationContext';
+
+// Loading Fallback
+const MainLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-white">
+    <div className="flex flex-col items-center">
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+      <p className="mt-4 text-gray-600 font-medium">Initializing CipherGate...</p>
+    </div>
+  </div>
+);
 
 function App() {
   // Initialize subdomain with the actual value from localStorage immediately
@@ -132,85 +141,69 @@ function App() {
           <div className="App w-full overflow-x-hidden bg-[#FFF3F2]">
 
 
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/register" element={<AdminRegister />} />
-            <Route path="/worker/login" element={<WorkerLogin />} />
-            <Route path="/quick-test" element={<QuickTest />} />
+          <Suspense fallback={<MainLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/register" element={<AdminRegister />} />
+              <Route path="/worker/login" element={<WorkerLogin />} />
+              <Route path="/quick-test" element={<QuickTest />} />
 
-            {/* NEW PASSWORD ROUTES */}
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
+              {/* NEW PASSWORD ROUTES */}
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-            {/* Test Animation Route */}
+              {/* Protected Admin routes with Layout */}
+              <Route element={<PrivateRoute allowedRoles={['admin']} />}>
+                <Route path="/admin/*" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="workers" element={<WorkerManagement />} />
+                  <Route path="salary" element={<SalaryManagement />} />
+                  <Route path="salary-projects" element={<SalaryProjectManagement />} />
+                  <Route path="attendance" element={<AttendanceManagement />} />
+                  <Route path="attendance/:id" element={<WorkerAttendance />} />
+                  <Route path="departments" element={<DepartmentManagement />} />
+                  <Route path="columns" element={<ColumnManagement />} />
+                  <Route path="tasks" element={<TaskManagement />} />
+                  <Route path="leaves" element={<LeaveManagement />} />
+                  <Route path="holidays" element={<HolidayManagement />} />
+                  <Route path="comments" element={<CommentManagement />} />
+                  <Route path="topics" element={<TopicManagement />} />
+                  <Route path="food-requests" element={<FoodRequestManagement />} />
+                  <Route path="custom-tasks" element={<CustomTasks />} />
+                  <Route path="notifications" element={<NotificationManagement />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="gowhats" element={<GoWhatsIntegration />} />
+                  <Route path="communication" element={<Communication />} />
+                  <Route path="intern-certificate" element={<InternCertificate />} />
+                  <Route path="offer-letter" element={<OfferLetter />} />
+                  <Route path="acceptance-letter" element={<AcceptanceLetter />} />
+                  <Route path="renewals" element={<RenewalManagement />} />
 
-            {/* Protected Admin routes with Layout */}
-            <Route element={<PrivateRoute allowedRoles={['admin']} />}>
-              <Route path="/admin/*" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="workers" element={<WorkerManagement />} />
-                <Route path="salary" element={<SalaryManagement />} />
-                <Route path="salary-projects" element={<SalaryProjectManagement />} />
-                <Route path="attendance" element={<AttendanceManagement />} />
-                <Route path="attendance/:id" element={<WorkerAttendance />} />
-                <Route path="departments" element={<DepartmentManagement />} />
-                <Route path="columns" element={<ColumnManagement />} />
-                <Route path="tasks" element={<TaskManagement />} />
-                <Route path="leaves" element={<LeaveManagement />} />
-                <Route path="holidays" element={<HolidayManagement />} />
-                <Route path="comments" element={<CommentManagement />} />
-                <Route path="topics" element={<TopicManagement />} />
-                <Route path="food-requests" element={<FoodRequestManagement />} />
-                <Route path="custom-tasks" element={<CustomTasks />} />
-                <Route path="notifications" element={<NotificationManagement />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="gowhats" element={<GoWhatsIntegration />} />
-                <Route path="communication" element={<Communication />} />
-                <Route path="intern-certificate" element={<InternCertificate />} />
-                <Route path="offer-letter" element={<OfferLetter />} />
-                <Route path="acceptance-letter" element={<AcceptanceLetter />} />
-                <Route path="renewals" element={<RenewalManagement />} />
+                  {/* Test Management Routes */}
+                  <Route path="test/generate-questions" element={<GenerateQuestions />} />
+                  <Route path="test/question-history" element={<QuestionHistory />} />
+                  <Route path="test/employee-scores" element={<EmployeeScores />} />
+                  <Route path="test/global-scoreboard" element={<GlobalScoreboard />} />
 
-                {/* Test Management Routes - Wrapped with Suspense for lazy loading */}
-                <Route path="test/generate-questions" element={
-                  <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
-                    <GenerateQuestions />
-                  </Suspense>
-                } />
-                <Route path="test/question-history" element={
-                  <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
-                    <QuestionHistory />
-                  </Suspense>
-                } />
-                <Route path="test/employee-scores" element={
-                  <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
-                    <EmployeeScores />
-                  </Suspense>
-                } />
-                <Route path="test/global-scoreboard" element={
-                  <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div></div>}>
-                    <GlobalScoreboard />
-                  </Suspense>
-                } />
-
-                {/* Catch-all route for unknown admin paths */}
-                <Route path="*" element={<Navigate to="/admin" replace />} />
+                  {/* Catch-all route for unknown admin paths */}
+                  <Route path="*" element={<Navigate to="/admin" replace />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Protected Worker routes */}
-            <Route element={<PrivateRoute allowedRoles={['worker']} />}>
-              <Route path="worker/*" element={<WorkerDashboard />}>
-                {/* Worker routes are handled inside WorkerDashboard component */}
-                <Route path="*" element={<Navigate to="/worker" replace />} />
+              {/* Protected Worker routes */}
+              <Route element={<PrivateRoute allowedRoles={['worker']} />}>
+                <Route path="worker/*" element={<WorkerDashboard />}>
+                  {/* Worker routes are handled inside WorkerDashboard component */}
+                  <Route path="*" element={<Navigate to="/worker" replace />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* 404 Not Found Route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* 404 Not Found Route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
 
           <InstallPrompt />
         </div>

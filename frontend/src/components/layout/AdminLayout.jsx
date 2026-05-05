@@ -61,41 +61,41 @@ import BottomNavigation from './BottomNavigation';
 import QuestionGenerationTracker from '../admin/QuestionGenerationTracker';
 import appContext from '../../context/AppContext';
 
-// Import management components
-import WorkerManagement from '../admin/WorkerManagement';
-import DepartmentManagement from '../admin/DepartmentManagement';
-import ColumnManagement from '../admin/ColumnManagement';
-import TaskManagement from '../admin/TaskManagement';
-import LeaveManagement from '../admin/LeaveManagement';
-import CommentManagement from '../admin/CommentManagement';
-import TopicManagement from '../admin/TopicManager';
-import FoodRequestManagement from '../admin/FoodRequestManagement';
-import CustomTasks from '../admin/CustomTasks';
-import AttendanceManagement from '../admin/AttendanceManagement';
-import NotificationManagement from '../admin/NotificationManagement';
-import SalaryManagement from '../admin/SalaryManagement';
-import SalaryProjectManagement from '../admin/SalaryProjectManagement';
-import EmployeeCompensation from '../admin/EmployeeCompensation';
-import DeveloperCompensation from '../admin/DeveloperCompensation';
-import GoWhatsIntegration from '../admin/GoWhatsIntegration';
-import HolidayManagement from '../admin/HolidayManagement';
-import Communication from '../../pages/Communication';
-import Settings from '../admin/Settings';
-import WorkerAttendance from '../admin/WorkerAttendance';
-import InvoiceManagement from '../admin/InvoiceManagement';
-import AdminDashboard from '../../pages/Admin/AdminDashboard';
-import InternCertificate from '../admin/InternCertificate';
-import OfferLetter from '../admin/OfferLetter';
-import AcceptanceLetter from '../admin/AcceptanceLetter';
-import RelievingLetter from '../admin/RelievingLetter';
-import ExperienceCertificate from '../admin/ExperienceCertificate';
-import CommunityFund from '../admin/CommunityFund';
-import WorkAllocation from '../admin/WorkAllocation';
-import KpiManagement from '../admin/KpiManagement';
-import RenewalManagement from '../admin/RenewalManagement';
-import ApiKeyManagement from '../admin/ApiKeyManagement';
-import AdminDeleteHistory from '../admin/AdminDeleteHistory';
-import FaceAttendancePage from '../admin/FaceAttendancePage';
+// Lazy load management components
+const WorkerManagement = React.lazy(() => import('../admin/WorkerManagement'));
+const DepartmentManagement = React.lazy(() => import('../admin/DepartmentManagement'));
+const ColumnManagement = React.lazy(() => import('../admin/ColumnManagement'));
+const TaskManagement = React.lazy(() => import('../admin/TaskManagement'));
+const LeaveManagement = React.lazy(() => import('../admin/LeaveManagement'));
+const CommentManagement = React.lazy(() => import('../admin/CommentManagement'));
+const TopicManagement = React.lazy(() => import('../admin/TopicManager'));
+const FoodRequestManagement = React.lazy(() => import('../admin/FoodRequestManagement'));
+const CustomTasks = React.lazy(() => import('../admin/CustomTasks'));
+const AttendanceManagement = React.lazy(() => import('../admin/AttendanceManagement'));
+const NotificationManagement = React.lazy(() => import('../admin/NotificationManagement'));
+const SalaryManagement = React.lazy(() => import('../admin/SalaryManagement'));
+const SalaryProjectManagement = React.lazy(() => import('../admin/SalaryProjectManagement'));
+const EmployeeCompensation = React.lazy(() => import('../admin/EmployeeCompensation'));
+const DeveloperCompensation = React.lazy(() => import('../admin/DeveloperCompensation'));
+const GoWhatsIntegration = React.lazy(() => import('../admin/GoWhatsIntegration'));
+const HolidayManagement = React.lazy(() => import('../admin/HolidayManagement'));
+const Communication = React.lazy(() => import('../../pages/Communication'));
+const Settings = React.lazy(() => import('../admin/Settings'));
+const WorkerAttendance = React.lazy(() => import('../admin/WorkerAttendance'));
+const InvoiceManagement = React.lazy(() => import('../admin/InvoiceManagement'));
+const AdminDashboard = React.lazy(() => import('../../pages/Admin/AdminDashboard'));
+const InternCertificate = React.lazy(() => import('../admin/InternCertificate'));
+const OfferLetter = React.lazy(() => import('../admin/OfferLetter'));
+const AcceptanceLetter = React.lazy(() => import('../admin/AcceptanceLetter'));
+const RelievingLetter = React.lazy(() => import('../admin/RelievingLetter'));
+const ExperienceCertificate = React.lazy(() => import('../admin/ExperienceCertificate'));
+const CommunityFund = React.lazy(() => import('../admin/CommunityFund'));
+const WorkAllocation = React.lazy(() => import('../admin/WorkAllocation'));
+const KpiManagement = React.lazy(() => import('../admin/KpiManagement'));
+const RenewalManagement = React.lazy(() => import('../admin/RenewalManagement'));
+const ApiKeyManagement = React.lazy(() => import('../admin/ApiKeyManagement'));
+const AdminDeleteHistory = React.lazy(() => import('../admin/AdminDeleteHistory'));
+const FaceAttendancePage = React.lazy(() => import('../admin/FaceAttendancePage'));
 
 // Lazy load test management components
 const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'));
@@ -311,6 +311,7 @@ const AdminLayout = () => {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="h-full w-full max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-6"
           >
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route index element={<AdminDashboard />} />
               <Route path="workers" element={<WorkerManagement />} />
@@ -331,11 +332,7 @@ const AdminLayout = () => {
               <Route path="topics" element={<TopicManagement />} />
               <Route path="food-requests" element={<FoodRequestManagement />} />
               
-              <Route path="github-tracker" element={
-                <Suspense fallback={<PageLoader />}>
-                  <GitHubDashboard />
-                </Suspense>
-              } />
+              <Route path="github-tracker" element={<GitHubDashboard />} />
               
               <Route path="custom-tasks" element={<CustomTasks />} />
               <Route path="notifications" element={<NotificationManagement />} />
@@ -351,26 +348,10 @@ const AdminLayout = () => {
               <Route path="renewals" element={<RenewalManagement />} />
 
               {/* Test Management Routes */}
-              <Route path="test/generate-questions" element={
-                <Suspense fallback={<PageLoader />}>
-                  <GenerateQuestions />
-                </Suspense>
-              } />
-              <Route path="test/question-history" element={
-                <Suspense fallback={<PageLoader />}>
-                  <QuestionHistory />
-                </Suspense>
-              } />
-              <Route path="test/employee-scores" element={
-                <Suspense fallback={<PageLoader />}>
-                  <EmployeeScores />
-                </Suspense>
-              } />
-              <Route path="test/global-scoreboard" element={
-                <Suspense fallback={<PageLoader />}>
-                  <GlobalScoreboard />
-                </Suspense>
-              } />
+              <Route path="test/generate-questions" element={<GenerateQuestions />} />
+              <Route path="test/question-history" element={<QuestionHistory />} />
+              <Route path="test/employee-scores" element={<EmployeeScores />} />
+              <Route path="test/global-scoreboard" element={<GlobalScoreboard />} />
 
               <Route path="community-fund" element={<CommunityFund />} />
               <Route path="api-keys" element={<ApiKeyManagement />} />
@@ -379,6 +360,7 @@ const AdminLayout = () => {
 
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
+            </Suspense>
           </motion.div>
         </main>
       </div>

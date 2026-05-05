@@ -71,6 +71,9 @@ export default defineConfig({
             strategies: 'injectManifest',
             srcDir: 'src',
             filename: 'sw.js',
+            injectManifest: {
+                maximumFileSizeToCacheInBytes: 5000000 // 5MB limit
+            },
             devOptions: {
                 enabled: true
             }
@@ -80,6 +83,30 @@ export default defineConfig({
         alias: {
             "@": path.resolve(__dirname, "./src"),
         },
+    },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        // Split heavy libraries into their own chunks
+                        if (id.includes('face-api.js')) return 'face-api';
+                        if (id.includes('jspdf')) return 'pdf-lib';
+                        if (id.includes('xlsx')) return 'excel-lib';
+                        if (id.includes('recharts')) return 'charts';
+                        if (id.includes('framer-motion') || id.includes('motion')) return 'framer-motion';
+                        if (id.includes('react-icons') || id.includes('lucide-react')) return 'icons';
+                        if (id.includes('tsparticles')) return 'particles';
+                        if (id.includes('telegram') || id.includes('@mtproto')) return 'telegram';
+                        if (id.includes('react-router-dom') || id.includes('react-toastify') || id.includes('axios')) return 'framework-utils';
+                        
+                        // Default vendor chunk for smaller libraries
+                        return 'vendor';
+                    }
+                }
+            }
+        },
+        chunkSizeWarningLimit: 1000,
     },
     server: {
         port: 3000,

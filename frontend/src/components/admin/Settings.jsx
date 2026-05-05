@@ -28,6 +28,7 @@ import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
 import api from '../../services/api';
 import { getAuthToken } from '../../utils/authUtils';
+import { getCurrentPosition } from '../../services/geolocationService';
 const Settings = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -415,9 +416,6 @@ const Settings = () => {
     // Handle location capture
     const handleCaptureLocation = async () => {
         try {
-            // Import the geolocation service function
-            const { getCurrentPosition } = await import('../../services/geolocationService');
-
             const position = await getCurrentPosition();
             // Update both latitude and longitude in a single state update
             const updatedSettings = {
