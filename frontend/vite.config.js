@@ -68,45 +68,9 @@ export default defineConfig({
                     }
                 ]
             },
-            workbox: {
-                maximumFileSizeToCacheInBytes: 25000000, // 25MB for larger models etc.
-                cleanupOutdatedCaches: true,
-                skipWaiting: true,
-                clientsClaim: true,
-                navigateFallback: 'index.html',
-                globPatterns: [
-                    '**/*.{js,css,html,ico,png,svg,json,webmanifest,wav,mp3}',
-                    '**/models/**',
-                    'manifest.json'
-                ],
-                globIgnores: ['registerSW.js'],
-                runtimeCaching: [
-                    {
-                        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-                        handler: 'CacheFirst',
-                        options: {
-                            cacheName: 'google-fonts-cache',
-                            expiration: {
-                                maxEntries: 10,
-                                maxAgeSeconds: 60 * 60 * 24 * 365
-                            },
-                            cacheableResponse: {
-                                statuses: [0, 200]
-                            }
-                        }
-                    },
-                    {
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|ico)$/,
-                        handler: 'StaleWhileRevalidate',
-                        options: {
-                            cacheName: 'images-cache',
-                            expiration: {
-                                maxEntries: 50
-                            }
-                        }
-                    }
-                ]
-            },
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.js',
             devOptions: {
                 enabled: true
             }

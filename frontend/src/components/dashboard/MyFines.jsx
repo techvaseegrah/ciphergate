@@ -56,25 +56,28 @@ const MyFines = () => {
 
             <div className="flex flex-col sm:flex-row gap-2 mb-4 items-end">
                 <div className="flex-1 w-full">
-                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">From Date</label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest ml-1">From Date</label>
                     <input
                         type="date"
                         value={fromDate}
                         onChange={(e) => setFromDate(e.target.value)}
-                        className="form-input w-full h-9 text-sm"
+                        className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all"
                     />
                 </div>
                 <div className="flex-1 w-full">
-                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">To Date</label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest ml-1">To Date</label>
                     <input
                         type="date"
                         value={toDate}
                         onChange={(e) => setToDate(e.target.value)}
-                        className="form-input w-full h-9 text-sm"
+                        className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all"
                     />
                 </div>
                 <div className="w-full sm:w-auto">
-                    <Button onClick={handleFilter} className="w-full h-9 px-4 text-sm">
+                    <Button 
+                        onClick={handleFilter} 
+                        className="w-full h-12 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-teal-100 transition-all active:scale-95"
+                    >
                         Filter
                     </Button>
                 </div>

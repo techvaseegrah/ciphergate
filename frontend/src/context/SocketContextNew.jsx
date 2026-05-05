@@ -40,8 +40,8 @@ export const SocketProvider = ({ children }) => {
         }
 
         const newSocket = io(socketUrl, {
-            // Force websocket transport as requested for performance/stability
-            transports: ['websocket'],
+            // Allow fallback to polling if websocket fails initially
+            transports: ['websocket', 'polling'],
 
             // Pass JWT in handshake auth - checked by backend middleware
             auth: { token },
@@ -70,7 +70,7 @@ export const SocketProvider = ({ children }) => {
             console.log(`[Socket] Connected: ${newSocket.id} (transport: ${transport})`);
             setIsConnected(true);
             toastShownRef.current = false;
-            toast.success('Live updates connected', { toastId: 'socket-connect' });
+            // Removed intrusive success toast for better UX
             newSocket.emit('join-subdomain', subdomain);
         });
 
@@ -81,9 +81,9 @@ export const SocketProvider = ({ children }) => {
 
         newSocket.on('connect_error', (error) => {
             if (!toastShownRef.current) {
-                // Do NOT log the token or sensitive data here
                 console.error('[Socket] Connection error:', error.message);
-                toast.error('Real-time updates unavailable. Retrying...', { toastId: 'socket-error' });
+                // Instead of a blocking error toast, we log it and update state
+                // This prevents the "Real-time updates unavailable" spam
                 toastShownRef.current = true;
             }
             setIsConnected(false);

@@ -58,6 +58,7 @@ import ResetPassword from './components/admin/ResetPassword';
 import HolidayManagement from './components/admin/HolidayManagement';
 import AcceptanceLetter from './components/admin/AcceptanceLetter';
 import { SocketProvider } from './context/SocketContextNew';
+import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   // Initialize subdomain with the actual value from localStorage immediately
@@ -126,23 +127,10 @@ function App() {
   return (
     <appContext.Provider value={contextValue}>
       <SocketProvider>
-        {/* Updated with consistent theme colors */}
-        <div className="App w-full overflow-x-hidden bg-[#FFF3F2]">
-          {/* Debug info - remove in production */}
-          {import.meta.env.DEV && (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              background: '#000',
-              color: '#fff',
-              padding: '5px',
-              fontSize: '12px',
-              zIndex: 9999
-            }}>
-              Company Name: {subdomain || 'null'}
-            </div>
-          )}
+        <NotificationProvider>
+          {/* Updated with consistent theme colors */}
+          <div className="App w-full overflow-x-hidden bg-[#FFF3F2]">
+
 
           <Routes>
             {/* Public routes */}
@@ -226,6 +214,7 @@ function App() {
 
           <InstallPrompt />
         </div>
+        </NotificationProvider>
       </SocketProvider>
     </appContext.Provider>
   );

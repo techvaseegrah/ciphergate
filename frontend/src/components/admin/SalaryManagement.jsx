@@ -1,5 +1,6 @@
 // attendance _31/client/src/components/admin/SalaryManagement.jsx
 import React, { useState, useEffect, useContext } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { FaDonate, FaFileInvoiceDollar, FaFilePdf, FaTrash, FaCalendarAlt, FaList } from 'react-icons/fa';
 import { FiRefreshCcw } from "react-icons/fi";
@@ -68,6 +69,8 @@ const SalaryManagement = () => {
     const [selectedIndividualWorker, setSelectedIndividualWorker] = useState(null);
     const [isIndividualReportLoading, setIsIndividualReportLoading] = useState(false);
     const [individualReportData, setIndividualReportData] = useState(null);
+    const [deductionView, setDeductionView] = useState(false);
+    const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
 
     const { subdomain } = useContext(appContext);
 
@@ -264,6 +267,7 @@ const SalaryManagement = () => {
         setIsReportModalOpen(true);
         // Set default date range to current month when opening report
         setMonthDateRange();
+        setDeductionView(false); // Reset toggle when opening new report
     };
 
     const fetchReport = async () => {
@@ -306,8 +310,8 @@ const SalaryManagement = () => {
         const formatCurrencyForPDF = (amount) => {
             // Handle different input types
             if (typeof amount === 'string') {
-                // If it's already a formatted string, extract the numeric value and reformat it properly
-                const numericValue = parseFloat(amount.replace(/[₹Rs.,\s]/g, ''));
+                // Remove currency symbols, commas, and spaces, but KEEP the dot
+                const numericValue = parseFloat(amount.replace(/[₹Rs,\s]/g, ''));
                 if (isNaN(numericValue)) {
                     return 'Rs. 0.00';
                 }
@@ -320,7 +324,8 @@ const SalaryManagement = () => {
         const summaryData = [
             ['Employee Name', selectedWorker?.name], // Added Employee Name to match UI
             ['Employee ID', selectedWorker?.rfid],
-            ['Base Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
+            ['Monthly Base Salary', formatCurrencyForPDF(reportData.report.summary?.originalSalary || 0)],
+            ['Base Salary (SaaS Only)', formatCurrencyForPDF(reportData.report.summary?.expectedSaaSSalary || reportData.report.summary?.originalSalary || 0)],
             ['Total Deductions', formatCurrencyForPDF(reportData.report.totalSalaryDeduction || 0)],
             ['Net Base Salary', formatCurrencyForPDF(reportData.report.summary?.netBaseSalary || 0)],
             ['Project Earnings', formatCurrencyForPDF(reportData.report.summary?.totalProjectSalary || 0)],
@@ -328,7 +333,45 @@ const SalaryManagement = () => {
             ...(reportData.totalFinesAmount > 0 ? [
                 ['Total Fines', formatCurrencyForPDF(reportData.totalFinesAmount)]
             ] : []),
-            ['Total Final Salary', formatCurrencyForPDF(reportData.finalSalaryWithFines || 0)],
+            ...(deductionView && reportData.isCurrentlyViolating ? (() => {
+                const deadline = new Date(reportData.earliestDeadline);
+                deadline.setHours(23, 59, 59, 999);
+
+                const parseSalary = (str) => {
+                    if (!str) return 0;
+                    const cleaned = str.replace(/[^0-9.]/g, '');
+                    return parseFloat(cleaned) || 0;
+                };
+
+                const dailyMap = {};
+                reportData.report.report.forEach(d => {
+                    if (!dailyMap[d.date]) {
+                        dailyMap[d.date] = parseSalary(d.totalSalary);
+                    }
+                });
+
+                const reportYear = reportDateRange.fromDate ? new Date(reportDateRange.fromDate).getFullYear() : new Date().getFullYear();
+
+                let earnedBefore = 0;
+                let removedAfter = 0;
+
+                Object.entries(dailyMap).forEach(([dateStr, salary]) => {
+                    const dDate = new Date(`${dateStr}, ${reportYear}`);
+                    if (dDate <= deadline) {
+                        earnedBefore += salary;
+                    } else {
+                        removedAfter += salary;
+                    }
+                });
+
+                return [
+                    ['Earned Before Deadline', formatCurrencyForPDF(earnedBefore)],
+                    ['Removed After Deadline', formatCurrencyForPDF(removedAfter)],
+                    ['Total Final Salary', formatCurrencyForPDF(earnedBefore)]
+                ];
+            })() : [
+                ['Total Final Salary', formatCurrencyForPDF(reportData.finalSalaryWithFines || 0)]
+            ]),
             ['Total Days in Period', reportData.report.summary?.totalDaysInPeriod || 0],
             ['Total Working Days', reportData.report.summary?.totalWorkingDaysInPeriod || 0],
             ['Total Absent Days', reportData.report.summary?.totalAbsentDays || 0],
@@ -722,8 +765,8 @@ const SalaryManagement = () => {
         const formatCurrencyForPDF = (amount) => {
             // Handle different input types
             if (typeof amount === 'string') {
-                // If it's already a formatted string, extract the numeric value and reformat it properly
-                const numericValue = parseFloat(amount.replace(/[₹Rs.,\s]/g, ''));
+                // Remove currency symbols, commas, and spaces, but KEEP the dot
+                const numericValue = parseFloat(amount.replace(/[₹Rs,\s]/g, ''));
                 if (isNaN(numericValue)) {
                     return 'Rs. 0.00';
                 }
@@ -736,7 +779,8 @@ const SalaryManagement = () => {
         const summaryData = [
             ['Employee Name', selectedIndividualWorker?.name], // Added Employee Name to match UI
             ['Employee ID', workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'],
-            ['Base Salary', formatCurrencyForPDF(individualReportData.report.summary?.originalSalary || 0)],
+            ['Monthly Base Salary', formatCurrencyForPDF(individualReportData.report.summary?.originalSalary || 0)],
+            ['Base Salary (SaaS Only)', formatCurrencyForPDF(individualReportData.report.summary?.expectedSaaSSalary || individualReportData.report.summary?.originalSalary || 0)],
             ['Total Deductions', formatCurrencyForPDF(individualReportData.report.totalSalaryDeduction || 0)],
             ['Net Base Salary', formatCurrencyForPDF(individualReportData.report.summary?.netBaseSalary || 0)],
             ['Project Earnings', formatCurrencyForPDF(individualReportData.report.summary?.totalProjectSalary || 0)],
@@ -744,7 +788,45 @@ const SalaryManagement = () => {
             ...(individualReportData.totalFinesAmount > 0 ? [
                 ['Total Fines', formatCurrencyForPDF(individualReportData.totalFinesAmount)]
             ] : []),
-            ['Total Final Salary', formatCurrencyForPDF(individualReportData.finalSalaryWithFines || 0)],
+            ...(deductionView && individualReportData.isCurrentlyViolating ? (() => {
+                const deadline = new Date(individualReportData.earliestDeadline);
+                deadline.setHours(23, 59, 59, 999);
+
+                const parseSalary = (str) => {
+                    if (!str) return 0;
+                    const cleaned = str.replace(/[^0-9.]/g, '');
+                    return parseFloat(cleaned) || 0;
+                };
+
+                const dailyMap = {};
+                individualReportData.report.report.forEach(d => {
+                    if (!dailyMap[d.date]) {
+                        dailyMap[d.date] = parseSalary(d.totalSalary);
+                    }
+                });
+
+                const reportYear = reportDateRange.fromDate ? new Date(reportDateRange.fromDate).getFullYear() : new Date().getFullYear();
+
+                let earnedBefore = 0;
+                let removedAfter = 0;
+
+                Object.entries(dailyMap).forEach(([dateStr, salary]) => {
+                    const dDate = new Date(`${dateStr}, ${reportYear}`);
+                    if (dDate <= deadline) {
+                        earnedBefore += salary;
+                    } else {
+                        removedAfter += salary;
+                    }
+                });
+
+                return [
+                    ['Earned Before Deadline', formatCurrencyForPDF(earnedBefore)],
+                    ['Removed After Deadline', formatCurrencyForPDF(removedAfter)],
+                    ['Total Final Salary', formatCurrencyForPDF(earnedBefore)]
+                ];
+            })() : [
+                ['Total Final Salary', formatCurrencyForPDF(individualReportData.finalSalaryWithFines || 0)]
+            ]),
             ['Total Days in Period', individualReportData.report.summary?.totalDaysInPeriod || 0],
             ['Total Working Days', individualReportData.report.summary?.totalWorkingDaysInPeriod || 0],
             ['Total Absent Days', individualReportData.report.summary?.totalAbsentDays || 0],
@@ -1431,6 +1513,21 @@ const SalaryManagement = () => {
                 title={`Salary Report for ${selectedIndividualWorker?.name || ''}`}
                 size="xl"
             >
+                <div className="flex items-center justify-end mb-4 px-4">
+                    <label className="flex items-center cursor-pointer">
+                        <span className="mr-2 text-sm font-medium text-gray-700">Deduction View:</span>
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={deductionView}
+                                onChange={() => setDeductionView(!deductionView)}
+                            />
+                            <div className={`block w-10 h-6 rounded-full transition-colors ${deductionView ? 'bg-red-500' : 'bg-gray-300'}`}></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${deductionView ? 'transform translate-x-4' : ''}`}></div>
+                        </div>
+                    </label>
+                </div>
                 {isIndividualReportLoading ? (
                     <div className="flex justify-center py-8">
                         <Spinner size="lg" />
@@ -1457,11 +1554,12 @@ const SalaryManagement = () => {
                                     <p><strong>Employee ID:</strong> {workers.find(w => w._id === selectedIndividualWorker.workerId)?.rfid || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <p><strong>Base Salary:</strong> ₹{individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Monthly Base Salary:</strong> ₹{individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                    <p><strong>Base Salary (SaaS Only):</strong> ₹{individualReportData.report.summary.expectedSaaSSalary?.toFixed(2) || individualReportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
                                     <p><strong>Total Deductions:</strong> <span className="text-red-600">- ₹{individualReportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span></p>
                                     <p><strong>Net Base Salary:</strong> ₹{individualReportData.report.summary.netBaseSalary?.toFixed(2) || '0.00'}</p>
                                     <p><strong>Project Earnings:</strong> <span className="text-blue-600 font-medium">+ ₹{individualReportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</span></p>
-                                    
+
                                     {/* ADD FINE INFORMATION TO THE SUMMARY */}
                                     {individualReportData.totalFinesAmount > 0 && (
                                         <p><strong>Total Fines:</strong> <span className="text-red-600">- ₹{individualReportData.totalFinesAmount.toFixed(2)}</span></p>
@@ -1470,7 +1568,49 @@ const SalaryManagement = () => {
                                         <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">+ ₹{individualReportData.totalBonusAmount.toFixed(2)}</span></p>
                                     )}
                                     <div className="mt-2 pt-2 border-t border-gray-100">
-                                        <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{individualReportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                        {deductionView && individualReportData.isCurrentlyViolating ? (() => {
+                                            const deadline = new Date(individualReportData.earliestDeadline);
+                                            deadline.setHours(23, 59, 59, 999);
+
+                                            const parseSalary = (str) => {
+                                                if (!str) return 0;
+                                                const cleaned = str.replace(/[^0-9.]/g, '');
+                                                return parseFloat(cleaned) || 0;
+                                            };
+
+                                            // Avoid double-counting days with multiple entries
+                                            const dailyMap = {};
+                                            individualReportData.report.report.forEach(d => {
+                                                if (!dailyMap[d.date]) {
+                                                    dailyMap[d.date] = parseSalary(d.totalSalary);
+                                                }
+                                            });
+
+                                            // Get report year from range or default to current
+                                            const reportYear = reportDateRange.fromDate ? new Date(reportDateRange.fromDate).getFullYear() : new Date().getFullYear();
+
+                                            let earnedBefore = 0;
+                                            let removedAfter = 0;
+
+                                            Object.entries(dailyMap).forEach(([dateStr, salary]) => {
+                                                const dDate = new Date(`${dateStr}, ${reportYear}`);
+                                                if (dDate <= deadline) {
+                                                    earnedBefore += salary;
+                                                } else {
+                                                    removedAfter += salary;
+                                                }
+                                            });
+
+                                            return (
+                                                <>
+                                                    <p><strong>Earned Before Deadline:</strong> <span className="font-bold text-lg text-green-600">₹{earnedBefore.toFixed(2)}</span></p>
+                                                    <p><strong>Removed After Deadline:</strong> <span className="text-red-600 font-medium">₹{removedAfter.toFixed(2)}</span></p>
+                                                    <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{earnedBefore.toFixed(2)}</span></p>
+                                                </>
+                                            );
+                                        })() : (
+                                            <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{individualReportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1653,348 +1793,327 @@ const SalaryManagement = () => {
             <Modal
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
-                title={`Salary Report for ${selectedWorker?.name}`}
+                title={
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-slate-900">Salary Report</span>
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">{selectedWorker?.name}</span>
+                    </div>
+                }
                 size="xl"
             >
-                <div>
-                    <div className="flex items-center mb-4">
-                        <button
-                            onClick={toggleDateSelection}
-                            className="px-3 py-1 bg-blue-500 text-white rounded mr-2"
-                        >
-                            {useMonthSelection ? 'Switch to Date Range' : 'Switch to Month Selection'}
-                        </button>
+                <div className="p-1">
+                    <div className="px-4 py-2 bg-slate-50/50 rounded-2xl border border-slate-100 mb-6 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={toggleDateSelection}
+                                className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-500 transition-colors"
+                            >
+                                {useMonthSelection ? 'Select Date Range' : 'Select Month'}
+                            </button>
+                            <div className="w-px h-4 bg-slate-200"></div>
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-rose-500 transition-colors">Deduction View</span>
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={deductionView}
+                                        onChange={() => setDeductionView(!deductionView)}
+                                    />
+                                    <div className={`w-8 h-4 rounded-full transition-colors ${deductionView ? 'bg-rose-400' : 'bg-slate-200'}`}></div>
+                                    <div className={`absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${deductionView ? 'translate-x-4' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     {useMonthSelection ? (
-                        <div className="flex space-x-4 mb-4 items-end">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                        <div className="flex flex-wrap items-end gap-4 mb-8 px-4">
+                            <div className="flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Month</label>
                                 <select
                                     value={selectedMonth}
                                     onChange={handleMonthChange}
-                                    className="form-input"
+                                    className="w-full h-11 px-4 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
                                 >
-                                    <option value={1}>January</option>
-                                    <option value={2}>February</option>
-                                    <option value={3}>March</option>
-                                    <option value={4}>April</option>
-                                    <option value={5}>May</option>
-                                    <option value={6}>June</option>
-                                    <option value={7}>July</option>
-                                    <option value={8}>August</option>
-                                    <option value={9}>September</option>
-                                    <option value={10}>October</option>
-                                    <option value={11}>November</option>
-                                    <option value={12}>December</option>
+                                    {[
+                                        'January', 'February', 'March', 'April', 'May', 'June',
+                                        'July', 'August', 'September', 'October', 'November', 'December'
+                                    ].map((m, i) => (
+                                        <option key={i + 1} value={i + 1}>{m}</option>
+                                    ))}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                            <div className="flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Year</label>
                                 <select
                                     value={selectedYear}
                                     onChange={handleYearChange}
-                                    className="form-input"
+                                    className="w-full h-11 px-4 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
                                 >
                                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
                                         <option key={year} value={year}>{year}</option>
                                     ))}
                                 </select>
                             </div>
-                            <Button onClick={() => {
-                                setMonthDateRange();
-                                fetchReport();
-                            }} variant="primary">
+                            <Button 
+                                onClick={() => {
+                                    setMonthDateRange();
+                                    fetchReport();
+                                }} 
+                                variant="primary"
+                                className="h-11 px-8 rounded-xl shadow-lg shadow-blue-100"
+                            >
                                 {isReportLoading ? <Spinner /> : 'Generate Report'}
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex space-x-4 mb-4">
-                            <input
-                                type="date"
-                                name="fromDate"
-                                value={reportDateRange.fromDate}
-                                onChange={handleReportDateChange}
-                                className="form-input"
-                            />
-                            <input
-                                type="date"
-                                name="toDate"
-                                value={reportDateRange.toDate}
-                                onChange={handleReportDateChange}
-                                className="form-input"
-                            />
-                            <Button onClick={fetchReport} variant="primary">
+                        <div className="flex flex-wrap items-end gap-4 mb-8 px-4">
+                            <div className="flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">From Date</label>
+                                <input
+                                    type="date"
+                                    name="fromDate"
+                                    value={reportDateRange.fromDate}
+                                    onChange={handleReportDateChange}
+                                    className="w-full h-11 px-4 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                                />
+                             </div>
+                             <div className="flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">To Date</label>
+                                <input
+                                    type="date"
+                                    name="toDate"
+                                    value={reportDateRange.toDate}
+                                    onChange={handleReportDateChange}
+                                    className="w-full h-11 px-4 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                                />
+                            </div>
+                            <Button 
+                                onClick={fetchReport} 
+                                variant="primary"
+                                className="h-11 px-8 rounded-xl shadow-lg shadow-blue-100"
+                            >
                                 {isReportLoading ? <Spinner /> : 'Generate Report'}
                             </Button>
                         </div>
                     )}
 
                     {isReportLoading && !reportData && (
-                        <div className="flex justify-center py-8">
+                        <div className="flex justify-center py-12">
                             <Spinner size="lg" />
                         </div>
                     )}
                     {reportData && (
-                        <div>
-                            <Card className="mb-6">
-                                <h3 className="text-xl font-semibold mb-4">Summary</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p><strong>Employee Name:</strong> {selectedWorker?.name}</p>
-                                        <p><strong>Employee ID:</strong> {selectedWorker?.rfid}</p>
-                                    </div>
-                                    <div>
-                                        <p><strong>Base Salary:</strong> ₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
-                                        <p><strong>Total Deductions:</strong> <span className="text-red-600">- ₹{reportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span></p>
-                                        <p><strong>Net Base Salary:</strong> ₹{reportData.report.summary.netBaseSalary?.toFixed(2) || '0.00'}</p>
-                                        <p><strong>Project Earnings:</strong> <span className="text-blue-600 font-medium">+ ₹{reportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</span></p>
-                                        
-                                        {/* ADD FINE INFORMATION TO THE SUMMARY */}
-                                        {reportData.totalFinesAmount > 0 && (
-                                            <p><strong>Total Fines:</strong> <span className="text-red-600">- ₹{reportData.totalFinesAmount.toFixed(2)}</span></p>
-                                        )}
-                                        {reportData.totalBonusAmount > 0 && (
-                                            <p><strong>Bonus Amount Applied:</strong> <span className="text-green-600">+ ₹{reportData.totalBonusAmount.toFixed(2)}</span></p>
-                                        )}
-                                        <div className="mt-2 pt-2 border-t border-gray-100">
-                                            <p><strong>Total Final Salary:</strong> <span className="font-bold text-lg text-[#0d9488]">₹{reportData.finalSalaryWithFines?.toFixed(2) || '0.00'}</span></p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <hr className="my-4" />
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                    <div>
-                                        <p><strong>Total Days in Period:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalDaysInPeriod || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Working Days:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalWorkingDaysInPeriod || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Absent Days:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalAbsentDays || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Leave Days:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalLeaveDays || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Holidays:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalHolidaysInPeriod || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Sundays:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.totalSundaysInPeriod || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Actual Working Days:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.actualWorkingDays || 0}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Working Hours:</strong></p>
-                                        <span className="font-bold">{(reportData.report.totalWorkingHours || 0).toFixed(2)} hrs</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Permission Time:</strong></p>
-                                        <span className="font-bold">{reportData.report.totalPermissionTime || 0} mins</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Absent Deduction:</strong></p>
-                                        <span className="font-bold">₹{reportData.report.summary.absentDeduction?.toFixed(2) || '0.00'}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Leave Deduction:</strong></p>
-                                        <span className="font-bold">₹{reportData.report.summary.leaveDeduction?.toFixed(2) || '0.00'}</span>
-                                    </div>
-                                    {reportData.report.summary.penalizedLeaveDays > 0 && (
-                                        <div className="bg-red-50 p-1 rounded border border-red-100">
-                                            <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Leaves (2X)</p>
-                                            <span className="font-bold text-red-700">{reportData.report.summary.penalizedLeaveDays} Days (₹{reportData.report.summary.penalizedLeaveDeduction.toFixed(2)})</span>
-                                        </div>
-                                    )}
-                                    {reportData.report.summary.penalizedAbsentDays > 0 && (
-                                        <div className="bg-red-50 p-1 rounded border border-red-100">
-                                            <p className="text-red-600 text-[10px] uppercase font-bold tracking-wider">Extra Absences (2X)</p>
-                                            <span className="font-bold text-red-700">{reportData.report.summary.penalizedAbsentDays} Days (₹{reportData.report.summary.penalizedAbsentDeduction.toFixed(2)})</span>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p><strong>Permission Deduction:</strong></p>
-                                        <span className="font-bold">₹{reportData.report.summary.permissionDeduction?.toFixed(2) || '0.00'}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Total Deductions:</strong></p>
-                                        <span className="font-bold">₹{reportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Attendance Rate:</strong></p>
-                                        <span className="font-bold">{reportData.report.summary.attendanceRate?.toFixed(2) || '0.00'}%</span>
-                                    </div>
-                                    <div>
-                                        <p><strong>Per Minute Salary:</strong></p>
-                                        <span className="font-bold">₹{reportData.report.summary.perMinuteSalary?.toFixed(4) || '0.0000'}</span>
-                                    </div>
-                                    {/* Display bonus information */}
-                                    {reportData.totalBonusAmount > 0 && (
-                                        <>
+                        <div className="space-y-6">
+                            {/* Summary Section - Primary Focus */}
+                            <div className="bg-slate-50/40 rounded-[2.5rem] p-1.5 border border-slate-100/50">
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
+                                    {/* Left Metrics Column */}
+                                    <div className="lg:col-span-7 p-8">
+                                        <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                                             <div>
-                                                <p><strong>Bonus Amount Applied:</strong></p>
-                                                <span className="font-bold text-green-600">₹{reportData.totalBonusAmount.toFixed(2)}</span>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Monthly Base Salary</p>
+                                                <p className="text-xl font-bold text-slate-800 tracking-tight">₹{reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
                                             </div>
-                                            {reportData.bonuses.map((bonus, index) => (
-                                                <div key={index}>
-                                                    <p><strong>Bonus Period {index + 1}:</strong></p>
-                                                    <span className="font-bold">{new Date(bonus.fromDate).toLocaleDateString()} to {new Date(bonus.toDate).toLocaleDateString()}</span>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Base Salary (SaaS)</p>
+                                                <p className="text-xl font-bold text-slate-800 tracking-tight">₹{reportData.report.summary.expectedSaaSSalary?.toFixed(2) || reportData.report.summary.originalSalary?.toFixed(2) || '0.00'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Total Deductions</p>
+                                                <p className="text-xl font-bold text-rose-500 tracking-tight">- ₹{reportData.report.totalSalaryDeduction?.toFixed(2) || '0.00'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Net Base Salary</p>
+                                                <p className="text-xl font-bold text-slate-800 tracking-tight">₹{reportData.report.summary.netBaseSalary?.toFixed(2) || '0.00'}</p>
+                                            </div>
+                                            {reportData.report.summary.totalProjectSalary > 0 && (
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Project Earnings</p>
+                                                    <p className="text-xl font-bold text-teal-600 tracking-tight">+ ₹{reportData.report.summary.totalProjectSalary?.toFixed(2) || '0.00'}</p>
                                                 </div>
-                                            ))}
-                                        </>
-                                    )}
-                                    {/* Display fine information */}
-                                    {reportData.totalFinesAmount > 0 && (
-                                        <div>
-                                            <p><strong>Total Fines:</strong></p>
-                                            <span className="font-bold text-red-600">₹{reportData.totalFinesAmount.toFixed(2)}</span>
+                                            )}
+                                            {reportData.totalBonusAmount > 0 && (
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Bonus Amount</p>
+                                                    <p className="text-xl font-bold text-teal-600 tracking-tight">+ ₹{reportData.totalBonusAmount.toFixed(2)}</p>
+                                                </div>
+                                            )}
+                                            {reportData.totalFinesAmount > 0 && (
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Total Fines</p>
+                                                    <p className="text-xl font-bold text-rose-500 tracking-tight">- ₹{reportData.totalFinesAmount.toFixed(2)}</p>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+
+                                    {/* Final Salary Emphasis Card */}
+                                    <div className="lg:col-span-5 bg-white rounded-[2rem] p-10 shadow-[0_20px_40px_-15px_rgba(13,148,136,0.1)] border border-teal-50 flex flex-col justify-center items-center lg:items-end text-center lg:text-right relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                                        <div className="relative z-10">
+                                            <p className="text-[11px] font-black text-teal-600 uppercase tracking-[0.25em] mb-3">Total Final Salary</p>
+                                            <div className="text-5xl md:text-6xl font-black text-[#0d9488] tracking-tighter">
+                                        {deductionView && reportData.isCurrentlyViolating ? (() => {
+                                            const deadline = new Date(reportData.earliestDeadline);
+                                            deadline.setHours(23, 59, 59, 999);
+                                            const parseSalary = (str) => {
+                                                if (!str) return 0;
+                                                const cleaned = str.replace(/[^0-9.]/g, '');
+                                                return parseFloat(cleaned) || 0;
+                                            };
+                                            const dailyMap = {};
+                                            reportData.report.report.forEach(d => {
+                                                if (!dailyMap[d.date]) {
+                                                    dailyMap[d.date] = parseSalary(d.totalSalary);
+                                                }
+                                            });
+                                            const reportYear = reportDateRange.fromDate ? new Date(reportDateRange.fromDate).getFullYear() : new Date().getFullYear();
+                                            let earnedBefore = 0;
+                                            Object.entries(dailyMap).forEach(([dateStr, salary]) => {
+                                                const dDate = new Date(`${dateStr}, ${reportYear}`);
+                                                if (dDate <= deadline) {
+                                                    earnedBefore += salary;
+                                                }
+                                            });
+                                            return `₹${earnedBefore.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                        })() : `₹${(reportData.finalSalaryWithFines || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                            </div>
+                                            {deductionView && reportData.isCurrentlyViolating && (
+                                                <p className="text-[10px] font-bold text-rose-500 uppercase mt-2">Deduction applied (Policy Violation)</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </Card>
-                            {/* ADD FINES DISPLAY SECTION */}
-                            {reportData.worker?.fines && reportData.worker.fines.length > 0 && (
-                                <Card className="mb-6">
-                                    <h3 className="text-xl font-semibold mb-4">Fines</h3>
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-200">
-                                            <thead className="bg-gray-50">
+                            </div>
+
+                            {/* Advanced Details Toggle */}
+                            <div className="pt-2">
+                                <button
+                                    onClick={() => setShowDetailedBreakdown(!showDetailedBreakdown)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100 transition-all text-xs font-bold"
+                                >
+                                    <motion.span
+                                        animate={{ rotate: showDetailedBreakdown ? 180 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <FaList size={10} />
+                                    </motion.span>
+                                    {showDetailedBreakdown ? 'Hide Detailed Breakdown' : 'Show Detailed Breakdown'}
+                                </button>
+
+                                <AnimatePresence>
+                                    {showDetailedBreakdown && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6 py-6 mt-2 border-t border-slate-100">
+                                                {[
+                                                    { label: 'Total Days', value: reportData.report.summary.totalDaysInPeriod },
+                                                    { label: 'Working Days', value: reportData.report.summary.totalWorkingDaysInPeriod },
+                                                    { label: 'Absent Days', value: reportData.report.summary.totalAbsentDays },
+                                                    { label: 'Leave Days', value: reportData.report.summary.totalLeaveDays },
+                                                    { label: 'Holidays', value: reportData.report.summary.totalHolidaysInPeriod },
+                                                    { label: 'Sundays', value: reportData.report.summary.totalSundaysInPeriod },
+                                                    { label: 'Actual Worked', value: reportData.report.summary.actualWorkingDays },
+                                                    { label: 'Working Hours', value: `${(reportData.report.totalWorkingHours || 0).toFixed(2)}h` },
+                                                    { label: 'Permission Time', value: `${reportData.report.totalPermissionTime || 0}m` },
+                                                    { label: 'Absent Deduction', value: `₹${reportData.report.summary.absentDeduction?.toFixed(2)}`, color: 'text-rose-500' },
+                                                    { label: 'Leave Deduction', value: `₹${reportData.report.summary.leaveDeduction?.toFixed(2)}`, color: 'text-rose-500' },
+                                                    { label: 'Permission Ded.', value: `₹${reportData.report.summary.permissionDeduction?.toFixed(2)}`, color: 'text-rose-500' },
+                                                    { label: 'Total Deductions', value: `₹${reportData.report.totalSalaryDeduction?.toFixed(2)}`, color: 'text-rose-500' },
+                                                    { label: 'Attendance Rate', value: `${reportData.report.summary.attendanceRate?.toFixed(2)}%` },
+                                                    { label: 'Per Min Salary', value: `₹${reportData.report.summary.perMinuteSalary?.toFixed(4)}` }
+                                                ].map((item, idx) => (
+                                                    <div key={idx}>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{item.label}</p>
+                                                        <p className={`text-sm font-semibold ${item.color || 'text-slate-700'}`}>{item.value || 0}</p>
+                                                    </div>
+                                                ))}
+                                                
+                                                {/* Extra metrics like Penalized Days if any */}
+                                                {reportData.report.summary.penalizedLeaveDays > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1 text-rose-500">Extra Leaves (2X)</p>
+                                                        <p className="text-sm font-bold text-rose-600">{reportData.report.summary.penalizedLeaveDays} Days (₹{reportData.report.summary.penalizedLeaveDeduction.toFixed(2)})</p>
+                                                    </div>
+                                                )}
+                                                {reportData.report.summary.penalizedAbsentDays > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1 text-rose-500">Extra Absences (2X)</p>
+                                                        <p className="text-sm font-bold text-rose-600">{reportData.report.summary.penalizedAbsentDays} Days (₹{reportData.report.summary.penalizedAbsentDeduction.toFixed(2)})</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Daily Breakdown Table */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Daily Breakdown</h4>
+                                    <div className="h-px flex-1 bg-slate-100 mx-4"></div>
+                                </div>
+                                <div className="rounded-2xl border border-slate-100 overflow-hidden bg-white shadow-sm">
+                                    <div className="overflow-x-auto max-h-[400px] custom-scrollbar">
+                                        <table className="min-w-full divide-y divide-slate-100 text-xs">
+                                            <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
                                                 <tr>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                                    {['Date', 'Status', 'Work Type', 'In', 'Out', 'Delay', 'Deduction', 'Salary'].map(h => (
+                                                        <th key={h} className="px-4 py-3 text-left font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                                                    ))}
                                                 </tr>
                                             </thead>
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                {reportData.worker.fines
-                                                    .filter(fine => {
-                                                        const fineDate = new Date(fine.date);
-                                                        const fromDate = new Date(reportDateRange.fromDate);
-                                                        const toDate = new Date(reportDateRange.toDate);
-                                                        return fineDate >= fromDate && fineDate <= toDate;
-                                                    })
-                                                    .map((fine) => (
-                                                        <tr key={fine._id}>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                {new Date(fine.date).toLocaleDateString()}
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <span className="text-red-600 font-medium">₹{fine.amount.toFixed(2)}</span>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                {fine.reason}
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <button
-                                                                    onClick={() => handleDeleteFine(selectedWorker._id, fine._id)}
-                                                                    className="text-red-600 hover:text-red-900"
-                                                                    title="Delete Fine"
-                                                                >
-                                                                    <FaTrash />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                            <tbody className="divide-y divide-slate-50 bg-white">
+                                                {(reportData.report.report || []).map((row, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                                                        <td className="px-4 py-3 font-bold text-slate-700 whitespace-nowrap">{row.date}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-lg font-bold text-[10px] uppercase tracking-tight
+                                                                ${row.status === 'Present' ? 'bg-emerald-50 text-emerald-600' : 
+                                                                  row.status === 'Absent' ? 'bg-rose-50 text-rose-500' : 
+                                                                  row.status === 'Sunday' ? 'bg-slate-50 text-slate-400' : 
+                                                                  row.status === 'Holiday' ? 'bg-amber-50 text-amber-600' : 
+                                                                  'bg-sky-50 text-sky-600'}`}>
+                                                                {row.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex flex-col">
+                                                                <span className={`font-black text-[9px] uppercase tracking-widest ${row.workType === 'PROJECT' ? 'text-teal-600' : 'text-slate-400'}`}>
+                                                                    {row.workType}
+                                                                </span>
+                                                                {row.projectName && <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{row.projectName}</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-500 font-medium">{row.inTime}</td>
+                                                        <td className="px-4 py-3 text-slate-500 font-medium">{row.outTime}</td>
+                                                        <td className="px-4 py-3 text-slate-500 font-medium">{row.delayTime}</td>
+                                                        <td className="px-4 py-3 text-rose-500 font-bold">{row.deductionAmount}</td>
+                                                        <td className="px-4 py-3 text-emerald-600 font-black">{row.totalSalary}</td>
+                                                    </tr>
+                                                ))}
                                             </tbody>
                                         </table>
                                     </div>
-                                </Card>
-                            )}
-                            {reportData.projectBreakdown && reportData.projectBreakdown.length > 0 && (
-                                <Card className="mb-6">
-                                    <h3 className="text-xl font-semibold mb-4">Project Breakdown</h3>
-                                    <div className="space-y-4">
-                                        {reportData.projectBreakdown.map((proj, idx) => (
-                                            <div key={proj.projectId || idx} className="border border-blue-100 rounded-xl overflow-hidden">
-                                                <div className="bg-blue-600 px-4 py-2 flex items-center justify-between">
-                                                    <span className="text-white font-semibold text-sm">{proj.projectName}</span>
-                                                    <span className="bg-white bg-opacity-20 text-white text-xs px-2 py-0.5 rounded-full">{proj.daysInReport} days this period</span>
-                                                </div>
-                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4">
-                                                    <div className="text-center bg-blue-50 rounded-lg p-2">
-                                                        <p className="text-xs text-gray-500">Date Range</p>
-                                                        <p className="font-semibold text-blue-800 text-xs">{new Date(proj.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} to {new Date(proj.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</p>
-                                                    </div>
-                                                    <div className="text-center bg-gray-50 rounded-lg p-2">
-                                                        <p className="text-xs text-gray-500">Working Days</p>
-                                                        <p className="font-bold text-gray-800">{proj.totalWorkingDays}</p>
-                                                    </div>
-                                                    <div className="text-center bg-purple-50 rounded-lg p-2">
-                                                        <p className="text-xs text-gray-500">Per Day Value</p>
-                                                        <p className="font-bold text-purple-700">&#8377;{(proj.perDayValue || 0).toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="text-center bg-red-50 rounded-lg p-2">
-                                                        <p className="text-xs text-gray-500">Total Deduction</p>
-                                                        <p className="font-bold text-red-600">&#8377;{(proj.totalDeduction || 0).toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="text-center bg-green-50 rounded-lg p-2">
-                                                        <p className="text-xs text-gray-500">Final Earnings</p>
-                                                        <p className="font-bold text-green-700">&#8377;{(proj.totalEarned || 0).toFixed(2)}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </Card>
-                            )}
-                            <Card>
-                                <h3 className="text-xl font-semibold mb-4">Daily Breakdown</h3>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                        <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Work Type</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">In Time</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Out Time</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delay</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deduction</th>
-                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salary</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-100">
-                                            {(reportData.report.report || []).map((row, idx) => (
-                                                <tr key={idx} className={`hover:bg-gray-50 ${row.workType === 'PROJECT' ? 'border-l-2 border-blue-400' : ''}`}>
-                                                    <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">{row.date}</td>
-                                                    <td className="px-3 py-2">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${row.status === 'Present' ? 'bg-green-100 text-green-800' : row.status === 'Sunday' ? 'bg-gray-100 text-gray-500' : row.status === 'Holiday' ? 'bg-yellow-100 text-yellow-800' : row.status === 'Absent' ? 'bg-red-100 text-red-800' : (row.status === 'Leave' || row.status === 'Paid Leave') ? 'bg-blue-100 text-blue-700' : row.status === 'Auto-Out' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>{row.status}</span>
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        {row.workType === 'PROJECT' ? (
-                                                            <div>
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">PROJECT</span>
-                                                                {row.projectName && <div className="text-[10px] text-blue-500 mt-0.5">{row.projectName}</div>}
-                                                            </div>
-                                                        ) : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">SAAS</span>}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-gray-600">{row.inTime}</td>
-                                                    <td className="px-3 py-2 text-gray-600">{row.outTime}</td>
-                                                    <td className="px-3 py-2 text-gray-600">{row.delayTime}</td>
-                                                    <td className="px-3 py-2 text-red-600 font-medium">{row.deductionAmount}</td>
-                                                    <td className="px-3 py-2 text-green-700 font-bold">{row.totalSalary}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {(!reportData.report.report || reportData.report.report.length === 0) && (
-                                        <p className="text-center text-gray-400 py-8">No daily records found for this period.</p>
-                                    )}
                                 </div>
-                            </Card>
-                            <div className="flex justify-end mt-4">
-                                <Button onClick={downloadPDF} variant="outline" className="flex items-center">
-                                    <FaFilePdf className="mr-2" /> Download PDF
-                                </Button>
+                            </div>
+
+                            <div className="flex justify-end pt-2">
+                                <button
+                                    onClick={downloadPDF}
+                                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-sm font-bold shadow-lg shadow-slate-200 active:scale-95"
+                                >
+                                    <FaFilePdf size={16} />
+                                    <span>Download PDF Report</span>
+                                </button>
                             </div>
                         </div>
                     )}

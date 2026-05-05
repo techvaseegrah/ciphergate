@@ -6,14 +6,23 @@ let io;
 const init = (server) => {
     io = socketIO(server, {
         cors: {
-            origin: [
-                'http://localhost:3000',
-                'http://localhost:5173',
-                'https://tvtasks.netlify.app',
-                'https://techvaseegrah.ciphergate.in',
-            ],
+            origin: (origin, callback) => {
+                const allowedOrigins = [
+                    'http://localhost:3000',
+                    'http://localhost:5173',
+                    'https://tvtasks.netlify.app',
+                    'https://techvaseegrah.ciphergate.in',
+                ];
+                const subdomainRegex = /^(https?:\/\/)?([\w-]+\.)+(localhost:3000|netlify\.app|ciphergate\.in)$/;
+                
+                if (!origin || allowedOrigins.includes(origin) || subdomainRegex.test(origin)) {
+                    callback(null, true);
+                } else {
+                    callback(new Error('Not allowed by CORS'));
+                }
+            },
             methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
             credentials: true
         },
         // Allow fallback to polling if websocket fails initially
@@ -23,23 +32,22 @@ const init = (server) => {
         pingInterval: 25000,
     });
 
-    // Authentication Middleware for Socket.IO
+    // Authentication Middleware for Socket.IO (Non-blocking)
     io.use((socket, next) => {
         const token = socket.handshake.auth?.token;
 
         if (!token) {
-            console.warn('[Socket] Connection attempt without token');
-            return next(new Error('Authentication error: No token provided'));
+            console.warn(`[Socket] Connection from ${socket.id} without token - unauthenticated`);
+            return next(); // Proceed without user info
         }
 
         try {
-            // Verify token using the secret from environment
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            socket.user = decoded; // Attach user info to socket
+            socket.user = decoded; 
             next();
         } catch (err) {
-            console.error(`[Socket] Auth failed for token: ${token.substring(0, 10)}... — Error: ${err.message}`);
-            return next(new Error(`Authentication error: ${err.message}`));
+            console.warn(`[Socket] Auth failed for ${socket.id}: ${err.message}`);
+            next(); // Proceed without user info
         }
     });
 
@@ -52,6 +60,13 @@ const init = (server) => {
             if (subdomain) {
                 socket.join(subdomain);
                 console.log(`[Socket] ${socket.id} joined room: ${subdomain}`);
+            }
+        });
+
+        socket.on('join-user', (userId) => {
+            if (userId) {
+                socket.join(userId);
+                console.log(`[Socket] ${socket.id} joined user room: ${userId}`);
             }
         });
 

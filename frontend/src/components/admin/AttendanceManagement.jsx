@@ -12,6 +12,8 @@ import Spinner from '../common/Spinner';
 import { Link } from 'react-router-dom';
 import FaceAttendance from './FaceAttendance';
 import api from '../../services/api';
+import BottomSheet from '../common/BottomSheet';
+import { Filter, Search, RotateCcw } from 'lucide-react';
 
 const AttendanceManagement = () => {
     const [worker, setWorker] = useState({ rfid: "" });
@@ -28,6 +30,7 @@ const AttendanceManagement = () => {
     const inputRef = useRef(null);
     const [isPunching, setIsPunching] = useState(false);
     const [isDetectingAction, setIsDetectingAction] = useState(false); // guard double-click on Submit
+    const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
     // New state variables for pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -522,8 +525,8 @@ const AttendanceManagement = () => {
 
     return (
         <Fragment>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Attendance Management</h1>
+            <div className="flex justify-between items-center mb-4 md:mb-6">
+                <h1 className="text-2xl font-bold admin-mobile-title">Attendance Management</h1>
                 {/* Desktop buttons - hidden on mobile */}
                 <div className='hidden md:flex space-x-6 justify-center items-center'>
                     {accessControl.addAttendance && (
@@ -588,15 +591,20 @@ const AttendanceManagement = () => {
                 </div>
             </div>
 
-            <div className='bg-white border rounded-lg p-4'>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Search by name..."
-                        value={searchName}
-                        onChange={(e) => setSearchName(e.target.value)}
-                    />
+            {/* Filter Section */}
+            <div className='bg-white border border-slate-100 rounded-[24px] p-4 shadow-sm mb-6'>
+                {/* Desktop Filters */}
+                <div className="hidden md:grid grid-cols-4 gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            className="form-input pl-10"
+                            placeholder="Search by name..."
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                        />
+                    </div>
                     <input
                         type="text"
                         className="form-input"
@@ -619,6 +627,92 @@ const AttendanceManagement = () => {
                         onChange={(e) => setFilterDate(e.target.value)}
                     />
                 </div>
+
+                {/* Mobile Filter Bar */}
+                <div className="md:hidden flex gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            className="form-input pl-10 h-12 text-sm"
+                            placeholder="Search name..."
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsFilterSheetOpen(true)}
+                        className={`px-4 h-12 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${
+                            filterRfid || filterDepartment || filterDate 
+                            ? 'bg-teal-50 text-teal-600 border border-teal-100' 
+                            : 'bg-slate-50 text-slate-600 border border-slate-100'
+                        }`}
+                    >
+                        <Filter size={18} />
+                        <span>Filter</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile Filter Bottom Sheet */}
+            <BottomSheet
+                isOpen={isFilterSheetOpen}
+                onClose={() => setIsFilterSheetOpen(false)}
+                title="Filters"
+            >
+                <div className="space-y-6">
+                    <div>
+                        <label className="admin-mobile-label block mb-2">RFID</label>
+                        <input
+                            type="text"
+                            className="form-input h-12"
+                            placeholder="Filter by RFID..."
+                            value={filterRfid}
+                            onChange={(e) => setFilterRfid(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="admin-mobile-label block mb-2">Department</label>
+                        <input
+                            type="text"
+                            className="form-input h-12"
+                            placeholder="Filter by department..."
+                            value={filterDepartment}
+                            onChange={(e) => setFilterDepartment(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="admin-mobile-label block mb-2">Date</label>
+                        <input
+                            type="date"
+                            className="form-input h-12"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 pt-4">
+                        <button
+                            onClick={() => {
+                                setFilterRfid('');
+                                setFilterDepartment('');
+                                setFilterDate('');
+                                setIsFilterSheetOpen(false);
+                            }}
+                            className="flex items-center justify-center gap-2 h-12 rounded-xl bg-slate-50 text-slate-600 font-bold text-sm active:bg-slate-100 transition-all"
+                        >
+                            <RotateCcw size={16} />
+                            <span>Reset</span>
+                        </button>
+                        <button
+                            onClick={() => setIsFilterSheetOpen(false)}
+                            className="flex items-center justify-center h-12 rounded-xl bg-[#0d9488] text-white font-bold text-sm active:scale-[0.98] transition-all"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </BottomSheet>
 
                 {isLoading ? (
                     <div className="flex justify-center py-8">
@@ -746,9 +840,8 @@ const AttendanceManagement = () => {
                     onClose={() => {
                         setIsFaceAttendanceOpen(false);
                     }}
-                    onAttendanceMarked={refreshLatestAttendance} // Add this callback
+                    onAttendanceMarked={refreshLatestAttendance}
                 />
-            </div>
         </Fragment>
     );
 };

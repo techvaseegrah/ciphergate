@@ -7,8 +7,9 @@ import Spinner from '../common/Spinner';
 import { useAuth } from '../../hooks/useAuth';
 import {
     Search, CheckSquare, AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
-    Minus, X, User, AlignLeft, Calendar, Users, Paperclip, CheckCircle2, History, Upload
+    Minus, X, User, AlignLeft, Calendar, Users, Paperclip, CheckCircle2, History, Upload, File
 } from 'lucide-react';
+import { getFullFileUrl } from '../../utils/fileUtils';
 
 const IssueIcon = ({ type }) => {
     switch (type) {
@@ -664,7 +665,7 @@ const WorkerWorkAllocation = () => {
                                                                                 {myCompletion.proofFiles.map((file, fIdx) => (
                                                                                     <a
                                                                                         key={file._id || fIdx}
-                                                                                        href={file.url}
+                                                                                        href={getFullFileUrl(file.url)}
                                                                                         target="_blank"
                                                                                         rel="noopener noreferrer"
                                                                                         className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-100 rounded-lg text-[10px] text-gray-500 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 transition-all font-medium shadow-sm"

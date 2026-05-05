@@ -102,6 +102,22 @@ exports.createTicket = async (req, res) => {
             { path: 'assignees', select: 'name username department status' }
         ]);
 
+        // Trigger push notifications
+        const { sendNotification } = require('../utils/sendNotification');
+        const usersToNotify = assignees || (assignee ? [assignee] : []);
+        
+        for (const userId of usersToNotify) {
+            await sendNotification({
+                userId,
+                userModel: 'Worker',
+                subdomain: savedTicket.subdomain,
+                title: 'New Task Assigned',
+                message: `Task: ${savedTicket.title} | Priority: ${savedTicket.priority} ${savedTicket.team ? `| Team: ${savedTicket.team}` : ''}`,
+                type: 'task_assigned',
+                link: '/worker/work-allocation'
+            });
+        }
+
         // Socket emission
         const io = getIO();
         io.to(subdomain).emit('ticket:created', savedTicket);
@@ -174,6 +190,22 @@ exports.updateTicket = async (req, res) => {
             { path: 'assignee', select: 'name username status' },
             { path: 'assignees', select: 'name username department status' }
         ]);
+
+        // Trigger push notifications
+        const { sendNotification } = require('../utils/sendNotification');
+        const usersToNotify = assignees || (assignee ? [assignee] : []);
+        
+        for (const userId of usersToNotify) {
+            await sendNotification({
+                userId,
+                userModel: 'Worker',
+                subdomain: updatedTicket.subdomain,
+                title: 'Task Updated',
+                message: `Updated: ${updatedTicket.title} | Status: ${updatedTicket.status} | Priority: ${updatedTicket.priority}`,
+                type: 'task_updated',
+                link: '/worker/work-allocation'
+            });
+        }
 
         // Socket emission
         const io = getIO();

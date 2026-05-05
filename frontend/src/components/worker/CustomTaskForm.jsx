@@ -92,8 +92,7 @@ const CustomTaskForm = () => {
   };
 
   return (
-    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm mb-4">
-      <h2 className="text-md font-bold mb-3">Submit Custom Task</h2>
+    <div className="w-full">
 
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
@@ -103,9 +102,8 @@ const CustomTaskForm = () => {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#0d9488]/20 transition-all"
-            rows="2"
-            placeholder="Describe the task you've completed..."
+            className="w-full p-4 border border-slate-200 rounded-2xl text-sm focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all min-h-[56px] outline-none placeholder:text-slate-400 font-medium"
+            placeholder="What tasks have you completed today?"
             disabled={submitting}
           ></textarea>
         </div>

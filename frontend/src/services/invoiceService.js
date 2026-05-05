@@ -48,9 +48,9 @@ export const getInvoices = async () => {
 };
 
 // Get all invoices (super admin only)
-export const getAllInvoices = async () => {
+export const getAllInvoices = async (params = {}) => {
   try {
-    const response = await api.get('/invoices/all');
+    const response = await api.get('/invoices/all', { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Error fetching all invoices' };

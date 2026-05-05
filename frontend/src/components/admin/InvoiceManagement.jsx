@@ -17,6 +17,11 @@ const InvoiceManagement = () => {
   const [error, setError] = useState(null);
   const { user } = useAuth();
 
+  // Filter states
+  const [filterType, setFilterType] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   // Renewal Modal State
   const [isRenewalModalOpen, setIsRenewalModalOpen] = useState(false);
   const [renewalInvoiceData, setRenewalInvoiceData] = useState(null);
@@ -29,10 +34,18 @@ const InvoiceManagement = () => {
     updateAdminLastViewed();
   }, []);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = async (type = filterType, start = startDate, end = endDate) => {
     try {
       setLoading(true);
-      const response = await getAllInvoices();
+      setError(null);
+      
+      const params = { filterType: type };
+      if (type === 'custom' && start && end) {
+        params.startDate = start;
+        params.endDate = end;
+      }
+      
+      const response = await getAllInvoices(params);
       if (response.success) {
         setInvoices(response.data);
       } else {
@@ -44,6 +57,21 @@ const InvoiceManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (type) => {
+    setFilterType(type);
+    if (type !== 'custom') {
+      fetchInvoices(type);
+    }
+  };
+
+  const applyCustomFilter = () => {
+    if (!startDate || !endDate) {
+      toast.warn('Please select both start and end dates');
+      return;
+    }
+    fetchInvoices('custom', startDate, endDate);
   };
 
   const handleInvoiceSave = async (invoiceData) => {
@@ -97,31 +125,93 @@ const InvoiceManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <h1 className="text-2xl font-bold text-gray-800">Invoice Management</h1>
-        <button
-          onClick={() => {
-            setEditingInvoice(null);
-            setActiveTab('advanced-invoice');
-          }}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Create New Invoice
-        </button>
+        <div className="flex items-center gap-3">
+            <button
+            onClick={() => {
+                setEditingInvoice(null);
+                setActiveTab('advanced-invoice');
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
+            >
+            <span className="text-lg">+</span> Create New Invoice
+            </button>
+        </div>
       </div>
 
-      {/* Loading indicator */}
-      {loading && (
-        <div className="text-center py-4">
-          <p>Loading invoices...</p>
+      {/* Global Filter UI - Only show for history tabs */}
+      {(activeTab === 'invoice-history' || activeTab === 'unified-history') && (
+        <div className="flex flex-wrap items-center justify-end gap-3 animate-in fade-in slide-in-from-top-4">
+          <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'weekly', label: 'Weekly' },
+              { id: 'monthly', label: 'Monthly' },
+              { id: 'all', label: 'All' },
+              { id: 'custom', label: 'Custom' }
+            ].map((option) => (
+              <button
+                key={option.id}
+                onClick={() => handleFilterChange(option.id)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  filterType === option.id 
+                    ? 'bg-blue-50 text-blue-600 shadow-inner' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {filterType === 'custom' && (
+            <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm animate-in zoom-in-95">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent border-none text-sm focus:ring-0 px-2 py-1 cursor-pointer"
+              />
+              <span className="text-gray-400 text-xs">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent border-none text-sm focus:ring-0 px-2 py-1 cursor-pointer"
+              />
+              <button
+                onClick={applyCustomFilter}
+                className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-md"
+              >
+                Apply
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
+      {/* Error indicator */}
+      {error && !loading && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-xl">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700 font-medium">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-500 font-medium">Fetching your invoices...</p>
         </div>
       )}
 
@@ -175,17 +265,18 @@ const InvoiceManagement = () => {
             initialData={editingInvoice}
           />
         )}
-        {activeTab === 'invoice-history' && (
+        {activeTab === 'invoice-history' && !loading && (
           <InvoiceHistory
             invoices={invoices}
             onEditInvoice={handleEditInvoice}
             onDeleteInvoice={handleDeleteInvoice} // Pass the callback
           />
         )}
-        {activeTab === 'unified-history' && (
+        {activeTab === 'unified-history' && !loading && (
           <UnifiedInvoiceHistory
+            invoices={invoices}
             onEditInvoice={handleEditInvoice}
-            onDeleteInvoice={handleDeleteInvoice} // Pass the callback
+            onDeleteInvoice={handleDeleteInvoice}
           />
         )}
         {activeTab === 'delete-history' && (

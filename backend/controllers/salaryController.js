@@ -8,6 +8,7 @@ const Settings = require('../models/Settings');
 const DeveloperProject = require('../models/DeveloperProject');
 const SalaryProject = require('../models/SalaryProject');
 const { calculateWorkerProductivity } = require('../utils/productivityCalculator');
+const Ticket = require('../models/ticketModel');
 
 const giveBonus = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -302,6 +303,26 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     // Calculate final salary after deducting fines
     const finalSalaryWithFines = Math.max(0, finalSalaryWithBonus - totalFinesAmount);
 
+    // Simplified check for Currently Overdue Tasks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const overdueTasks = await Ticket.find({
+      $or: [
+        { assignee: id },
+        { assignees: id }
+      ],
+      subdomain: worker.subdomain,
+      status: { $ne: 'Done' },
+      endDate: { $lt: today }
+    }).sort({ endDate: 1 });
+
+    const isCurrentlyViolating = overdueTasks.length > 0;
+    let earliestDeadline = null;
+    if (isCurrentlyViolating) {
+      earliestDeadline = overdueTasks[0].endDate;
+    }
+
     // Build project breakdown summary
     const projectBreakdown = enrichedProjects.map(p => {
       const pid = p._id.toString();
@@ -330,6 +351,8 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
       totalFinesAmount: totalFinesAmount, // ADD THIS
       finalSalaryWithBonus: finalSalaryWithBonus,
       finalSalaryWithFines: finalSalaryWithFines, // ADD THIS
+      isCurrentlyViolating,
+      earliestDeadline,
       projectBreakdown, // HYBRID
       worker: {
         name: worker.name,
@@ -501,6 +524,26 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
 
     const finalSalaryWithFines = Math.max(0, finalSalaryWithBonus - totalFinesAmount);
 
+    // Simplified check for Currently Overdue Tasks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const overdueTasks = await Ticket.find({
+      $or: [
+        { assignee: id },
+        { assignees: id }
+      ],
+      subdomain: worker.subdomain,
+      status: { $ne: 'Done' },
+      endDate: { $lt: today }
+    }).sort({ endDate: 1 });
+
+    const isCurrentlyViolating = overdueTasks.length > 0;
+    let earliestDeadline = null;
+    if (isCurrentlyViolating) {
+      earliestDeadline = overdueTasks[0].endDate;
+    }
+
     // Build project breakdown summary
     const projectBreakdown = enrichedProjects.map(p => {
       const pid = p._id.toString();
@@ -532,6 +575,8 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
       totalBonusAmount: totalBonusAmount,
       totalFinesAmount: totalFinesAmount,
       finalSalaryWithBonus: finalSalaryWithBonus,
+      isCurrentlyViolating,
+      earliestDeadline,
       projectBreakdown, // Added breakdown
       worker: {
         name: worker.name,

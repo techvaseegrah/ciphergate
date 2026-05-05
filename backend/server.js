@@ -22,19 +22,23 @@ const startServer = async () => {
       origin: (origin, callback) => {
         const allowedOrigins = [
           'http://localhost:3000',
+          'http://localhost:5173',
           'https://tvtasks.netlify.app',
           'https://techvaseegrah.ciphergate.in',
         ];
-        const regex = /^http:\/\/.*\.localhost:3000$/; // Allow subdomains of localhost:3000
+        
+        // Allow subdomains of localhost, netlify.app and ciphergate.in
+        const subdomainRegex = /^(https?:\/\/)?([\w-]+\.)+(localhost:3000|netlify\.app|ciphergate\.in)$/;
 
-        if (!origin || allowedOrigins.includes(origin) || regex.test(origin)) {
+        if (!origin || allowedOrigins.includes(origin) || subdomainRegex.test(origin)) {
           callback(null, true);
         } else {
+          console.warn(`[CORS] Origin ${origin} not allowed`);
           callback(new Error('Not allowed by CORS'));
         }
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
       credentials: true
     };
 
@@ -48,8 +52,14 @@ const startServer = async () => {
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));
 
-    // Serve static files from uploads directory
-    app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+    // Serve static files from uploads directory with proper headers
+    app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+      setHeaders: (res, path) => {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.set('Cache-Control', 'public, max-age=31536000');
+      }
+    }));
 
     // Routes
     const gowhatsRoutes = require('./routes/gowhatsRoutes');
@@ -83,6 +93,10 @@ const startServer = async () => {
     // Job routes
     const jobRoutes = require('./routes/jobRoutes');
 
+    // API Key routes
+    const apiKeyRoutes = require('./routes/apiKeyRoutes');
+    const apiRoutes = require('./routes/apiRoutes');
+
     // Mount routes
     app.use('/api/gowhats', gowhatsRoutes);
     app.use('/api/auth', authRoutes);
@@ -98,6 +112,7 @@ const startServer = async () => {
     app.use('/api/departments', departmentRoutes);
     app.use('/api/food-requests', foodRequestRoutes);
     app.use('/api/notifications', notificationRoutes);
+    app.use('/api/user-notifications', require('./routes/userNotificationRoutes'));
     app.use('/api/settings', settingsRoutes);
     app.use('/api/holidays', holidayRoutes);
     app.use('/api/fines', fineRoutes);
@@ -117,6 +132,10 @@ const startServer = async () => {
 
     // Job routes
     app.use('/api/jobs', jobRoutes);
+
+    // External API routes
+    app.use('/api/admin/keys', apiKeyRoutes);
+    app.use('/api/external', apiRoutes);
 
     // Route for checking API status
     app.get('/', (req, res) => {

@@ -36,6 +36,11 @@ const adminSchema = mongoose.Schema(
     // New fields for password reset with OTP
     resetPasswordOtp: String,
     resetPasswordExpire: Date,
+    notificationSettings: {
+      pushEnabled: { type: Boolean, default: true },
+      soundEnabled: { type: Boolean, default: true },
+      priorityFilter: { type: String, enum: ['All', 'High', 'Medium'], default: 'All' }
+    }
   },
   {
     timestamps: true,

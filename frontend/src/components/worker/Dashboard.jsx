@@ -197,86 +197,87 @@ const Dashboard = () => {
             </motion.span>
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          {/* Salary Section - Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {/* Card 1: Base Salary */}
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm transition-all hover:shadow-md flex items-center h-24">
-              <div className="flex items-center space-x-3 w-full">
-                <div className="bg-white p-2 rounded-lg flex-shrink-0 border border-gray-100 shadow-sm">
-                  <FaMoneyBillAlt className="h-5 w-5 text-[#0d9488]" />
+            <div className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+              <div className="flex items-center space-x-4 relative z-10">
+                <div className="bg-teal-50 p-3.5 rounded-2xl flex-shrink-0">
+                  <FaMoneyBillAlt className="h-6 w-6 text-[#0d9488]" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Base Salary</p>
-                  <p className="text-[9px] text-gray-400 leading-none mb-1">Fixed monthly salary</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Base Salary</p>
                   <CountUp
                     start={0}
                     end={salaryData.baseSalary}
                     duration={1.5}
                     prefix="₹"
                     decimals={2}
-                    className="text-lg font-bold text-gray-800"
+                    className="text-2xl font-black text-slate-900 tracking-tight"
                   />
+                  <div className="mt-1">
+                    <span className="text-[9px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100 uppercase">Fixed Monthly</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Card 2: Final Salary */}
-            <div className="bg-[#0d9488] p-4 rounded-xl shadow-md transition-all hover:scale-[1.01] flex items-center h-24">
-              <div className="flex items-center space-x-3 w-full text-white">
-                <div className="bg-white/20 p-2 rounded-lg flex-shrink-0 backdrop-blur-sm border border-white/20">
-                  <FaMoneyBillAlt className="h-5 w-5 text-white" />
+            <div className="bg-slate-900 p-5 rounded-[24px] shadow-xl relative overflow-hidden group transition-all hover:translate-y-[-2px]">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+              <div className="flex items-center space-x-4 relative z-10 text-white">
+                <div className="bg-white/10 p-3.5 rounded-2xl flex-shrink-0 backdrop-blur-md border border-white/10">
+                  <FaMoneyBillAlt className="h-6 w-6 text-white" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-tight">Final Salary</p>
-                  <p className="text-[9px] text-white/60 leading-none mb-1">Calculated salary + project earnings</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.15em] mb-1">Final Payout</p>
                   <CountUp
                     start={0}
                     end={salaryData.finalSalary}
                     duration={1.5}
                     prefix="₹"
                     decimals={2}
-                    className="text-xl font-bold text-white"
+                    className="text-2xl font-black text-white tracking-tight"
                   />
+                  <div className="mt-1">
+                    <span className="text-[9px] font-extrabold text-white/60 bg-white/10 px-2 py-0.5 rounded-full border border-white/10 uppercase">Estimated Payout</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions / Attendance */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Quick Actions / Attendance Tiles */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {accessControl.faceAttendance && (
-              <div
-                className="bg-white p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
+              <button
+                className="flex flex-col items-center justify-center bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm transition-all active:scale-95 hover:shadow-md group relative overflow-hidden"
                 onClick={() => setShowFaceAttendance(true)}
               >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-100 group-hover:bg-[#0d9488] transition-colors">
-                    <FaCamera className="h-5 w-5 text-[#0d9488] group-hover:text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-gray-500">Face Attendance</p>
-                    <p className="text-xs font-bold text-[#0d9488]">Mark Attendance</p>
-                  </div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-teal-500 opacity-0 group-active:opacity-100 transition-opacity"></div>
+                <div className="bg-teal-50 p-4 rounded-2xl mb-3 group-hover:bg-teal-100 transition-colors">
+                  <FaCamera className="h-7 w-7 text-teal-600" />
                 </div>
-              </div>
+                <span className="text-sm font-black text-slate-900 tracking-tight">Face ID</span>
+                <span className="text-[10px] font-bold text-teal-600 uppercase mt-1 tracking-widest">Attendance</span>
+              </button>
             )}
 
             {accessControl.rfidAttendance && (
-              <div
-                className="bg-white p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-[#0d9488] hover:bg-gray-50 transition-all shadow-sm group"
+              <button
+                className="flex flex-col items-center justify-center bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm transition-all active:scale-95 hover:shadow-md group relative overflow-hidden"
                 onClick={() => setShowRFIDAttendance(true)}
               >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-gray-50 p-2 rounded-lg flex-shrink-0 border border-gray-100 group-hover:bg-[#0d9488] transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#0d9488] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-gray-500">RFID Attendance</p>
-                    <p className="text-xs font-bold text-[#0d9488]">Mark Attendance</p>
-                  </div>
+                <div className="absolute top-0 left-0 w-full h-1 bg-sky-500 opacity-0 group-active:opacity-100 transition-opacity"></div>
+                <div className="bg-sky-50 p-4 rounded-2xl mb-3 group-hover:bg-sky-100 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
-              </div>
+                <span className="text-sm font-black text-slate-900 tracking-tight">RFID Tap</span>
+                <span className="text-[10px] font-bold text-sky-600 uppercase mt-1 tracking-widest">Attendance</span>
+              </button>
             )}
           </div>
         </div>
@@ -319,12 +320,7 @@ const Dashboard = () => {
         <CustomTaskForm />
       </Card>
 
-      <h1 className="text-xl font-bold mb-4 flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-        <span>Employee Dashboard</span>
-      </h1>
+
 
       <Card className="mb-4" padding="p-4">
         <TaskForm

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkerHistoryModal from './WorkerHistoryModal';
+import { getFullFileUrl } from '../../utils/fileUtils';
 import { getWorkers, createWorker, updateWorker, deleteWorker, getUniqueId } from '../../services/workerService';
 import { getDepartments } from '../../services/departmentService';
 import { getSettings } from '../../services/settingsService';
@@ -515,7 +516,7 @@ const WorkerManagement = () => {
         const getPhotoSrc = (photo, name) => {
           const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0d9488&color=fff`;
           if (!photo) return avatarFallback;
-          return photo.startsWith('/uploads/') ? photo : avatarFallback;
+          return getFullFileUrl(photo);
         };
         const isMuted = record.status === 'Relieved' || record.status === 'Deleted';
         return (
@@ -661,7 +662,7 @@ const WorkerManagement = () => {
           <div className="flex items-center space-x-3">
             <div className="relative">
               <img
-                src={worker.photo?.startsWith('/uploads/') ? worker.photo : `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0d9488&color=fff`}
+                src={getFullFileUrl(worker.photo) || `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0d9488&color=fff`}
                 alt={worker.name}
                 className={`w-12 h-12 rounded-full object-cover border-2 border-white ${isMuted ? 'grayscale opacity-60' : ''}`}
                 onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=0d9488&color=fff`; }}

@@ -23,15 +23,16 @@ exports.upsertCompletion = async (req, res) => {
         }
 
         // Check if worker is assigned to this ticket
-        const isAssigned = ticket.assignees.some(id => id.toString() === workerId.toString()) || 
-                          (ticket.assignee && ticket.assignee.toString() === workerId.toString());
-        
+        const isAssigned = ticket.assignees.some(id => id.toString() === workerId.toString()) ||
+            (ticket.assignee && ticket.assignee.toString() === workerId.toString());
+
         if (!isAssigned) {
             return res.status(403).json({ message: 'You are not assigned to this task' });
         }
 
+        const fullBaseUrl = `${req.protocol}://${req.get('host')}`;
         const proofFiles = req.files.map(file => ({
-            url: `/uploads/${file.filename}`,
+            url: `${fullBaseUrl}/uploads/${file.filename}`,
             name: file.originalname,
             type: file.mimetype,
             size: file.size,
@@ -79,8 +80,32 @@ exports.upsertCompletion = async (req, res) => {
             if (ticket.status !== 'Done' && ticket.status !== 'Review') {
                 ticket.status = 'Review';
                 await ticket.save();
+
+                // Populate for complete UI update on worker side
+                await ticket.populate([
+                    { path: 'assignee', select: 'name username status' },
+                    { path: 'assignees', select: 'name username department status' }
+                ]);
+
                 io.to(subdomain).emit('ticket:updated', ticket);
             }
+        }
+
+        // Trigger notification for Admin
+        const Admin = require('../models/Admin');
+        const admin = await Admin.findOne({ subdomain });
+        if (admin) {
+            const subTask = ticket.checklist.find(item => item._id.toString() === subTaskId.toString());
+            const { sendNotification } = require('../utils/sendNotification');
+            await sendNotification({
+                userId: admin._id,
+                userModel: 'Admin',
+                subdomain,
+                title: 'Proof Submitted',
+                message: `${req.user.name} submitted proof for: "${subTask ? subTask.text : 'Sub-task'}" in task: ${ticket.title}`,
+                type: 'proof_submitted',
+                link: `/admin/work-allocation`
+            });
         }
 
         res.status(200).json({
@@ -102,7 +127,7 @@ exports.getTicketCompletions = async (req, res) => {
         const { ticketId } = req.params;
         const completions = await SubTaskCompletion.find({ ticketId })
             .populate('workerId', 'name username department');
-        
+
         res.status(200).json(completions);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching completions', error: error.message });
@@ -138,7 +163,7 @@ exports.deleteProofFile = async (req, res) => {
         }
 
         completion.proofFiles.splice(fileIndex, 1);
-        
+
         // If no files left, maybe mark as not completed? 
         // User says mandatory proof for completion.
         if (completion.proofFiles.length === 0) {
@@ -147,7 +172,7 @@ exports.deleteProofFile = async (req, res) => {
         }
 
         await completion.save();
-        
+
         const io = getIO();
         io.to(completion.subdomain).emit('subtask:completion_updated', {
             ticketId: completion.ticketId,
@@ -195,15 +220,37 @@ exports.reviewCompletion = async (req, res) => {
             completion
         });
 
+        const ticket = await Ticket.findById(completion.ticketId);
+
         // If rejected, move ticket back from Review to In Progress
         if (status === 'Rejected') {
-            const ticket = await Ticket.findById(completion.ticketId);
             if (ticket && ticket.status === 'Review') {
                 ticket.status = 'In Progress';
                 await ticket.save();
+
+                // Populate for complete UI update on worker side
+                await ticket.populate([
+                    { path: 'assignee', select: 'name username status' },
+                    { path: 'assignees', select: 'name username department status' }
+                ]);
+
                 io.to(ticket.subdomain).emit('ticket:updated', ticket);
             }
         }
+
+        // Trigger notification for Worker
+        const { sendNotification } = require('../utils/sendNotification');
+        await sendNotification({
+            userId: completion.workerId,
+            userModel: 'Worker',
+            subdomain: completion.subdomain,
+            title: status === 'Approved' ? 'Submission Approved' : 'Submission Rejected',
+            message: status === 'Approved'
+                ? `Your proof for "${ticket.title}" has been approved.`
+                : `Your proof for "${ticket.title}" was rejected. Please re-upload.`,
+            type: status === 'Approved' ? 'proof_approved' : 'proof_rejected',
+            link: `/worker/work-allocation`
+        });
 
         res.status(200).json(completion);
     } catch (error) {

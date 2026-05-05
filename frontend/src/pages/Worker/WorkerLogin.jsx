@@ -275,6 +275,25 @@ const WorkerLogin = () => {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
 
+        {/* Back Button and Side Switch */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
+            <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 px-3 py-2 bg-white/50 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-600 hover:text-[#0d9488] hover:bg-white transition-all shadow-sm active:scale-95 group"
+            >
+                <FaChevronLeft className="text-xs group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-bold uppercase tracking-wider">Back</span>
+            </button>
+
+            <button
+                onClick={() => navigate('/admin/login')}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-black transition-all shadow-md active:scale-95 group"
+            >
+                <span className="text-sm font-black uppercase tracking-wider">Admin Side</span>
+                <FaChevronRight className="text-xs group-hover:translate-x-1 transition-transform" />
+            </button>
+        </div>
+
         <div className="container mx-auto relative z-10 flex items-center justify-center min-h-full w-full">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -375,7 +394,26 @@ const WorkerLogin = () => {
       <div className="absolute top-0 right-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gray-200/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
 
-      <div className="container mx-auto relative z-10">
+      {/* Back Button and Side Switch for Employee Selection View */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
+          <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 px-3 py-2 bg-white/50 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-600 hover:text-[#0d9488] hover:bg-white transition-all shadow-sm active:scale-95 group"
+          >
+              <FaChevronLeft className="text-xs group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm font-bold uppercase tracking-wider">Back</span>
+          </button>
+
+          <button
+              onClick={() => navigate('/admin/login')}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-black transition-all shadow-md active:scale-95 group"
+          >
+              <span className="text-sm font-black uppercase tracking-wider">Admin Side</span>
+              <FaChevronRight className="text-xs group-hover:translate-x-1 transition-transform" />
+          </button>
+      </div>
+
+      <div className="container mx-auto relative z-10 pt-16">
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

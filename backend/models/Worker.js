@@ -30,7 +30,6 @@ const workerSchema = mongoose.Schema({
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department',
-    required: [true, 'Please select a department']
   },
   photo: {
     type: String,
@@ -119,6 +118,11 @@ const workerSchema = mongoose.Schema({
   relievingLetterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Certificate'
+  },
+  notificationSettings: {
+    pushEnabled: { type: Boolean, default: true },
+    soundEnabled: { type: Boolean, default: true },
+    priorityFilter: { type: String, enum: ['All', 'High', 'Medium'], default: 'All' }
   }
 }, {
   timestamps: true,

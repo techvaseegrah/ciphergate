@@ -1,349 +1,292 @@
 import { useContext, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaChevronLeft, FaChevronRight, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import { FiLogOut } from "react-icons/fi";
+import { FaChevronDown, FaRegQuestionCircle } from 'react-icons/fa';
+import { FiLogOut, FiMenu, FiX } from 'react-icons/fi';
 import appContext from '../../context/AppContext';
 import ShatteredLogo from '../common/ShatteredLogo';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const Sidebar = ({
-  links,
-  logoText = 'Task Tracker',
-  user,
-  onLogout
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen, setMobileOpen, isAdmin = false }) => {
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
+  const isOpen = mobileOpen !== undefined ? mobileOpen : isOpenInternal;
+  const setIsOpen = setMobileOpen !== undefined ? setMobileOpen : setIsOpenInternal;
+  
   const [expandedDropdowns, setExpandedDropdowns] = useState({});
-  const [showFullLogo, setShowFullLogo] = useState(false);
-  const [triggerLogoAnimation, setTriggerLogoAnimation] = useState(false);
-  const [clickedItem, setClickedItem] = useState(null); // Track clicked item
   const location = useLocation();
-  const { subdomain } = useContext(appContext);
 
-  // Theme Colors
-  const themeColor = "bg-[#0d9488]"; // Teal color from image
-  const activeBg = "bg-[#f3f4f6]"; // Light gray background for active item
-  const activeText = "text-[#0d9488]"; // Teal text for active item
-
-  // Get icon class based on state
-  const getIconClass = (isActive, isClicked) => {
-    if (isClicked) {
-      return "sidebar-icon-gradient clicked mr-3 text-lg";
-    }
-    if (isActive) {
-      return "sidebar-icon-gradient active mr-3 text-lg";
-    }
-    return "sidebar-icon-gradient inactive mr-3 text-lg";
-  };
-
-  // Auto-expand dropdowns if a child is active
   useEffect(() => {
-    const newExpanded = { ...expandedDropdowns };
-    let changed = false;
-
+    const newExpanded = {};
     links.forEach((link, index) => {
       if (link.isDropdown && link.children) {
-        const dropdownKey = `dropdown-${index}`;
-        if (isAnyChildActive(link.children) && !newExpanded[dropdownKey]) {
-          newExpanded[dropdownKey] = true;
-          changed = true;
+        if (link.children.some(child => location.pathname === child.to)) {
+          newExpanded[`dropdown-${index}`] = true;
         }
       }
     });
-
-    if (changed) {
-      setExpandedDropdowns(newExpanded);
-    }
+    setExpandedDropdowns(newExpanded);
   }, [location.pathname, links]);
 
-  // Trigger logo animation when component mounts
-  useEffect(() => {
-    // Show shattered logo for 2 seconds
-    const logoTimer = setTimeout(() => {
-      setShowFullLogo(true);
-    }, 2000);
-
-    return () => clearTimeout(logoTimer);
-  }, []);
-
-  // Trigger logo animation when sidebar opens
-  useEffect(() => {
-    if (isOpen) {
-      setTriggerLogoAnimation(prev => !prev);
-      setShowFullLogo(false);
-
-      // Reset showFullLogo after animation completes
-      const resetTimer = setTimeout(() => {
-        setShowFullLogo(true);
-      }, 2000);
-
-      return () => clearTimeout(resetTimer);
-    }
-  }, [isOpen]);
-
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
+  const toggleDropdown = key => {
+    setExpandedDropdowns(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const closeSidebar = () => {
-    setIsOpen(false);
-  };
-
-  const handleItemClick = (to) => {
-    setClickedItem(to);
-    // Reset clicked item after animation duration
-    setTimeout(() => {
-      setClickedItem(null);
-    }, 1000);
-    closeSidebar();
-  };
-
-  const toggleDropdown = (key) => {
-    setExpandedDropdowns(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const isAnyChildActive = (children) => {
-    return children.some(child => location.pathname === child.to);
-  };
+  const isChildActive = children => children?.some(c => location.pathname === c.to);
 
   return (
     <>
-      {/* External toggle button */}
-      {!isOpen && (
+      {/* Mobile Menu Toggle - Only show if not controlled externally */}
+      {mobileOpen === undefined && !isOpen && (
         <button
           type="button"
-          className="md:hidden fixed top-1/2 left-0 z-20 p-2 rounded-r-full text-white bg-[#0d9488] shadow-lg hover:bg-[#0f766e] focus:outline-none transform -translate-y-1/2"
-          onClick={toggleSidebar}
+          onClick={() => setIsOpen(true)}
+          className="md:hidden fixed top-4 left-4 z-50 p-2.5 rounded-xl bg-white/90 backdrop-blur-md shadow-sm border border-slate-200 text-slate-700 hover:text-slate-900 transition-all"
         >
-          <span className="sr-only">Open sidebar</span>
-          <FaChevronRight className="h-6 w-6" />
+          <FiMenu size={20} />
         </button>
       )}
 
-      {/* Sidebar Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden"
-          onClick={closeSidebar}
-        ></div>
-      )}
-
-      {/* Close toggle button */}
-      {isOpen && (
-        <button
-          type="button"
-          className="fixed top-1/2 right-0 z-40 p-2 rounded-l-full text-[#0d9488] bg-white shadow-lg focus:outline-none transform -translate-y-1/2"
-          onClick={toggleSidebar}
-        >
-          <span className="sr-only">Close sidebar</span>
-          <FaChevronLeft className="h-6 w-6" />
-        </button>
-      )}
-
-      {/* Sidebar Container - Teal Background */}
-      <div
-        className={`fixed inset-y-0 left-0 z-30 w-64 ${themeColor} transform overflow-y-auto sidebar-container ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          }`}
-        style={{ borderTopRightRadius: '30px', borderBottomRightRadius: '30px' }}
-      >
-        {/* Logo section */}
-        <div className="flex items-center justify-center h-16 px-4">
-          <div className="flex items-center justify-center w-full">
-            <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-xl p-1 flex-shrink-0">
-              <ShatteredLogo
-                triggerAnimation={triggerLogoAnimation}
-                src="/logo.png"
-                alt="Logo"
-                className="w-full h-full object-contain"
-                onComplete={() => console.log('Shattering animation complete')}
-              />
-            </div>
-
-            <div
-              className={`ml-3 overflow-hidden ${showFullLogo ? 'opacity-100' : 'opacity-0'} w-full`}
-            >
-              <h1
-                className="text-lg font-bold text-white truncate"
-              >
-                {logoText}
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        {/* User profile */}
-        {user && (
-          <div className="px-4 py-3 mb-2 mx-3 bg-white/10 rounded-xl backdrop-blur-sm">
-            <div className="flex items-center justify-between w-full">
-              <div className='flex items-center min-w-0 w-full'>
-                <div className="flex-shrink-0">
-                  <img
-                    className="h-8 w-8 rounded-full object-cover border-2 border-white/30"
-                    src={user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}`}
-                    alt={user.name || user.username}
-                  />
-                </div>
-                <div className="ml-2 min-w-0 w-full">
-                  <p className="text-xs font-semibold text-white truncate">{user.displayName || user.name || user.username}</p>
-                  <p className="text-xs text-teal-100 truncate">{user.subdomain ? `${user.role}-${user.subdomain}` : (user.department || user.role)}</p>
-                </div>
-              </div>
-              <div className="ml-1 flex-shrink-0">
-                {onLogout && <button
-                  className="text-white p-1 hover:text-red-200 text-sm"
-                  onClick={onLogout}
-                >
-                  <FiLogOut />
-                </button>}
-              </div>
-            </div>
-          </div>
+      {/* Backdrop for Mobile */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+            onClick={() => setIsOpen(false)}
+          />
         )}
+      </AnimatePresence>
 
-        {/* Navigation Links */}
-        <nav className="mt-6 px-0 pb-10 space-y-2">
-          {links.map((link, index) => {
-            // Define variables at the top to avoid scope issues
-            const isActive = location.pathname === link.to;
-            const isClicked = clickedItem === link.to;
+      {/* Premium White Layout-Attached Sidebar */}
+      <aside
+        onMouseLeave={() => setExpandedDropdowns({})}
+        className={`
+          group/sidebar z-50
+          bg-white text-slate-900
+          rounded-r-[20px]
+          shadow-[4px_0_24px_rgba(0,0,0,0.02)] border-r border-slate-100
+          transition-all duration-[300ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+          flex flex-col overflow-hidden md:overflow-visible flex-shrink-0
+          fixed inset-y-0 left-0 md:sticky md:top-0 md:h-screen
+          ${isOpen ? 'translate-x-0 w-[280px] shadow-2xl' : '-translate-x-full md:translate-x-0 md:w-[72px] hover:md:w-[240px]'}
+          md:flex
+        `}
+      >
+        {/* Inner Wrapper maintains 240px so text doesn't wrap during width transition */}
+        <div className="w-full h-full flex flex-col pt-6">
+          
+          <div className="relative flex items-center px-3 flex-shrink-0 mb-8">
+            <Link 
+              to={isAdmin ? "/admin" : "/worker"} 
+              onClick={() => setIsOpen(false)}
+              className="flex items-center w-full"
+            >
+              <div className="w-[48px] h-[40px] flex-shrink-0 flex items-center justify-center">
+                <ShatteredLogo
+                  src="/logo.png"
+                  alt="Logo"
+                  className="w-[32px] h-[32px] object-contain drop-shadow-sm"
+                />
+              </div>
+              <div className={`flex flex-col justify-center transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap ml-1 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
+                <h1 className="text-slate-900 font-black text-[15px] tracking-tight leading-none uppercase">
+                  {logoText}
+                </h1>
+                <span className="text-teal-600 text-[9px] font-black tracking-[0.2em] uppercase mt-1">Enterprise</span>
+              </div>
+              </Link>
+          </div>
 
-            // Handle header items
-            if (link.isHeader) {
-              return (
-                <div key={`header-${index}`} className="pt-4 pb-2 px-6">
-                  <h3 className="text-xs font-bold text-teal-200 uppercase tracking-wider">
-                    {link.label}
-                  </h3>
-                </div>
-              );
-            }
+          {/* Nav Links */}
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden custom-sidebar-scroll space-y-1 px-3 pb-6">
+            {links.map((link, index) => {
+              if (link.isHeader) {
+                return (
+                  <div key={`header-${index}`} className={`pt-6 pb-2 px-4 transition-opacity duration-[200ms] whitespace-nowrap ${isOpen ? 'opacity-100' : 'opacity-0 group-hover/sidebar:opacity-100'}`}>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{link.label}</p>
+                  </div>
+                );
+              }
 
-            // Handle dropdown items
-            if (link.isDropdown) {
-              const dropdownKey = `dropdown-${index}`;
-              const isExpanded = expandedDropdowns[dropdownKey];
-              const hasActiveChild = isAnyChildActive(link.children || []);
-
-              return (
-                <div key={dropdownKey} className="px-4">
-                  <button
-                    onClick={() => toggleDropdown(dropdownKey)}
-                    className={`
-                      group flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl
-                      ${hasActiveChild
-                        ? 'bg-white text-[#0d9488] shadow-md'
-                        : 'text-white hover:bg-white/10'
-                      }
-                    `}
-                  >
-                    {link.icon && (
-                      <span className={getIconClass(hasActiveChild, false)}>
-                        {link.icon}
-                      </span>
-                    )}
-                    <span className="flex-1 text-left truncate">{link.label}</span>
-                    {link.badge && (
-                      <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5 flex-shrink-0">
-                        {link.badge}
-                      </span>
-                    )}
-                    <span className={`ml-2 ${isExpanded ? 'rotate-180' : ''}`}>
-                      <FaChevronDown className="h-3 w-3" />
-                    </span>
-                  </button>
-
-                  {/* Dropdown children */}
-                  <div className={`${isExpanded ? 'block' : 'hidden'}`}>
-                    <div className="pl-4 space-y-1 mt-1">
-                      {link.children?.map((child) => (
-                        <Link
-                          key={child.to}
-                          to={child.to}
-                          className={`
-                            group flex items-center px-4 py-2 text-sm font-medium rounded-xl mx-2
-                            ${location.pathname === child.to
-                              ? 'bg-white/20 text-white'
-                              : 'text-teal-100 hover:text-white hover:bg-white/10'
-                            }
-                          `}
-                          onClick={() => handleItemClick(child.to)}
-                        >
-                          <span className={getIconClass(location.pathname === child.to, clickedItem === child.to)}>
-                            {child.icon}
+              if (!link.isDropdown) {
+                const isActive = location.pathname === link.to;
+                return (
+                  <div key={link.to} className="relative group/link">
+                    <Link
+                      to={link.to}
+                      onClick={() => setIsOpen(false)}
+                      className={`relative flex items-center h-[46px] rounded-xl transition-all duration-200 ${isActive ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'}`}
+                    >
+                      <div className="flex items-center w-full">
+                        <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
+                          <span className={`text-[18px] transition-colors duration-200 ${isActive ? 'text-[#0D9488]' : 'text-slate-400 group-hover/link:text-slate-600'}`}>
+                            {link.icon}
                           </span>
-                          <span className="flex-1 text-left truncate">{child.label}</span>
-                        </Link>
-                      ))}
+                        </div>
+
+                        <div className={`flex-1 flex items-center justify-between transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pr-4 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
+                          <span className={`text-[13.5px] tracking-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>
+                            {link.label}
+                          </span>
+                          
+                          {link.badge && (
+                            <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 bg-rose-500 text-white shadow-sm">
+                              {link.badge}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {isActive && (
+                        <div className="absolute left-0 w-1 h-6 bg-[#0D9488] rounded-r-full" />
+                      )}
+                    </Link>
+
+                    {/* Desktop Tooltip */}
+                    <div className="hidden md:block absolute left-[64px] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-bold rounded-lg opacity-0 pointer-events-none group-hover/link:opacity-100 group-hover/sidebar:!opacity-0 translate-x-[-10px] group-hover/link:translate-x-0 transition-all duration-200 whitespace-nowrap z-50 shadow-xl">
+                      {link.label}
                     </div>
                   </div>
+                );
+              }
+
+              // Dropdown
+              const key = `dropdown-${index}`;
+              const isExpanded = !!expandedDropdowns[key];
+              const isChildActive = children => children?.some(c => location.pathname === c.to);
+              const hasActive = isChildActive(link.children);
+
+              return (
+                <div key={key} className="space-y-1 relative group/link">
+                  <button
+                    onClick={() => toggleDropdown(key)}
+                    className={`relative flex items-center w-full h-[46px] rounded-xl transition-all duration-200 ${hasActive ? 'bg-teal-50/50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'}`}
+                  >
+                    <div className="flex items-center w-full">
+                      <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
+                        <span className={`text-[18px] transition-colors duration-200 ${hasActive ? 'text-[#0D9488]' : 'text-slate-400 group-hover/link:text-slate-600'}`}>
+                          {link.icon}
+                        </span>
+                      </div>
+
+                      <div className={`flex-1 flex items-center justify-between transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pr-4 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
+                        <span className={`text-[13.5px] tracking-tight ${hasActive ? 'font-bold' : 'font-semibold'}`}>
+                          {link.label}
+                        </span>
+                        
+                        <motion.span
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className={`${hasActive ? 'text-[#0D9488]' : 'text-slate-300'}`}
+                        >
+                          <FaChevronDown size={10} />
+                        </motion.span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Desktop Tooltip */}
+                  <div className="hidden md:block absolute left-[64px] top-2 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-bold rounded-lg opacity-0 pointer-events-none group-hover/link:opacity-100 group-hover/sidebar:!opacity-0 translate-x-[-10px] group-hover/link:translate-x-0 transition-all duration-200 whitespace-nowrap z-50 shadow-xl">
+                    {link.label}
+                  </div>
+
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-10 space-y-1 mt-1 mb-2">
+                          {link.children?.map((child, idx) => {
+                            if (child.isSubHeader) {
+                              return (
+                                <div key={`subheader-${idx}`} className="pt-3 pb-1 pl-2">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{child.label}</span>
+                                </div>
+                              );
+                            }
+
+                            const active = location.pathname === child.to;
+                            return (
+                              <Link
+                                key={child.to}
+                                to={child.to}
+                                onClick={() => {
+                                  setExpandedDropdowns({});
+                                  setIsOpen(false);
+                                }}
+                                className={`flex items-center h-[36px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-500 hover:text-slate-900'}`}
+                              >
+                                <span className={`text-[12.5px] tracking-tight ${active ? 'font-bold' : 'font-semibold'}`}>
+                                  {child.label}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
-            }
+            })}
+          </nav>
 
-            // Handle regular navigation items
-            // Variables are already defined at the top
-
-            return (
-              <div key={link.to} className={`relative ${isActive ? 'px-0 pl-0' : 'px-4'}`}>
-                {isActive && (
-                  <>
-                    {/* CSS trick to create the curve effect above and below active item */}
-                    <div className="absolute right-0 top-[-20px] w-5 h-5 bg-transparent rounded-br-3xl shadow-[5px_5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
-                    <div className="absolute right-0 bottom-[-20px] w-5 h-5 bg-transparent rounded-tr-3xl shadow-[5px_-5px_0_0_#f3f4f6] z-10 pointer-events-none md:block hidden"></div>
-                  </>
-                )}
-                <Link
-                  to={link.to}
-                  className={`
-                  group flex items-center px-6 py-3.5 text-sm font-medium
-                  relative
-                  ${isActive
-                      ? `${activeBg} ${activeText} rounded-l-full ml-4 shadow-sm z-0 md:rounded-r-none md:rounded-l-full`
-                      : 'text-white hover:bg-white/10 rounded-xl'
-                    }
-                  md:${isActive ? 'rounded-l-full ml-4' : 'rounded-xl'}
-                  ${isActive ? 'mobile-active-item' : ''}
-                `}
-                  onClick={() => handleItemClick(link.to)}
-                >
-                  {link.icon && (
-                    <span className={getIconClass(isActive, isClicked)}>
-                      {link.icon}
-                    </span>
-                  )}
-                  <span className="flex-1 text-left truncate">{link.label}</span>
-                  {link.badge && (
-                    <span className={`ml-2 text-xs rounded-full px-2 py-0.5 flex-shrink-0 ${isActive ? 'bg-[#0d9488] text-white' : 'bg-white text-[#0d9488]'}`}>
-                      {link.badge}
-                    </span>
-                  )}
-                </Link>
+          {/* User Profile Footer */}
+          <div className="mt-auto px-3 pb-6 pt-4 border-t border-slate-50">
+            {user && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center w-full rounded-xl bg-slate-50/50 p-2 border border-slate-100/50 transition-all">
+                  <div className="w-[36px] h-[36px] flex-shrink-0 rounded-lg overflow-hidden relative border-2 border-white shadow-sm">
+                    <img
+                      className="w-full h-full object-cover"
+                      src={user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}&background=0D9488&color=ffffff&bold=true`}
+                      alt="User"
+                    />
+                  </div>
+                  
+                  <div className={`ml-3 flex-1 min-w-0 transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pt-0.5 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
+                    <p className="text-[13px] font-black text-slate-900 truncate tracking-tight">
+                      {user.displayName || user.name || user.username}
+                    </p>
+                    <p className="text-[10px] text-teal-600 font-black uppercase tracking-widest mt-0.5">
+                      {user.role || 'Admin'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className={`flex items-center gap-1 transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isOpen ? 'opacity-100 h-[36px] mt-2' : 'opacity-0 h-0 group-hover/sidebar:h-[36px] group-hover/sidebar:opacity-100 group-hover/sidebar:mt-2'}`}>
+                  <button 
+                    onClick={() => setIsOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-2 h-full rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all text-[11px] font-black uppercase tracking-wider"
+                  >
+                    <FaRegQuestionCircle size={14} />
+                    <span>Help</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      onLogout();
+                    }}
+                    className="w-[36px] h-full flex items-center justify-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
+                    title="Logout"
+                  >
+                    <FiLogOut size={16} />
+                  </button>
+                </div>
               </div>
-            );
-          })}
-        </nav>
-      </div>
+            )}
+          </div>
+        </div>
+      </aside>
 
-      {/* Mobile specific styles for active item - converted to standard style tag */}
       <style>{`
-        @media (max-width: 767px) {
-          .mobile-active-item {
-            border-top-right-radius: 2rem !important;
-            border-bottom-right-radius: 2rem !important;
-            border-top-left-radius: 0.5rem !important;
-            border-bottom-left-radius: 0.5rem !important;
-            margin-left: 1rem !important;
-            margin-right: 1rem !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          }
-          
-          .sidebar-container {
-            border-top-right-radius: 30px !important;
-            border-bottom-right-radius: 30px !important;
-          }
+        .custom-sidebar-scroll::-webkit-scrollbar {
+          width: 0px;
+          background: transparent;
         }
       `}</style>
     </>

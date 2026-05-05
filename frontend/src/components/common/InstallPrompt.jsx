@@ -62,7 +62,7 @@ const InstallPrompt = () => {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed z-[9999] bottom-4 left-4 right-4 md:left-auto md:right-6 md:w-[320px] md:bottom-6 animate-in slide-in-from-bottom fade-in duration-500">
+        <div className="fixed z-[9999] bottom-20 left-4 right-4 md:left-auto md:right-6 md:w-[320px] md:bottom-6 animate-in slide-in-from-bottom fade-in duration-500">
             {showIOSInstructions && (
                 <div className="bg-blue-50/90 backdrop-blur-sm p-3 rounded-t-xl text-xs text-blue-800 text-center border-x border-t border-blue-100 shadow-lg">
                     <p className="flex items-center justify-center gap-2">

@@ -13,6 +13,7 @@ const invoiceItemSchema = new mongoose.Schema({
 const invoiceSchema = new mongoose.Schema({
   invoiceNo: { type: String, required: true, unique: true },
   invoiceDate: { type: String, required: true },
+  actualDate: { type: Date }, // Added for efficient filtering
   customerName: { type: String, default: '' },
   customerContact: { type: String, default: '' },
   salesPerson: { type: String, default: '' },

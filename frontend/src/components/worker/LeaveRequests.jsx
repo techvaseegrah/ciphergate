@@ -391,14 +391,13 @@ const LeaveRequests = () => {
             {filteredLeaves.map((leave) => (
               <div
                 key={leave._id}
-                className={`p-4 sm:p-6 transition-all hover:bg-gray-50
-                              border-4 ${leave.status === 'Approved'
+                className={`p-4 sm:p-6 transition-all hover:bg-gray-50 border-l-4 ${leave.status === 'Approved'
                     ? 'border-green-500'
                     : leave.status === 'Rejected'
                       ? 'border-red-500'
                       : 'border-yellow-500'
                   } ${!leave.workerViewed && (leave.status === 'Approved' || leave.status === 'Rejected')
-                    ? 'border-l-4 border-blue-500 bg-blue-50'
+                    ? 'bg-blue-50/50'
                     : ''
                   }`}
               >
@@ -477,17 +476,17 @@ const LeaveRequests = () => {
                   {leave.document && (
                     <div className="p-3">
                       <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Supporting Document</p>
-
-                      href={leave.document}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center"
-
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      View Document
-
+                      <a
+                        href={leave.document}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        View Document
+                      </a>
                     </div>
                   )}
                 </div>

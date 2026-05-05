@@ -420,7 +420,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       salary: updatedWorker.salary,
       perDaySalary: updatedWorker.perDaySalary,
       finalSalary: updatedWorker.finalSalary,
-      department: updatedWorker.department.name,
+      department: updatedWorker.department ? updatedWorker.department.name : 'N/A',
       photo: updatedWorker.photo,
       batch: updatedWorker.batch, // ADDED this to the response
       faceEmbeddings: updatedWorker.faceEmbeddings, // ADDED this to the response
