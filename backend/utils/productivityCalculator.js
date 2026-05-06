@@ -232,7 +232,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
           day: '2-digit'
         });
         const todayStr = indiaTimezoneDate.format(now);
-        const recordDateStr = punches[i].record.date; 
+        const recordDateStr = punches[i].record.date;
         const isToday = recordDateStr === todayStr;
 
         if (isToday && i === punches.length - 1) {
@@ -742,39 +742,31 @@ const calculateWorkerProductivity = (productivityParameters) => {
         if (false) {
           // Gap skip removed — previously skipped when next session was auto-out,
           // but that caused the gap to go unpenalized.
-        } 
+        }
         // If current session ends during lunch period, no inter-work permission is calculated
         // as lunch time is not considered working time
         else if (outPunch.time >= lunchStart && outPunch.time <= lunchEnd) {
           // No inter-work permission penalty since they punched out during lunch
         } else {
           // Calculate inter-work permission time only if not during lunch
-          let interPermissionMinutes = 0;
+          // NEW: Ensure the gap only counts time WITHIN shift hours
+          const gapStart = Math.max(outPunch.time, workStart);
+          const gapEnd = Math.min(nextSession.in.time, workEnd);
+          let interPermissionMinutes = Math.max(0, gapEnd - gapStart);
 
-          // If the current session ends before lunch and the next session starts after lunch
-          // then the permission time is from the end of current session to lunch start
-          if (outPunch.time <= lunchStart && nextSession.in.time >= lunchEnd) {
-            interPermissionMinutes = lunchStart - outPunch.time;
-          } else {
-            // Either both times are before lunch, or both are after lunch
-            const rawPermissionTime = nextSession.in.time - outPunch.time;
-
-            // Check if the permission period overlaps with lunch
-            if (outPunch.time < lunchEnd && nextSession.in.time > lunchStart) {
-              let timeBeforeLunch = 0;
-              if (outPunch.time < lunchStart) {
-                timeBeforeLunch = Math.min(lunchStart, nextSession.in.time) - outPunch.time;
-              }
-
-              let timeAfterLunch = 0;
-              if (nextSession.in.time > lunchEnd) {
-                timeAfterLunch = nextSession.in.time - Math.max(lunchEnd, outPunch.time);
-              }
-
-              interPermissionMinutes = timeBeforeLunch + timeAfterLunch;
-            } else {
-              interPermissionMinutes = rawPermissionTime;
+          // Handle lunch overlap if the gap spans across the lunch period
+          if (interPermissionMinutes > 0 && gapStart < lunchEnd && gapEnd > lunchStart) {
+            let timeBeforeLunch = 0;
+            if (gapStart < lunchStart) {
+              timeBeforeLunch = Math.min(lunchStart, gapEnd) - gapStart;
             }
+
+            let timeAfterLunch = 0;
+            if (gapEnd > lunchEnd) {
+              timeAfterLunch = gapEnd - Math.max(lunchEnd, gapStart);
+            }
+
+            interPermissionMinutes = timeBeforeLunch + timeAfterLunch;
           }
 
           // Strictly deduct ALL gaps between sessions (Active Time Only)
@@ -829,12 +821,14 @@ const calculateWorkerProductivity = (productivityParameters) => {
         // The penalty (workEnd - IN) cancels the work credit given by
         // calculatePairWorkingTime. The inter-session GAP (prevOUT → IN) is
         // calculated separately as inter-work permission on the previous session.
-        let remainingShiftTime = workEnd - inPunch.time;
+        // NEW: Ensure penalty only counts time WITHIN shift hours
+        let remainingShiftTime = workEnd - Math.max(inPunch.time, workStart);
 
         // Adjust for lunch if the remaining time overlaps with lunch
-        if (!isLunchConsider && inPunch.time < lunchEnd && workEnd > lunchStart) {
+        const effectivePunchIn = Math.max(inPunch.time, workStart);
+        if (!isLunchConsider && effectivePunchIn < lunchEnd && workEnd > lunchStart) {
           // Calculate lunch overlap with the remaining shift time
-          const lunchOverlapStart = Math.max(inPunch.time, lunchStart);
+          const lunchOverlapStart = Math.max(effectivePunchIn, lunchStart);
           const lunchOverlapEnd = Math.min(workEnd, lunchEnd);
 
           if (lunchOverlapEnd > lunchOverlapStart) {
@@ -978,24 +972,24 @@ const calculateWorkerProductivity = (productivityParameters) => {
   let penalizedAbsentDays = 0;
   let penalizedAbsentDeduction = 0;
   let runningPresentDays = 0;
-  
+
   // PRE-CALCULATE monthly attendance rate for consistent penalty application
   const totalWorkingDays = allDates.filter(date => {
     const isSun = isSunday(date);
     const holiday = isHolidayForWorker(date, worker._id);
     return !isSun && !holiday;
   }).length;
-  
+
   const presentDaysCount = filteredData.filter(r => r.presence).length;
   const monthlyAttendanceRate = totalWorkingDays > 0 ? (presentDaysCount / totalWorkingDays) * 100 : 100;
-  
+
   // Determine if employee threshold penalty is active for the WHOLE month
   const thresh = advancedLeaveDeduction?.thresholds || {};
   const empVal = thresh.employee?.value ?? thresh.employee ?? 90;
   const isEmployeeAttendancePenaltyActive = (thresh.employee?.enabled ?? true) && monthlyAttendanceRate < empVal;
-  
+
   let runningWorkingDays = 0;
-  
+
   // ── Hybrid Salary Pools ──────────────────────────────────────────────────────
   // Gross and deductions are tracked SEPARATELY so that large penalties (e.g. 2X
   // absence) are never silently dropped by a per-day Math.max(0, ...) clamp.
@@ -1130,7 +1124,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
 
       const isLoneAutoOut = pair.out.record.isAutoGenerated && pairs.length === 1 && !isFactoryWorkerToggle;
       const isLoneOrphanedOut = pair.isOrphanedOut && pairs.length === 1 && !isFactoryWorkerToggle;
-      
+
       if (isLoneAutoOut || isLoneOrphanedOut) {
         // When worker forgets to punch out/in and it's their only record, they get 0 working minutes
         // AND we deduct the full standard working day as a penalty
@@ -1419,7 +1413,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         deductionAmount: formatCurrency(0),
         totalSalary: formatCurrency(0), // Sundays are always ₹0 pay (excluded from project per-day share)
         status: 'Sunday',
-        workType: missedActiveProject ? 'PROJECT' : 'SAAS', 
+        workType: missedActiveProject ? 'PROJECT' : 'SAAS',
         projectName: missedActiveProject ? missedActiveProject.projectName : null,
         projectId: missedProjectId
       };
@@ -1507,9 +1501,9 @@ const calculateWorkerProductivity = (productivityParameters) => {
           }
         }
 
-        const deductionAmount = isActuallyPaid 
-            ? 0 
-            : perDaySalary * factor;
+        const deductionAmount = isActuallyPaid
+          ? 0
+          : perDaySalary * factor;
 
         if (!isActuallyPaid) {
           totalLeaveDeduction += deductionAmount;
@@ -1617,7 +1611,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
         // Core Rule for Absent Days:
         // Deduct ONLY the base per-day salary from project earnings (penalize only by base salary).
         const deductionAmount = perDaySalary * factor;
-            
+
         // PROJECT absent day: earn full project value gross, deduct base salary
         // SAAS absent day: no gross earned, deduct base salary
         const grossEarningForMissedDay = missedActiveProject ? (missedActiveProject.perDayValue || 0) : 0;
@@ -1743,7 +1737,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
   //     It accumulates gross only for WORKED days, so heavy absences make it
   //     look like ₹0 even when the employee is owed a small residual amount.
   //     We do NOT use it directly in finalSalary — see netBaseSalary below.
-  const totalSaaSSalary    = Math.max(0, grossSaaSSalary    - totalSaaSDeductions);
+  const totalSaaSSalary = Math.max(0, grossSaaSSalary - totalSaaSDeductions);
   const totalProjectSalary = Math.max(0, grossProjectSalary - totalProjectDeductions);
 
   // Net Base Salary (display field on payslip AND source of truth for SaaS pay):
