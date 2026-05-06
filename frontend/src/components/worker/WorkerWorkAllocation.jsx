@@ -452,12 +452,14 @@ const WorkerWorkAllocation = () => {
                                             <div className="mb-4">
                                                 <div className="flex justify-between items-center mb-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
                                                     <span>My Progress</span>
-                                                    <span>{Math.round((ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100)}%</span>
+                                                    <span>
+                                                        {ticket.status === 'Done' ? 100 : Math.round((ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100)}%
+                                                    </span>
                                                 </div>
                                                 <div className="w-full bg-gray-100 rounded-full h-1 shadow-inner">
                                                     <div
                                                         className="bg-teal-500 h-1 rounded-full transition-all duration-300 shadow-sm"
-                                                        style={{ width: `${(ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100}%` }}
+                                                        style={{ width: `${ticket.status === 'Done' ? 100 : (ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100}%` }}
                                                     ></div>
                                                 </div>
                                             </div>

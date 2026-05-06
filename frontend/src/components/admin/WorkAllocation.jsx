@@ -974,12 +974,14 @@ const WorkAllocation = () => {
                                                 <div>
                                                     <div className="flex justify-between items-center mb-1.5 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
                                                         <span>PROGRESS</span>
-                                                        <span className="text-slate-400">{Math.round((ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100)}%</span>
+                                                        <span className="text-slate-400">
+                                                            {ticket.status === 'Done' ? 100 : Math.round((ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100)}%
+                                                        </span>
                                                     </div>
                                                     <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
                                                         <div
                                                             className="bg-[#0d9488] h-1 rounded-full transition-all duration-700"
-                                                            style={{ width: `${(ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100}%` }}
+                                                            style={{ width: `${ticket.status === 'Done' ? 100 : (ticket.checklist.filter(i => i.completed).length / ticket.checklist.length) * 100}%` }}
                                                         ></div>
                                                     </div>
                                                 </div>
@@ -1132,10 +1134,27 @@ const WorkAllocation = () => {
                                         onClick={async () => {
                                             setLoading(true);
                                             try {
-                                                const taskToSave = { ...selectedTicket, subdomain };
-                                                if (taskToSave.assignees) {
-                                                    taskToSave.assignees = taskToSave.assignees.map(a => typeof a === 'object' ? a._id : a);
+                                                const taskToSave = { ...selectedTicket };
+                                                
+                                                // Remove UI-only fields
+                                                delete taskToSave._id;
+                                                taskToSave.subdomain = subdomain;
+
+                                                // Ensure assignee and assignees are sent as IDs
+                                                if (taskToSave.assignee && typeof taskToSave.assignee === 'object') {
+                                                    taskToSave.assignee = taskToSave.assignee._id;
                                                 }
+                                                
+                                                if (taskToSave.assignees && Array.isArray(taskToSave.assignees)) {
+                                                    taskToSave.assignees = taskToSave.assignees.map(a => 
+                                                        (a && typeof a === 'object') ? a._id : a
+                                                    ).filter(Boolean);
+                                                }
+
+                                                // Clean up dates
+                                                if (taskToSave.startDate === '') taskToSave.startDate = undefined;
+                                                if (taskToSave.endDate === '') taskToSave.endDate = undefined;
+
                                                 const newT = await createTicket(taskToSave);
                                                 setTickets([newT, ...tickets]);
                                                 setIsModalOpen(false);

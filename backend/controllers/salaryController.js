@@ -303,24 +303,58 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     // Calculate final salary after deducting fines
     const finalSalaryWithFines = Math.max(0, finalSalaryWithBonus - totalFinesAmount);
 
-    // Simplified check for Currently Overdue Tasks
+    // Fetch all tasks for this worker that were ever delayed or are currently overdue
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    const overdueTasks = await Ticket.find({
+
+    const allTasks = await Ticket.find({
       $or: [
         { assignee: id },
         { assignees: id }
       ],
-      subdomain: worker.subdomain,
-      status: { $ne: 'Done' },
-      endDate: { $lt: today }
-    }).sort({ endDate: 1 });
+      subdomain: worker.subdomain
+    });
 
-    const isCurrentlyViolating = overdueTasks.length > 0;
+    const delayedTasks = allTasks.filter(task => {
+      if (!task.endDate) return false;
+      const deadline = new Date(task.endDate);
+      deadline.setHours(0, 0, 0, 0);
+
+      if (task.status === 'Done') {
+        // Find when it was marked as Done
+        const doneEntry = task.statusHistory
+          .filter(h => h.status === 'Done')
+          .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))[0];
+        
+        if (doneEntry) {
+          const doneDate = new Date(doneEntry.changedAt);
+          doneDate.setHours(0, 0, 0, 0);
+          return doneDate > deadline;
+        }
+        return false;
+      } else {
+        // Not Done yet, check if it's past deadline
+        return today > deadline;
+      }
+    }).map(task => {
+      const doneEntry = task.statusHistory
+        .filter(h => h.status === 'Done')
+        .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))[0];
+      
+      return {
+        _id: task._id,
+        title: task.title,
+        endDate: task.endDate,
+        doneDate: doneEntry ? doneEntry.changedAt : null,
+        status: task.status
+      };
+    });
+
+    const isCurrentlyViolating = delayedTasks.some(t => t.status !== 'Done');
     let earliestDeadline = null;
-    if (isCurrentlyViolating) {
-      earliestDeadline = overdueTasks[0].endDate;
+    if (delayedTasks.length > 0) {
+      const sortedDeadlines = delayedTasks.map(t => new Date(t.endDate)).sort((a, b) => a - b);
+      earliestDeadline = sortedDeadlines[0];
     }
 
     // Build project breakdown summary
@@ -353,6 +387,7 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
       finalSalaryWithFines: finalSalaryWithFines, // ADD THIS
       isCurrentlyViolating,
       earliestDeadline,
+      delayedTasks,
       projectBreakdown, // HYBRID
       worker: {
         name: worker.name,
@@ -524,24 +559,56 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
 
     const finalSalaryWithFines = Math.max(0, finalSalaryWithBonus - totalFinesAmount);
 
-    // Simplified check for Currently Overdue Tasks
+    // Fetch all tasks for this worker that were ever delayed or are currently overdue
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    const overdueTasks = await Ticket.find({
+
+    const allTasks = await Ticket.find({
       $or: [
         { assignee: id },
         { assignees: id }
       ],
-      subdomain: worker.subdomain,
-      status: { $ne: 'Done' },
-      endDate: { $lt: today }
-    }).sort({ endDate: 1 });
+      subdomain: worker.subdomain
+    });
 
-    const isCurrentlyViolating = overdueTasks.length > 0;
+    const delayedTasks = allTasks.filter(task => {
+      if (!task.endDate) return false;
+      const deadline = new Date(task.endDate);
+      deadline.setHours(0, 0, 0, 0);
+
+      if (task.status === 'Done') {
+        const doneEntry = task.statusHistory
+          .filter(h => h.status === 'Done')
+          .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))[0];
+        
+        if (doneEntry) {
+          const doneDate = new Date(doneEntry.changedAt);
+          doneDate.setHours(0, 0, 0, 0);
+          return doneDate > deadline;
+        }
+        return false;
+      } else {
+        return today > deadline;
+      }
+    }).map(task => {
+      const doneEntry = task.statusHistory
+        .filter(h => h.status === 'Done')
+        .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))[0];
+      
+      return {
+        _id: task._id,
+        title: task.title,
+        endDate: task.endDate,
+        doneDate: doneEntry ? doneEntry.changedAt : null,
+        status: task.status
+      };
+    });
+
+    const isCurrentlyViolating = delayedTasks.some(t => t.status !== 'Done');
     let earliestDeadline = null;
-    if (isCurrentlyViolating) {
-      earliestDeadline = overdueTasks[0].endDate;
+    if (delayedTasks.length > 0) {
+      const sortedDeadlines = delayedTasks.map(t => new Date(t.endDate)).sort((a, b) => a - b);
+      earliestDeadline = sortedDeadlines[0];
     }
 
     // Build project breakdown summary
@@ -577,6 +644,7 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
       finalSalaryWithBonus: finalSalaryWithBonus,
       isCurrentlyViolating,
       earliestDeadline,
+      delayedTasks,
       projectBreakdown, // Added breakdown
       worker: {
         name: worker.name,

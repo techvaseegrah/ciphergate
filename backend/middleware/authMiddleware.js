@@ -20,21 +20,20 @@ const protect = asyncHandler(async (req, res, next) => {
       if (!user) {
         return res.status(401).json({ message: 'Admin not found' });
       }
-      req.user = user;
+      req.user = user.toObject();
       req.user.role = 'admin';
     } else if (decoded.role === 'worker') {
       const user = await Worker.findById(decoded.id).select('-password');
       if (!user) {
         return res.status(401).json({ message: 'Worker not found' });
       }
-      // Convert to object to ensure we can add the role property if it's not in the schema
       req.user = user.toObject();
       req.user.role = 'worker';
     } else {
       // Fallback for older tokens or if role is missing in token
       let user = await Admin.findById(decoded.id).select('-password');
       if (user) {
-        req.user = user;
+        req.user = user.toObject();
         req.user.role = 'admin';
       } else {
         user = await Worker.findById(decoded.id).select('-password');

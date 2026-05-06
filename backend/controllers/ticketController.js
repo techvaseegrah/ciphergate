@@ -76,6 +76,10 @@ exports.createTicket = async (req, res) => {
         const subdomain = req.user?.subdomain || req.body.subdomain;
         const reporter = req.user?._id;
 
+        // Clean up empty strings for dates to prevent CastError
+        const formattedStartDate = (startDate && startDate.trim() !== '') ? new Date(startDate) : undefined;
+        const formattedEndDate = (endDate && endDate.trim() !== '') ? new Date(endDate) : undefined;
+
         const newTicket = new Ticket({
             title,
             description,
@@ -89,8 +93,8 @@ exports.createTicket = async (req, res) => {
             labels: labels || [],
             reporter,
             subdomain,
-            startDate,
-            endDate,
+            startDate: formattedStartDate,
+            endDate: formattedEndDate,
             checklist: checklist || parseChecklist(description)
         });
 
@@ -103,19 +107,24 @@ exports.createTicket = async (req, res) => {
         ]);
 
         // Trigger push notifications
-        const { sendNotification } = require('../utils/sendNotification');
-        const usersToNotify = assignees || (assignee ? [assignee] : []);
-        
-        for (const userId of usersToNotify) {
-            await sendNotification({
-                userId,
-                userModel: 'Worker',
-                subdomain: savedTicket.subdomain,
-                title: 'New Task Assigned',
-                message: `Task: ${savedTicket.title} | Priority: ${savedTicket.priority} ${savedTicket.team ? `| Team: ${savedTicket.team}` : ''}`,
-                type: 'task_assigned',
-                link: '/worker/work-allocation'
-            });
+        try {
+            const { sendNotification } = require('../utils/sendNotification');
+            const usersToNotify = assignees || (assignee ? [assignee] : []);
+            
+            for (const userId of usersToNotify) {
+                await sendNotification({
+                    userId,
+                    userModel: 'Worker',
+                    subdomain: savedTicket.subdomain,
+                    title: 'New Task Assigned',
+                    message: `Task: ${savedTicket.title} | Priority: ${savedTicket.priority} ${savedTicket.team ? `| Team: ${savedTicket.team}` : ''}`,
+                    type: 'task_assigned',
+                    link: '/worker/work-allocation'
+                });
+            }
+        } catch (notifError) {
+            console.error('Notification error:', notifError.message);
+            // Don't fail the whole request if notification fails
         }
 
         // Socket emission
@@ -124,6 +133,7 @@ exports.createTicket = async (req, res) => {
 
         res.status(201).json(savedTicket);
     } catch (error) {
+        console.error('Create Ticket Error:', error);
         res.status(400).json({ message: 'Invalid ticket data', error: error.message });
     }
 };
@@ -166,8 +176,14 @@ exports.updateTicket = async (req, res) => {
         if (issueType !== undefined) ticket.issueType = issueType;
         if (storyPoints !== undefined) ticket.storyPoints = storyPoints;
         if (labels !== undefined) ticket.labels = labels;
-        if (startDate !== undefined) ticket.startDate = startDate;
-        if (endDate !== undefined) ticket.endDate = endDate;
+        
+        // Handle empty strings for dates
+        if (startDate !== undefined) {
+            ticket.startDate = (startDate && startDate.trim() !== '') ? new Date(startDate) : undefined;
+        }
+        if (endDate !== undefined) {
+            ticket.endDate = (endDate && endDate.trim() !== '') ? new Date(endDate) : undefined;
+        }
         if (feedback !== undefined) ticket.feedback = feedback;
 
         // Ensure checklist is updated if provided

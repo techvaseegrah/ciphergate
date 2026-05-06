@@ -23,7 +23,7 @@ exports.upsertCompletion = async (req, res) => {
         }
 
         // Check if worker is assigned to this ticket
-        const isAssigned = ticket.assignees.some(id => id.toString() === workerId.toString()) ||
+        const isAssigned = ticket.assignees?.some(id => id.toString() === workerId.toString()) ||
             (ticket.assignee && ticket.assignee.toString() === workerId.toString());
 
         if (!isAssigned) {
@@ -61,22 +61,28 @@ exports.upsertCompletion = async (req, res) => {
             });
         }
 
-        // Emit socket update for the ticket completions
-        const io = getIO();
-        io.to(subdomain).emit('subtask:completion_updated', {
-            ticketId,
-            subTaskId,
-            workerId,
-            completion
-        });
+        // Socket emission (wrapped to prevent crash)
+        try {
+            const io = getIO();
+            if (io) {
+                io.to(subdomain).emit('subtask:completion_updated', {
+                    ticketId,
+                    subTaskId,
+                    workerId,
+                    completion
+                });
+            }
+        } catch (socketErr) {
+            console.error('Socket emission error:', socketErr.message);
+        }
 
         // Check if all assigned employees have completed all sub-tasks
         const allCompletions = await SubTaskCompletion.find({ ticketId, isCompleted: true });
-        const checklistCount = ticket.checklist.length;
+        const checklistCount = ticket.checklist?.length || 0;
         const totalAssigneesCount = (ticket.assignees?.length || (ticket.assignee ? 1 : 0));
         const requiredCompletionsCount = checklistCount * totalAssigneesCount;
 
-        if (allCompletions.length >= requiredCompletionsCount && requiredCompletionsCount > 0) {
+        if (requiredCompletionsCount > 0 && allCompletions.length >= requiredCompletionsCount) {
             if (ticket.status !== 'Done' && ticket.status !== 'Review') {
                 ticket.status = 'Review';
                 await ticket.save();
@@ -87,25 +93,32 @@ exports.upsertCompletion = async (req, res) => {
                     { path: 'assignees', select: 'name username department status' }
                 ]);
 
-                io.to(subdomain).emit('ticket:updated', ticket);
+                try {
+                    const io = getIO();
+                    if (io) io.to(subdomain).emit('ticket:updated', ticket);
+                } catch (socketErr) {}
             }
         }
 
-        // Trigger notification for Admin
-        const Admin = require('../models/Admin');
-        const admin = await Admin.findOne({ subdomain });
-        if (admin) {
-            const subTask = ticket.checklist.find(item => item._id.toString() === subTaskId.toString());
-            const { sendNotification } = require('../utils/sendNotification');
-            await sendNotification({
-                userId: admin._id,
-                userModel: 'Admin',
-                subdomain,
-                title: 'Proof Submitted',
-                message: `${req.user.name} submitted proof for: "${subTask ? subTask.text : 'Sub-task'}" in task: ${ticket.title}`,
-                type: 'proof_submitted',
-                link: `/admin/work-allocation`
-            });
+        // Trigger notification for Admin (wrapped to prevent crash)
+        try {
+            const Admin = require('../models/Admin');
+            const admin = await Admin.findOne({ subdomain });
+            if (admin) {
+                const subTask = ticket.checklist?.find(item => item._id && item._id.toString() === subTaskId.toString());
+                const { sendNotification } = require('../utils/sendNotification');
+                await sendNotification({
+                    userId: admin._id,
+                    userModel: 'Admin',
+                    subdomain,
+                    title: 'Proof Submitted',
+                    message: `${req.user.name || 'Worker'} submitted proof for: "${subTask ? subTask.text : 'Sub-task'}" in task: ${ticket.title}`,
+                    type: 'proof_submitted',
+                    link: `/admin/work-allocation`
+                });
+            }
+        } catch (notifErr) {
+            console.error('Notification error in upsertCompletion:', notifErr.message);
         }
 
         res.status(200).json({
@@ -115,6 +128,7 @@ exports.upsertCompletion = async (req, res) => {
             completion
         });
     } catch (error) {
+        console.error('Upsert Completion Error:', error);
         res.status(500).json({ success: false, message: 'Error saving completion', error: error.message });
     }
 };
@@ -157,7 +171,9 @@ exports.deleteProofFile = async (req, res) => {
 
         const file = completion.proofFiles[fileIndex];
         // Delete from filesystem
-        const filePath = path.join(__dirname, '..', file.url);
+        // Correct path logic: extract filename from URL or just use filename if stored
+        const filename = file.url.split('/').pop();
+        const filePath = path.join(__dirname, '..', 'uploads', filename);
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
