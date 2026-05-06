@@ -453,7 +453,16 @@ const calculateWorkerProductivity = (productivityParameters) => {
     if (inPunch.time > workStart) {
       lateMinutes = 0; // Reset for this pair
 
-      if (isFirstSession) {
+      // Determine if this is the first ACTUAL working session (not an orphaned OUT)
+      let isFirstWorkingSession = false;
+      for (let i = 0; i <= pairIndex; i++) {
+        if (!allPairs[i].isOrphanedOut) {
+          if (i === pairIndex) isFirstWorkingSession = true;
+          break;
+        }
+      }
+
+      if (isFirstWorkingSession) {
         // NEW: Special handling for first session after lunch
         if (inPunch.time >= lunchStart) {
           // For employees whose shift starts after lunch, compare to their actual shift start time
@@ -555,8 +564,17 @@ const calculateWorkerProductivity = (productivityParameters) => {
       }
     }
 
+    // Determine if this is the first ACTUAL working session for penalty application
+    let isFirstWorkingSessionForLate = false;
+    for (let i = 0; i <= pairIndex; i++) {
+      if (!allPairs[i].isOrphanedOut) {
+        if (i === pairIndex) isFirstWorkingSessionForLate = true;
+        break;
+      }
+    }
+
     // Add late minutes for first session if it's a normal late arrival
-    if (isFirstSession && lateMinutes > 0) {
+    if (isFirstWorkingSessionForLate && lateMinutes > 0) {
       totalDelayMinutes += lateMinutes;
       delayDetails.push({
         type: 'Late Arrival',
@@ -1491,7 +1509,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
 
         const deductionAmount = isActuallyPaid 
             ? 0 
-            : (missedActiveProject ? (missedActiveProject.perDayValue || 0) * factor : perDaySalary * factor);
+            : perDaySalary * factor;
 
         if (!isActuallyPaid) {
           totalLeaveDeduction += deductionAmount;
@@ -1517,7 +1535,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
           delayTime: isActuallyPaid ? 'Paid Leave' : (factor > 1 ? `${factor} Days` : '1 Day'),
           delayType: isActuallyPaid ? 'Paid Leave' : `${leaveInfo.leaveType}${factor > 1 ? ` (${factor}X)` : ''}${isPaidLeaveType ? ' (Unpaid - Over Limit)' : ''}`,
           deductionAmount: formatCurrency(deductionAmount),
-          totalSalary: formatCurrency(isActuallyPaid ? (missedActiveProject ? missedActiveProject.perDayValue : perDaySalary) : 0),
+          totalSalary: formatCurrency(isActuallyPaid ? (missedActiveProject ? missedActiveProject.perDayValue : perDaySalary) : Math.max(0, (missedActiveProject ? missedActiveProject.perDayValue : 0) - deductionAmount)),
           status: isActuallyPaid ? 'Paid Leave' : 'Leave',
           workType: missedWorkType,
           projectId: missedProjectId
@@ -1538,7 +1556,7 @@ const calculateWorkerProductivity = (productivityParameters) => {
             projectBreakdownMap[pid].totalDeduction += 0;
             projectBreakdownMap[pid].daysCount += 1;
           } else {
-            // Unpaid leave on project day: gross = project per-day value, deduction = project per-day value * factor
+            // Unpaid leave on project day: gross = project per-day value, deduction = base per-day salary * factor
             grossProjectSalary += (missedActiveProject.perDayValue || 0);
             totalProjectDeductions += deductionAmount;
             const pid = missedActiveProject._id.toString();
