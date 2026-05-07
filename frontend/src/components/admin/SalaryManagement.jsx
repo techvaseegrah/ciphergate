@@ -704,18 +704,12 @@ const SalaryManagement = () => {
                         totalAbsentDays: report.report.summary?.totalAbsentDays || 0,
                         totalLeaveDays: report.report.summary?.totalLeaveDays || 0,
                         totalFinalSalary: report.finalSalaryWithFines || 0,
-                        taskPenalty: taskPenalty
+                        taskPenalty: taskPenalty,
+                        fullReport: report // Store full report for bulk downloading
                     };
                 } catch (error) {
                     console.error(`Failed to fetch report for worker ${workerId}:`, error);
-                    return {
-                        workerId: worker._id,
-                        name: worker.name,
-                        department: worker.department?.name || worker.department || 'N/A',
-                        totalWorkingDays: 0,
-                        totalAbsentDays: 0,
-                        totalFinalSalary: 0
-                    };
+                    return null;
                 }
             });
 
@@ -1051,6 +1045,13 @@ const SalaryManagement = () => {
                         <FaFileInvoiceDollar className='text-xl' />
                     </button>
                     <button
+                        onClick={() => downloadPDF()}
+                        className="p-1 text-slate-600 hover:text-slate-900"
+                        title="Download PDF"
+                    >
+                        <FaFilePdf className='text-xl' />
+                    </button>
+                    <button
                         onClick={() => handleRemoveBonus(worker)}
                         className="p-1 text-red-600 hover:text-red-800"
                         title="Remove Bonus"
@@ -1061,6 +1062,140 @@ const SalaryManagement = () => {
             )
         }
     ];
+
+    // New: Download individual PDF from bulk list
+    const downloadBulkIndividualPDF = (workerId) => {
+        const worker = workers.find(w => w._id === workerId);
+        if (!worker) return;
+
+        // Since we don't have the full report in bulkReportData currently, 
+        // we might need to fetch it or modify generateBulkReport to store it.
+        // For now, let's modify generateBulkReport first.
+    };
+
+    const downloadBulkSummaryPDF = () => {
+        if (bulkReportData.length === 0) {
+            toast.error("No report data available to download.");
+            return;
+        }
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.width;
+        
+        // Header
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Consolidated Salary Statement', 14, 25);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const monthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth - 1];
+        doc.text(`Period: ${monthName} ${selectedYear}`, 14, 33);
+        
+        // Summary Stats
+        const totalPayout = bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0);
+        
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Total Employees: ${bulkReportData.length}`, pageWidth - 60, 25);
+        doc.text(`Total Payout: Rs. ${totalPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, pageWidth - 60, 33);
+
+        // Table
+        const tableColumn = ['Employee', 'Department', 'Working', 'Absent', 'Net Salary'];
+        const tableRows = bulkReportData.map(r => [
+            r.name,
+            r.department,
+            `${r.totalWorkingDays} Days`,
+            `${r.totalAbsentDays} Days`,
+            `Rs. ${Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+        ]);
+
+        autoTable(doc, {
+            startY: 50,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            styles: { fontSize: 9, cellPadding: 4 },
+            columnStyles: {
+                4: { halign: 'right', fontStyle: 'bold' }
+            }
+        });
+
+        doc.save(`consolidated_salary_report_${monthName}_${selectedYear}.pdf`);
+    };
+
+    const downloadAllDetailedReportsPDF = async () => {
+        if (bulkReportData.length === 0) {
+            toast.error("No reports to download.");
+            return;
+        }
+
+        const doc = new jsPDF();
+        const monthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth - 1];
+
+        toast.info(`Generating detailed PDF for ${bulkReportData.length} employees...`);
+
+        for (let i = 0; i < bulkReportData.length; i++) {
+            const data = bulkReportData[i];
+            const reportData = data.fullReport;
+            const worker = workers.find(w => w._id === data.workerId);
+
+            if (i > 0) doc.addPage();
+
+            // Reuse the core logic from downloadPDF but adapted for the loop
+            const startY = 20;
+            doc.setFontSize(18);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`Salary Report: ${data.name}`, 14, startY);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`${monthName} ${selectedYear} | ${data.department}`, 14, startY + 7);
+
+            const formatCurrency = (amt) => `Rs. ${Number(amt || 0).toFixed(2)}`;
+
+            const summaryTable = [
+                ['Employee ID', worker?.rfid || 'N/A'],
+                ['Base Salary', formatCurrency(reportData.report.summary?.originalSalary)],
+                ['Total Deductions', formatCurrency(reportData.report.totalSalaryDeduction)],
+                ['Bonus Applied', formatCurrency(reportData.totalBonusAmount)],
+                ['Fines Applied', formatCurrency(reportData.totalFinesAmount)],
+                ['Task Penalty', formatCurrency(deductionView ? data.taskPenalty : 0)],
+                ['Net Payout', formatCurrency(Math.max(0, data.totalFinalSalary - (deductionView ? data.taskPenalty : 0)))]
+            ];
+
+            autoTable(doc, {
+                startY: startY + 15,
+                body: summaryTable,
+                theme: 'plain',
+                styles: { fontSize: 10, cellPadding: 2 },
+                columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+            });
+
+            // Attendance Summary
+            const attendanceStats = [
+                ['Working Days', reportData.report.summary?.totalWorkingDaysInPeriod, 'Absent Days', reportData.report.summary?.totalAbsentDays],
+                ['Leave Days', reportData.report.summary?.totalLeaveDays, 'Attendance Rate', `${reportData.report.summary?.attendanceRate?.toFixed(1)}%`]
+            ];
+
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['Attendance Summary', '', '', '']],
+                body: attendanceStats,
+                theme: 'grid',
+                headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontSize: 9 },
+                styles: { fontSize: 9 }
+            });
+        }
+
+        doc.save(`detailed_reports_${monthName}_${selectedYear}.pdf`);
+        toast.success("Detailed bulk report downloaded!");
+    };
 
     return (
         <div>
@@ -1481,19 +1616,73 @@ const SalaryManagement = () => {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="space-y-4"
+                                className="space-y-6"
                             >
+                                {/* Quick Stats Summary */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                                        <div className="absolute -right-4 -bottom-4 text-emerald-100 opacity-50 group-hover:scale-110 transition-transform">
+                                            <FaDonate size={80} />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Net Payout</p>
+                                            <p className="text-3xl font-black text-emerald-700">
+                                                ₹{bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                                        <div className="absolute -right-4 -bottom-4 text-slate-100 opacity-50 group-hover:scale-110 transition-transform">
+                                            <FaList size={80} />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Workers</p>
+                                            <p className="text-3xl font-black text-slate-700">{bulkReportData.length}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                                        <div className="absolute -right-4 -bottom-4 text-rose-100 opacity-50 group-hover:scale-110 transition-transform">
+                                            <FaCalendarAlt size={80} />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Avg Attendance</p>
+                                            <p className="text-3xl font-black text-rose-700">
+                                                {(bulkReportData.reduce((sum, r) => sum + (r.totalWorkingDays / (r.totalWorkingDays + r.totalAbsentDays || 1)), 0) / bulkReportData.length * 100).toFixed(1)}%
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Report Summary</h4>
+                                    <div className="flex items-center gap-4">
+                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Report Summary</h4>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={downloadBulkSummaryPDF}
+                                                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-200"
+                                            >
+                                                <FaFilePdf size={12} />
+                                                <span>Summary Statement</span>
+                                            </button>
+                                            <button
+                                                onClick={downloadAllDetailedReportsPDF}
+                                                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-teal-600 text-white hover:bg-teal-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-teal-200"
+                                            >
+                                                <FaFilePdf size={12} />
+                                                <span>All Detailed PDFs</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div className="h-px flex-1 bg-slate-100 mx-4"></div>
                                 </div>
-                                <div className="rounded-[2rem] border border-slate-100 overflow-hidden bg-white shadow-xl shadow-slate-200/50">
+
+                                <div className="rounded-[2.5rem] border border-slate-100 overflow-hidden bg-white shadow-xl shadow-slate-200/40">
                                     <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                                         <table className="min-w-full divide-y divide-slate-100 text-xs">
                                             <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
                                                 <tr>
-                                                    {['Employee', 'Department', 'Working', 'Absent', 'Final Salary', 'Action'].map(h => (
-                                                        <th key={h} className="px-6 py-4 text-left font-black text-slate-400 uppercase tracking-widest">{h}</th>
+                                                    {['Employee', 'Department', 'Working', 'Absent', 'Final Salary', 'Actions'].map(h => (
+                                                        <th key={h} className="px-6 py-5 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{h}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
@@ -1504,22 +1693,70 @@ const SalaryManagement = () => {
                                                             <p className="font-bold text-slate-700">{report.name}</p>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-bold text-[10px] uppercase tracking-tight">
+                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-bold text-[9px] uppercase tracking-wider">
                                                                 {report.department}
                                                             </span>
                                                         </td>
-                                                        <td className="px-6 py-4 font-bold text-slate-600">{report.totalWorkingDays} <span className="text-[9px] text-slate-400">Days</span></td>
-                                                        <td className="px-6 py-4 font-bold text-rose-500">{report.totalAbsentDays} <span className="text-[9px] text-rose-400">Days</span></td>
-                                                        <td className="px-6 py-4">
-                                                            <p className="font-black text-emerald-600">₹{Math.max(0, report.totalFinalSalary - (deductionView ? (report.taskPenalty || 0) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                        <td className="px-6 py-4 font-bold text-slate-600">
+                                                            {report.totalWorkingDays} <span className="text-[9px] text-slate-400 font-medium">Days</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-bold text-rose-500">
+                                                            {report.totalAbsentDays} <span className="text-[9px] text-rose-400 font-medium">Days</span>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <button
-                                                                onClick={() => openIndividualReport(report)}
-                                                                className="px-4 py-1.5 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-all font-bold text-[10px] uppercase tracking-widest"
-                                                            >
-                                                                View Report
-                                                            </button>
+                                                            <p className="font-black text-emerald-600 text-sm">₹{Math.max(0, report.totalFinalSalary - (deductionView ? (report.taskPenalty || 0) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => openIndividualReport(report)}
+                                                                    className="px-4 py-2 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-all font-black text-[9px] uppercase tracking-widest"
+                                                                >
+                                                                    View
+                                                                </button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        // Temporary fetch to download PDF
+                                                                        try {
+                                                                            const year = selectedYear;
+                                                                            const month = selectedMonth;
+                                                                            const firstDay = new Date(year, month - 1, 1);
+                                                                            const lastDay = new Date(year, month, 0);
+                                                                            const formatDate = (date) => {
+                                                                                const d = new Date(date);
+                                                                                let m = '' + (d.getMonth() + 1);
+                                                                                let day = '' + d.getDate();
+                                                                                const yr = d.getFullYear();
+                                                                                if (m.length < 2) m = '0' + m;
+                                                                                if (day.length < 2) day = '0' + day;
+                                                                                return [yr, m, day].join('-');
+                                                                            };
+                                                                            const data = await getSalaryReport(report.workerId, formatDate(firstDay), formatDate(lastDay));
+                                                                            
+                                                                            // Reuse existing download logic
+                                                                            const doc = new jsPDF();
+                                                                            const startY = 20;
+                                                                            doc.setFontSize(18);
+                                                                            doc.text(`Salary Report for ${report.name}`, 14, startY);
+                                                                            
+                                                                            // This is a bit redundant but safe for now to ensure it works without major refactoring
+                                                                            // I will use a helper for this later if needed
+                                                                            // For now just triggering the downloadPDF with custom data
+                                                                            
+                                                                            // Set state temporarily to use downloadPDF
+                                                                            setSelectedWorker(workers.find(w => w._id === report.workerId));
+                                                                            setReportData(data);
+                                                                            setTimeout(() => downloadPDF(), 100);
+                                                                        } catch (e) {
+                                                                            toast.error("Failed to download PDF");
+                                                                        }
+                                                                    }}
+                                                                    className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all"
+                                                                    title="Download PDF"
+                                                                >
+                                                                    <FaFilePdf size={14} />
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
