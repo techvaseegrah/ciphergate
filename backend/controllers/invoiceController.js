@@ -108,6 +108,7 @@ const updateInvoice = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
+
     // Remove fields that shouldn't be updated
     delete updateData._id;
     delete updateData.__v;
@@ -211,7 +212,7 @@ const getInvoicesByAdmin = async (req, res) => {
 // Get all invoices (admin only)
 const getAllInvoices = async (req, res) => {
   try {
-    const { filterType, startDate, endDate } = req.query;
+    const { filterType, startDate, endDate, gstFilter } = req.query;
     let query = {};
 
     const now = new Date();
@@ -236,6 +237,19 @@ const getAllInvoices = async (req, res) => {
         $gte: startOfDay(new Date(startDate)),
         $lte: endOfDay(new Date(endDate))
       };
+    }
+
+    // Apply GST filter
+    if (gstFilter === 'gst') {
+      query.gstEnabled = true;
+    } else if (gstFilter === 'non-gst') {
+      query.gstEnabled = false;
+    } else if (gstFilter === 'igst') {
+      query.gstEnabled = true;
+      query.saleType = 'Interstate';
+    } else if (gstFilter === 'cgst-sgst') {
+      query.gstEnabled = true;
+      query.saleType = 'Intrastate';
     }
     // If filterType is 'all' or missing, query remains {} which fetches everything.
 

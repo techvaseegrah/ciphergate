@@ -3,8 +3,8 @@ const Worker = require('../models/Worker');
 
 exports.createCertificate = async (req, res) => {
     try {
-        const { name, type, content, workerId } = req.body;
-        const newCertificate = new Certificate({ name, type, content, worker: workerId });
+        const { name, type, content, workerId, subdomain } = req.body;
+        const newCertificate = new Certificate({ name, type, content, worker: workerId, subdomain });
         await newCertificate.save();
 
         // If it's a Relieving Letter and workerId is provided, update worker status
@@ -37,7 +37,10 @@ exports.createCertificate = async (req, res) => {
 exports.getCertificatesByType = async (req, res) => {
     try {
         const { type } = req.params;
-        const certificates = await Certificate.find({ type }).sort({ createdAt: -1 });
+        const { subdomain } = req.query;
+        const query = { type };
+        if (subdomain) query.subdomain = subdomain;
+        const certificates = await Certificate.find(query).sort({ createdAt: -1 });
         res.status(200).json(certificates);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching certificates', error: error.message });

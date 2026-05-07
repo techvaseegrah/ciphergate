@@ -102,6 +102,8 @@ const GenerateQuestions = React.lazy(() => import('../admin/GenerateQuestions'))
 const QuestionHistory = React.lazy(() => import('../admin/QuestionHistory'));
 const EmployeeScores = React.lazy(() => import('../admin/EmployeeScores'));
 const GlobalScoreboard = React.lazy(() => import('../admin/GlobalScoreboard'));
+const MonthlyPayslip = React.lazy(() => import('../admin/MonthlyPayslip'));
+
 
 // Lazy load GitHub Tracker
 const GitHubDashboard = React.lazy(() => import('../github-tracker/GitHubDashboard'));
@@ -238,7 +240,9 @@ const AdminLayout = () => {
         { to: '/admin/relieving-letter', label: 'Relieving Letter', icon: <FaFileAlt /> },
         { to: '/admin/experience-certificate', label: 'Experience Cert.', icon: <FaAward /> },
         { to: '/admin/intern-certificate', label: 'Intern Cert.', icon: <FaCertificate /> },
+        { to: '/admin/monthly-payslip', label: 'Monthly Payslip', icon: <FaMoneyBillWave /> },
       ],
+
     },
     {
       label: 'System & Admin',
@@ -345,7 +349,9 @@ const AdminLayout = () => {
               <Route path="acceptance-letter" element={<AcceptanceLetter />} />
               <Route path="relieving-letter" element={<RelievingLetter />} />
               <Route path="experience-certificate" element={<ExperienceCertificate />} />
+              <Route path="monthly-payslip" element={<MonthlyPayslip />} />
               <Route path="renewals" element={<RenewalManagement />} />
+
 
               {/* Test Management Routes */}
               <Route path="test/generate-questions" element={<GenerateQuestions />} />

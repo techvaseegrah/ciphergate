@@ -42,7 +42,7 @@ const Header = ({ user, menuLinks = [], sidebarLinks = [], onLogout, isAdmin = f
     };
 
     return (
-        <header className="h-16 flex justify-between md:justify-end items-center px-4 md:px-10 bg-white/80 backdrop-blur-md border-b border-slate-100 shadow-sm sticky top-0 z-[100]">
+        <header className="h-16 flex justify-between md:justify-end items-center px-4 md:px-10 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-[100]">
             <div className="flex items-center gap-2 md:hidden">
                 {isAdmin && (
                     <button
@@ -218,7 +218,7 @@ const Header = ({ user, menuLinks = [], sidebarLinks = [], onLogout, isAdmin = f
                         
                         <button 
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
-                            className={`h-8 w-8 md:h-9 md:w-9 rounded-xl bg-gradient-to-br from-[#0d9488] to-[#0f766e] text-white flex items-center justify-center font-black shadow-lg shadow-teal-100 border-2 border-white relative group overflow-hidden transition-all active:scale-95 ${isProfileOpen ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`}
+                            className={`h-8 w-8 md:h-9 md:w-9 rounded-xl bg-[#0d9488] text-white flex items-center justify-center font-black shadow-sm border-2 border-white relative group overflow-hidden transition-all active:scale-95 ${isProfileOpen ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`}
                         >
                             <span className="relative z-10 text-[10px] md:text-xs">{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>

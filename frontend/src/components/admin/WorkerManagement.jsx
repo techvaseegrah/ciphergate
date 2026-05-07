@@ -26,6 +26,7 @@ import appContext from '../../context/AppContext';
 import QRCode from 'qrcode';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import FaceCapture from './FaceCapture';
+import RelieveEmployeeModal from './modals/RelieveEmployeeModal';
 
 const WorkerManagement = () => {
   const location = useLocation();
@@ -77,7 +78,11 @@ const WorkerManagement = () => {
     department: '',
     photo: '',
     original_certificate_status: 'not_submitted', // ADDED
-    faceEmbeddings: [] // Add face embeddings to form data
+    faceEmbeddings: [], // Add face embeddings to form data
+    email: '',
+    phoneNumber: '',
+    joiningDate: new Date().toISOString().split('T')[0],
+    designation: 'Employee'
   });
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -216,7 +221,11 @@ const WorkerManagement = () => {
       department: departments.length > 0 ? departments[0]._id : '', // Ensure first department is selected
       photo: '',
       batch: batches.length > 0 ? batches[0].batchName : '', // ADDED: Set the first batch as default
-      faceEmbeddings: [] // Reset face embeddings
+      faceEmbeddings: [], // Reset face embeddings
+      email: '',
+      phoneNumber: '',
+      joiningDate: new Date().toISOString().split('T')[0],
+      designation: 'Employee'
     }));
     getWorkerId();
     setIsAddModalOpen(true);
@@ -240,7 +249,11 @@ const WorkerManagement = () => {
       confirmPassword: '',
       batch: worker.batch || '', // ADDED: Set the worker's current batch
       original_certificate_status: worker.original_certificate_status || 'not_submitted', // ADDED
-      faceEmbeddings: worker.faceEmbeddings || [] // Set existing face embeddings
+      faceEmbeddings: worker.faceEmbeddings || [], // Set existing face embeddings
+      email: worker.email || '',
+      phoneNumber: worker.phoneNumber || '',
+      joiningDate: worker.joiningDate ? new Date(worker.joiningDate).toISOString().split('T')[0] : '',
+      designation: worker.designation || ''
     });
     setIsEditModalOpen(true);
   };
@@ -1160,6 +1173,54 @@ const WorkerManagement = () => {
               </div>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Joining Date *</label>
+              <input
+                type="date"
+                name="joiningDate"
+                className="form-input"
+                value={formData.joiningDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Phone Number</label>
+              <input
+                type="text"
+                name="phoneNumber"
+                className="form-input"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Designation</label>
+              <input
+                type="text"
+                name="designation"
+                className="form-input"
+                value={formData.designation}
+                onChange={handleChange}
+                placeholder="Enter designation"
+              />
+            </div>
+
             <div className="form-group md:col-span-2">
               <label className="form-label">Photo</label>
               <input
@@ -1321,6 +1382,54 @@ const WorkerManagement = () => {
               </select>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Joining Date *</label>
+              <input
+                type="date"
+                name="joiningDate"
+                className="form-input"
+                value={formData.joiningDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Phone Number</label>
+              <input
+                type="text"
+                name="phoneNumber"
+                className="form-input"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Designation</label>
+              <input
+                type="text"
+                name="designation"
+                className="form-input"
+                value={formData.designation}
+                onChange={handleChange}
+                placeholder="Enter designation"
+              />
+            </div>
+
             <div className="form-group md:col-span-2">
               <label className="form-label">Photo</label>
               <input
@@ -1380,55 +1489,13 @@ const WorkerManagement = () => {
         </div>
       </Modal>
 
-      {/* Relieve Employee Modal */}
-      <Modal
+      {/* New Automated Relieve Employee Modal */}
+      <RelieveEmployeeModal
         isOpen={isRelieveModalOpen}
         onClose={() => setIsRelieveModalOpen(false)}
-        title="Confirm Employee Relieve"
-      >
-        <div className="space-y-4">
-          <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-            <p className="text-sm text-orange-800">
-              You are about to mark <strong>{selectedWorker?.name}</strong> as relieved. 
-              This will move them to the archived list.
-            </p>
-          </div>
-          
-          <div className="form-group">
-            <label className="text-sm font-bold text-gray-700 block mb-2">
-              To confirm, type the employee name below:
-            </label>
-            <input
-              type="text"
-              className="form-input border-orange-200 focus:ring-orange-500 focus:border-orange-500"
-              placeholder="Type employee name"
-              value={relieveConfirmName}
-              onChange={(e) => setRelieveConfirmName(e.target.value)}
-            />
-            <p className="mt-1 text-[10px] text-gray-500">Expected: <span className="font-mono bg-gray-100 px-1 rounded">{selectedWorker?.name}</span></p>
-          </div>
-        </div>
-
-        <div className="flex justify-end space-x-2 mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setIsRelieveModalOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            className="!bg-orange-600 !border-orange-600 hover:!bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => {
-              handleStatusChange(selectedWorker._id, 'Relieved');
-              setIsRelieveModalOpen(false);
-            }}
-            disabled={relieveConfirmName !== selectedWorker?.name}
-          >
-            Confirm Relieve
-          </Button>
-        </div>
-      </Modal>
+        worker={selectedWorker}
+        onComplete={loadData}
+      />
 
       {showFaceCapture && selectedWorkerForFace && (
         <FaceCapture

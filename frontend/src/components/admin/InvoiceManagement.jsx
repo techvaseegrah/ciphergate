@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 import Card from '../common/Card';
 import AdvancedInvoice from './AdvancedInvoice';
 import InvoiceHistory from './InvoiceHistory';
@@ -18,9 +19,10 @@ const InvoiceManagement = () => {
   const { user } = useAuth();
 
   // Filter states
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState('monthly');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [gstFilter, setGstFilter] = useState('all');
 
   // Renewal Modal State
   const [isRenewalModalOpen, setIsRenewalModalOpen] = useState(false);
@@ -28,23 +30,27 @@ const InvoiceManagement = () => {
 
   // Load invoices from backend on component mount
   useEffect(() => {
-    fetchInvoices();
+    fetchInvoices('monthly', '', '', 'all');
 
     // Update admin last viewed timestamp to reset notification count
     updateAdminLastViewed();
   }, []);
 
-  const fetchInvoices = async (type = filterType, start = startDate, end = endDate) => {
+  const fetchInvoices = async (type = filterType, start = startDate, end = endDate, gst = gstFilter) => {
     try {
       setLoading(true);
       setError(null);
-      
-      const params = { filterType: type };
+
+      const params = {
+        filterType: type,
+        gstFilter: gst
+      };
+
       if (type === 'custom' && start && end) {
         params.startDate = start;
         params.endDate = end;
       }
-      
+
       const response = await getAllInvoices(params);
       if (response.success) {
         setInvoices(response.data);
@@ -62,8 +68,13 @@ const InvoiceManagement = () => {
   const handleFilterChange = (type) => {
     setFilterType(type);
     if (type !== 'custom') {
-      fetchInvoices(type);
+      fetchInvoices(type, startDate, endDate, gstFilter);
     }
+  };
+
+  const handleGstFilterChange = (gst) => {
+    setGstFilter(gst);
+    fetchInvoices(filterType, startDate, endDate, gst);
   };
 
   const applyCustomFilter = () => {
@@ -71,7 +82,7 @@ const InvoiceManagement = () => {
       toast.warn('Please select both start and end dates');
       return;
     }
-    fetchInvoices('custom', startDate, endDate);
+    fetchInvoices('custom', startDate, endDate, gstFilter);
   };
 
   const handleInvoiceSave = async (invoiceData) => {
@@ -96,10 +107,10 @@ const InvoiceManagement = () => {
 
         // Automatically trigger renewal modal after save
         setRenewalInvoiceData({
-            id: response.data.invoiceNo,
-            mongoId: response.data._id,
-            customerName: invoiceData.customerName,
-            customerContact: invoiceData.customerContact
+          id: response.data.invoiceNo,
+          mongoId: response.data._id,
+          customerName: invoiceData.customerName,
+          customerContact: invoiceData.customerContact
         });
         setIsRenewalModalOpen(true);
       } else {
@@ -123,26 +134,192 @@ const InvoiceManagement = () => {
     toast.success('Invoice deleted successfully!');
   };
 
+  const handleStatusUpdate = (invoiceId, updatedData) => {
+    setInvoices(prev => prev.map(inv =>
+      inv._id === invoiceId ? { ...inv, ...updatedData } : inv
+    ));
+  };
+
+  const downloadSalesReport = () => {
+    if (invoices.length === 0) {
+      toast.warn("No invoices to export for the current filters");
+      return;
+    }
+
+    const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase();
+
+    // Create a temporary table element to use table_to_sheet for better alignment/merging support
+    const table = document.createElement('table');
+
+    // Row 1: Title
+    const tr1 = document.createElement('tr');
+    const td1 = document.createElement('td');
+    td1.setAttribute('colspan', '11');
+    td1.style.textAlign = 'center';
+    td1.style.fontWeight = 'bold';
+    td1.style.fontSize = '14pt';
+    td1.innerText = `TECH VASEEGRAH INVOICE ${monthYear}`;
+    tr1.appendChild(td1);
+    table.appendChild(tr1);
+
+    // Row 2: GSTIN
+    const tr2 = document.createElement('tr');
+    const td2 = document.createElement('td');
+    td2.setAttribute('colspan', '11');
+    td2.style.textAlign = 'center';
+    td2.style.fontWeight = 'bold';
+    td2.innerText = "GSTIN/UIN : 33KYGPS1983E1Z1";
+    tr2.appendChild(td2);
+    table.appendChild(tr2);
+
+    // Row 3: Headers
+    const tr3 = document.createElement('tr');
+    const headers = ["S.NO", "SELLER'S NAME", "SELLER'S GST NO", "INVOICE NO", "INVOICE DT", "TAX VALUE", "RATE", "Total Tax", "CGST", "SGST", "TOTAL INVOICE VALUE"];
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.style.border = '1px solid black';
+      th.style.backgroundColor = '#ffffff'; // White background as per image
+      th.style.fontWeight = 'bold';
+      th.style.textAlign = 'center';
+      th.innerText = h;
+      tr3.appendChild(th);
+    });
+    table.appendChild(tr3);
+
+    let totalTaxValue = 0;
+    let totalTaxAmount = 0;
+    let totalCgst = 0;
+    let totalSgst = 0;
+    let totalInvoiceValue = 0;
+
+    invoices.forEach((invoice, index) => {
+      const taxableValue = invoice.items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+      const totalTax = invoice.items.reduce((sum, item) => sum + (item.qty * item.rate * (item.gst / 100)), 0);
+      const invoiceTotal = taxableValue + totalTax;
+
+      const cgst = invoice.saleType === 'Intrastate' ? totalTax / 2 : 0;
+      const sgst = invoice.saleType === 'Intrastate' ? totalTax / 2 : 0;
+      const rate = invoice.items.length > 0 ? `${invoice.items[0].gst}%` : '18%';
+
+      const tr = document.createElement('tr');
+      [
+        index + 1,
+        invoice.customerName || 'N/A',
+        invoice.customerGst || 'N/A',
+        invoice.invoiceNo,
+        invoice.invoiceDate,
+        taxableValue.toFixed(2),
+        rate,
+        totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+        cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+        sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+        `₹${invoiceTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+      ].forEach((val, i) => {
+        const td = document.createElement('td');
+        td.style.border = '1px solid black';
+        td.style.textAlign = 'center'; // Center everything as per user request
+        td.innerText = val;
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+
+      totalTaxValue += taxableValue;
+      totalTaxAmount += totalTax;
+      totalCgst += cgst;
+      totalSgst += sgst;
+      totalInvoiceValue += invoiceTotal;
+    });
+
+    // Empty spacers if needed - in the image there's an empty row
+    const trEmpty = document.createElement('tr');
+    for (let i = 0; i < 11; i++) {
+      const td = document.createElement('td');
+      td.style.border = '1px solid black';
+      trEmpty.appendChild(td);
+    }
+    table.appendChild(trEmpty);
+
+    // Totals Row
+    const trTotal = document.createElement('tr');
+    trTotal.style.fontWeight = 'bold';
+    [
+      "", "", "", "", "",
+      totalTaxValue.toFixed(2),
+      "",
+      totalTaxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      totalCgst.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      totalSgst.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      `₹${totalInvoiceValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    ].forEach((val, i) => {
+      const td = document.createElement('td');
+      td.style.border = '1px solid black';
+      td.style.textAlign = 'center';
+      td.innerText = val;
+      trTotal.appendChild(td);
+    });
+    table.appendChild(trTotal);
+
+    // Convert table to worksheet
+    const ws = XLSX.utils.table_to_sheet(table);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 35 }, { wch: 25 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
+    XLSX.writeFile(wb, `TECH_VASEEGRAH_REPORT_${monthYear.replace(' ', '_')}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <h1 className="text-2xl font-bold text-gray-800">Invoice Management</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex gap-3">
+          {(activeTab === 'invoice-history' || activeTab === 'unified-history') && (
             <button
-            onClick={() => {
-                setEditingInvoice(null);
-                setActiveTab('advanced-invoice');
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-xl shadow-sm transition-all duration-200 flex items-center gap-2"
+              onClick={downloadSalesReport}
+              className="flex items-center gap-2 bg-green-50 text-green-700 hover:bg-green-100 font-bold py-2 px-4 rounded-xl border border-green-200 transition-all shadow-sm"
             >
-            <span className="text-lg">+</span> Create New Invoice
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download Sales Report
             </button>
+          )}
+          <button
+            onClick={() => {
+              setEditingInvoice(null);
+              setActiveTab('advanced-invoice');
+            }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-200"
+          >
+            <span className="text-xl">+</span> Create New Invoice
+          </button>
         </div>
       </div>
 
       {/* Global Filter UI - Only show for history tabs */}
       {(activeTab === 'invoice-history' || activeTab === 'unified-history') && (
-        <div className="flex flex-wrap items-center justify-end gap-3 animate-in fade-in slide-in-from-top-4">
+        <div className="flex flex-wrap items-center justify-end gap-4 animate-in fade-in slide-in-from-top-4">
+          {/* GST Filter Dropdown */}
+          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+            <span className="text-xs font-bold text-gray-400 ml-2 uppercase">Filter:</span>
+            <select
+              value={gstFilter}
+              onChange={(e) => handleGstFilterChange(e.target.value)}
+              className="bg-transparent border-none text-sm font-bold text-blue-600 focus:ring-0 cursor-pointer pr-8"
+            >
+              <option value="all">All Invoices</option>
+              <option value="gst">GST Only</option>
+              <option value="non-gst">Non-GST</option>
+              <option value="igst">IGST (Interstate)</option>
+              <option value="cgst-sgst">CGST/SGST (Intrastate)</option>
+            </select>
+          </div>
+
           <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
             {[
               { id: 'today', label: 'Today' },
@@ -154,11 +331,10 @@ const InvoiceManagement = () => {
               <button
                 key={option.id}
                 onClick={() => handleFilterChange(option.id)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  filterType === option.id 
-                    ? 'bg-blue-50 text-blue-600 shadow-inner' 
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${filterType === option.id
+                    ? 'bg-blue-50 text-blue-600 shadow-inner'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 {option.label}
               </button>
@@ -221,8 +397,8 @@ const InvoiceManagement = () => {
           <button
             onClick={() => setActiveTab('advanced-invoice')}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'advanced-invoice'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             Advanced Invoice
@@ -230,8 +406,8 @@ const InvoiceManagement = () => {
           <button
             onClick={() => setActiveTab('invoice-history')}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'invoice-history'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             Invoice History
@@ -239,8 +415,8 @@ const InvoiceManagement = () => {
           <button
             onClick={() => setActiveTab('unified-history')}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'unified-history'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             All Invoices
@@ -248,8 +424,8 @@ const InvoiceManagement = () => {
           <button
             onClick={() => setActiveTab('delete-history')}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'delete-history'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
             Delete History
@@ -269,7 +445,8 @@ const InvoiceManagement = () => {
           <InvoiceHistory
             invoices={invoices}
             onEditInvoice={handleEditInvoice}
-            onDeleteInvoice={handleDeleteInvoice} // Pass the callback
+            onDeleteInvoice={handleDeleteInvoice}
+            onStatusUpdate={handleStatusUpdate}
           />
         )}
         {activeTab === 'unified-history' && !loading && (
@@ -277,6 +454,7 @@ const InvoiceManagement = () => {
             invoices={invoices}
             onEditInvoice={handleEditInvoice}
             onDeleteInvoice={handleDeleteInvoice}
+            onStatusUpdate={handleStatusUpdate}
           />
         )}
         {activeTab === 'delete-history' && (

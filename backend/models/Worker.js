@@ -111,6 +111,24 @@ const workerSchema = mongoose.Schema({
     enum: ['not_submitted', 'submitted', 'returned'],
     default: 'not_submitted'
   },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  phoneNumber: {
+    type: String,
+    trim: true
+  },
+  joiningDate: {
+    type: Date,
+    default: Date.now
+  },
+  designation: {
+    type: String,
+    trim: true,
+    default: 'Employee'
+  },
   certificate_notes: {
     type: String,
     default: ''

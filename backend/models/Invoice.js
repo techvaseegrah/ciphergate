@@ -52,6 +52,23 @@ const invoiceSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  paymentDetails: {
+    date: { type: Date },
+    proof: { type: String }
+  },
+  workDetails: {
+    date: { type: Date },
+    proof: { type: String }
+  },
+  closureDetails: {
+    date: { type: Date },
+    proof: { type: String }
+  },
+  status: { 
+    type: String, 
+    enum: ['Invoice', 'Payment Received', 'Work completion', 'Closure agreement'], 
+    default: 'Invoice' 
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

@@ -49,8 +49,8 @@ const startServer = async () => {
     app.options('*', cors(corsOptions));
 
     // Middleware
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: false }));
+    app.use(express.json({ limit: '50mb' }));
+    app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
     // Serve static files from uploads directory with proper headers
     app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
@@ -83,6 +83,7 @@ const startServer = async () => {
     const communityFundRoutes = require('./routes/communityFundRoutes'); // ADD THIS
     const ticketRoutes = require('./routes/ticketRoutes');
     const githubRoutes = require('./routes/githubRoutes');
+    const exitManagementRoutes = require('./routes/exitManagementRoutes');
 
     // Test App routes
     const testQuestionRoutes = require('./routes/testQuestionRoutes');
@@ -122,6 +123,7 @@ const startServer = async () => {
     app.use('/api/tickets', ticketRoutes);
     app.use('/api/certificates', require('./routes/certificateRoutes'));
     app.use('/api/github', githubRoutes);
+    app.use('/api/exit-management', exitManagementRoutes);
 
 
     // Test App routes

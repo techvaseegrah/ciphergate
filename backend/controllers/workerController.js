@@ -33,6 +33,10 @@ const createWorker = asyncHandler(async (req, res) => {
     const faceEmbeddings = req.body.faceEmbeddings ? req.body.faceEmbeddings : []; // ADDED THIS
     const employeeType = req.body.employeeType ? req.body.employeeType.trim() : 'intern';
     const classValue = req.body.class ? req.body.class.trim() : 'A';
+    const email = req.body.email ? req.body.email.trim() : '';
+    const phoneNumber = req.body.phoneNumber ? req.body.phoneNumber.trim() : '';
+    const joiningDate = req.body.joiningDate ? req.body.joiningDate : new Date();
+    const designation = req.body.designation ? req.body.designation.trim() : 'Employee';
     let perDaySalary = 0;
 
     if (salary <= 0) {
@@ -102,6 +106,10 @@ const createWorker = asyncHandler(async (req, res) => {
       faceEmbeddings: faceEmbeddings || [], // ADDED THIS
       employeeType,
       class: classValue,
+      email,
+      phoneNumber,
+      joiningDate,
+      designation,
       original_certificate_status: req.body.original_certificate_status || 'not_submitted', // ADDED
       certificate_notes: req.body.certificate_notes || '', // ADDED
       totalPoints: 0
@@ -130,6 +138,10 @@ const createWorker = asyncHandler(async (req, res) => {
       faceEnrolled: worker.faceEnrolled,
       employeeType: worker.employeeType,
       class: worker.class,
+      email: worker.email,
+      phoneNumber: worker.phoneNumber,
+      joiningDate: worker.joiningDate,
+      designation: worker.designation,
       status: worker.status
     });
 
@@ -287,7 +299,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status } = req.body; // ADDED status
+    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status, email, phoneNumber, joiningDate, designation } = req.body; // ADDED status and new fields
     const updateData = {};
 
     // Validate department if provided
@@ -351,6 +363,11 @@ const updateWorker = asyncHandler(async (req, res) => {
     if (classValue) {
       updateData.class = classValue;
     }
+    
+    if (email !== undefined) updateData.email = email;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (joiningDate !== undefined) updateData.joiningDate = joiningDate;
+    if (designation !== undefined) updateData.designation = designation;
 
     // ADDED: Certificate Tracking Logic
     if (req.body.original_certificate_status) {
@@ -427,6 +444,10 @@ const updateWorker = asyncHandler(async (req, res) => {
       faceEnrolled: updatedWorker.faceEnrolled,
       employeeType: updatedWorker.employeeType,
       class: updatedWorker.class,
+      email: updatedWorker.email,
+      phoneNumber: updatedWorker.phoneNumber,
+      joiningDate: updatedWorker.joiningDate,
+      designation: updatedWorker.designation,
       status: updatedWorker.status
     });
   } catch (error) {
