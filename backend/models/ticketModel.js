@@ -68,6 +68,10 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    workerQuery: {
+        type: String,
+        trim: true
+    },
     reporter: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Worker'
@@ -87,7 +91,18 @@ const ticketSchema = new mongoose.Schema({
         completedAt: {
             type: Date
         }
-    }]
+    }],
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: {
+        type: Date
+    },
+    deletedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Worker'
+    }
 }, { timestamps: true });
 
 // Middleware to record status history

@@ -43,7 +43,12 @@ const parseChecklist = (description, existingChecklist = []) => {
 exports.getTickets = async (req, res) => {
     try {
         const subdomain = req.user?.subdomain || req.query.subdomain;
-        let query = {};
+        let query = { isDeleted: { $ne: true } };
+        
+        if (req.query.isDeleted === 'true') {
+            query.isDeleted = true;
+        }
+
         if (subdomain) {
             query.subdomain = subdomain;
         }
@@ -144,7 +149,7 @@ exports.createTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
     try {
         const ticketId = req.params.id;
-        const { title, description, assignee, assignees, team, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist, feedback } = req.body;
+        const { title, description, assignee, assignees, team, priority, status, issueType, storyPoints, labels, startDate, endDate, checklist, feedback, workerQuery } = req.body;
 
         const ticket = await Ticket.findById(ticketId);
 
@@ -153,7 +158,7 @@ exports.updateTicket = async (req, res) => {
         }
 
         // Verify subdomain access
-        const subdomain = req.user?.subdomain;
+        const subdomain = req.user?.subdomain || req.body.subdomain;
         if (subdomain && ticket.subdomain && ticket.subdomain !== subdomain) {
             return res.status(403).json({ message: 'Not authorized to access this ticket' });
         }
@@ -185,6 +190,7 @@ exports.updateTicket = async (req, res) => {
             ticket.endDate = (endDate && endDate.trim() !== '') ? new Date(endDate) : undefined;
         }
         if (feedback !== undefined) ticket.feedback = feedback;
+        if (workerQuery !== undefined) ticket.workerQuery = workerQuery;
 
         // Ensure checklist is updated if provided
         if (checklist !== undefined) {
@@ -208,19 +214,24 @@ exports.updateTicket = async (req, res) => {
         ]);
 
         // Trigger push notifications
-        const { sendNotification } = require('../utils/sendNotification');
-        const usersToNotify = assignees || (assignee ? [assignee] : []);
-        
-        for (const userId of usersToNotify) {
-            await sendNotification({
-                userId,
-                userModel: 'Worker',
-                subdomain: updatedTicket.subdomain,
-                title: 'Task Updated',
-                message: `Updated: ${updatedTicket.title} | Status: ${updatedTicket.status} | Priority: ${updatedTicket.priority}`,
-                type: 'task_updated',
-                link: '/worker/work-allocation'
-            });
+        try {
+            const { sendNotification } = require('../utils/sendNotification');
+            const usersToNotify = assignees || (assignee ? [assignee] : []);
+            
+            for (const userId of usersToNotify) {
+                await sendNotification({
+                    userId,
+                    userModel: 'Worker',
+                    subdomain: updatedTicket.subdomain,
+                    title: 'Task Updated',
+                    message: `Updated: ${updatedTicket.title} | Status: ${updatedTicket.status} | Priority: ${updatedTicket.priority}`,
+                    type: 'task_updated',
+                    link: '/worker/work-allocation'
+                });
+            }
+        } catch (notifError) {
+            console.error('Failed to send push notifications:', notifError);
+            // Don't fail the request if notifications fail
         }
 
         // Socket emission
@@ -251,7 +262,12 @@ exports.deleteTicket = async (req, res) => {
         }
 
         const subdomainForSocket = ticket.subdomain;
-        await ticket.deleteOne();
+        
+        ticket.isDeleted = true;
+        ticket.deletedAt = new Date();
+        ticket.deletedBy = req.user?._id;
+        
+        await ticket.save();
 
         // Socket emission
         const io = getIO();

@@ -63,7 +63,7 @@ const Modal = ({
   const modalContent = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto overflow-x-hidden">
+        <div className="fixed inset-0 z-[1000] flex items-start justify-center py-8 px-4 sm:px-6 overflow-y-auto overflow-x-hidden">
           {/* Backdrop with enhanced blur and darkness */}
           <motion.div 
             initial={{ opacity: 0 }}
@@ -80,7 +80,7 @@ const Modal = ({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
             ref={modalRef}
-            className={`relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] w-full ${sizeClasses[size]} overflow-hidden border border-white/20`}
+            className={`relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] w-full ${sizeClasses[size]} border border-white/20`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -98,7 +98,7 @@ const Modal = ({
             </div>
             
             {/* Modal Body */}
-            <div className="px-6 py-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
+            <div className="px-6 py-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
               {children}
             </div>
             

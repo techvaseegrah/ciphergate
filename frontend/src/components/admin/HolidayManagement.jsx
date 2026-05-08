@@ -62,7 +62,7 @@ const HolidayManagement = () => {
 
   const fetchWorkers = async () => {
     try {
-      const data = await getWorkers(subdomain);
+      const data = await getWorkers({ subdomain });
       setWorkers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch workers', err);

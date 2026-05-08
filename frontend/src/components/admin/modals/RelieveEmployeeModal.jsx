@@ -52,24 +52,58 @@ const RelieveEmployeeModal = ({ isOpen, onClose, worker, onComplete }) => {
 
   // --- EFFECTS ---
   useEffect(() => {
-    if (worker) {
-      setExitDetails(prev => ({
-        ...prev,
-        joiningDate: (worker.joiningDate || worker.createdAt) ? new Date(worker.joiningDate || worker.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        designation: worker.designation || 'Employee',
-        salary: worker.salary || 0
-      }));
+    if (isOpen && worker) {
+      // Reset Modal State
+      setStep(1);
+      setIsLoading(false);
+      setExpandedDoc(null);
+      setGenProgress('');
 
-      // Initialize doc data
-      const years = calculateExperience(worker.joiningDate, exitDetails.relievingDate);
+      const jDate = (worker.joiningDate || worker.createdAt) 
+        ? new Date(worker.joiningDate || worker.createdAt).toISOString().split('T')[0] 
+        : new Date().toISOString().split('T')[0];
+      const rDate = new Date().toISOString().split('T')[0];
+
+      // Reset Exit Details
+      setExitDetails({
+        joiningDate: jDate,
+        relievingDate: rDate,
+        lastWorkingDay: rDate,
+        reason: 'Personal Reasons',
+        designation: worker.designation || 'Employee',
+        salary: worker.salary || 0,
+        email: worker.email || '',
+        phoneNumber: worker.phoneNumber || ''
+      });
+
+      // Reset Selected Docs
+      setSelectedDocs({
+        'Offer Letter': false,
+        'Acceptance Letter': false,
+        'Relieving Letter': true,
+        'Experience Certificate': true,
+        'Monthly Payslip': true,
+        'Intern Certificate': false
+      });
+
+      // Reset Delivery Options
+      setDeliveryOptions({
+        email: true,
+        whatsapp: true,
+        download: true
+      });
+
+      // Initialize Document specific data
+      const years = calculateExperience(jDate, rDate);
       setDocData({
         'Relieving Letter': {
-          para1: `This is to formally confirm that your resignation has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on ${formatDate(exitDetails.relievingDate)}.`,
+          para1: `This is to formally confirm that your resignation has been accepted by the management. You have been relieved from your duties with Tech Vaseegrah at the close of business on ${formatDate(rDate)}.`,
           para2: `We hereby acknowledge that you have completed all required handover and clearance formalities.`
         },
         'Experience Certificate': {
-          para1: `This is to certify that ${worker.name} was employed with Tech Vaseegrah as a ${worker.designation || 'Employee'} from ${formatDate(worker.joiningDate)} to ${formatDate(exitDetails.relievingDate)}.`,
-          duration: `${years.years} years and ${years.months} months`
+          para1: `This is to certify that **${worker.name}** was employed at Tech Vaseegrah as a **${worker.designation || 'Employee'}** from ${formatDate(jDate)} to ${formatDate(rDate)}.`,
+          para2: `During the tenure of employment, they provided effective ${worker.designation || 'Employee'} support across projects, contributing positively to both development workflows and client deliverables. Their performance and conduct were consistently satisfactory throughout the employment period.`,
+          para3: `We wish them continued success in all their future professional endeavors.`
         },
         'Monthly Payslip': [
           {
@@ -91,7 +125,7 @@ const RelieveEmployeeModal = ({ isOpen, onClose, worker, onComplete }) => {
         ]
       });
     }
-  }, [worker]);
+  }, [isOpen, worker]);
 
   // Update doc data when exit details change
   useEffect(() => {

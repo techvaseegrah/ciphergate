@@ -1504,8 +1504,8 @@ const SalaryManagement = () => {
                 <div className="space-y-8">
                     {/* Filter & Selection Header */}
                     <div className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
+                        <div className="flex flex-col md:flex-row items-start gap-8">
+                            <div className="w-full md:w-1/2 space-y-4 flex-shrink-0">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
                                         <FaCalendarAlt size={18} />
@@ -1560,7 +1560,7 @@ const SalaryManagement = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="w-full md:w-1/2 space-y-4">
                                 <div className="flex justify-between items-center px-1">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Selection</p>
                                     <button
@@ -1570,11 +1570,11 @@ const SalaryManagement = () => {
                                         {selectedWorkersForReport.length === filteredWorkers.length ? 'Deselect All' : 'Select All'}
                                     </button>
                                 </div>
-                                <div className="max-h-48 overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                                <div className="h-64 overflow-y-auto pr-2 custom-scrollbar space-y-2">
                                     {filteredWorkers.map(worker => (
                                         <label
                                             key={worker._id}
-                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${selectedWorkersForReport.includes(worker._id) ? 'bg-white border-teal-200 shadow-sm' : 'bg-transparent border-slate-100 hover:border-slate-200'}`}
+                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-colors cursor-pointer group ${selectedWorkersForReport.includes(worker._id) ? 'bg-white border-teal-200 shadow-sm' : 'bg-transparent border-slate-100 hover:border-slate-200'}`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
@@ -1600,7 +1600,7 @@ const SalaryManagement = () => {
                                                 checked={selectedWorkersForReport.includes(worker._id)}
                                                 onChange={() => toggleWorkerSelection(worker._id)}
                                             />
-                                            <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'}`}>
+                                            <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'}`}>
                                                 {selectedWorkersForReport.includes(worker._id) && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                             </div>
                                         </label>
@@ -1619,7 +1619,7 @@ const SalaryManagement = () => {
                                 className="space-y-6"
                             >
                                 {/* Quick Stats Summary */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
                                         <div className="absolute -right-4 -bottom-4 text-emerald-100 opacity-50 group-hover:scale-110 transition-transform">
                                             <FaDonate size={80} />
@@ -1651,6 +1651,17 @@ const SalaryManagement = () => {
                                             </p>
                                         </div>
                                     </div>
+                                    <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                                        <div className="absolute -right-4 -bottom-4 text-violet-100 opacity-50 group-hover:scale-110 transition-transform">
+                                            <FaDonate size={80} />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Avg Salary / Worker</p>
+                                            <p className="text-3xl font-black text-violet-700">
+                                                ₹{bulkReportData.length > 0 ? (bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0) / bulkReportData.length).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center justify-between">
@@ -1676,8 +1687,8 @@ const SalaryManagement = () => {
                                     <div className="h-px flex-1 bg-slate-100 mx-4"></div>
                                 </div>
 
-                                <div className="rounded-[2.5rem] border border-slate-100 overflow-hidden bg-white shadow-xl shadow-slate-200/40">
-                                    <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
+                                <div className="rounded-[2.5rem] border border-slate-100 overflow-visible bg-white shadow-xl shadow-slate-200/40">
+                                    <div className="overflow-auto max-h-[400px] custom-scrollbar">
                                         <table className="min-w-full divide-y divide-slate-100 text-xs">
                                             <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
                                                 <tr>

@@ -8,7 +8,7 @@ import {
     Search, Plus, Trash2, CheckSquare,
     AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
     Minus, X, User, AlignLeft, LayoutDashboard, Flag, List, ListOrdered,
-    Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText
+    Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText, HelpCircle
 } from 'lucide-react';
 import { getFullFileUrl } from '../../utils/fileUtils';
 import {
@@ -351,6 +351,9 @@ const WorkAllocation = () => {
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, ticket: null });
     const [rejectConfirm, setRejectConfirm] = useState({ isOpen: false, ticket: null, reason: '' });
     const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+    const [isDeletedModalOpen, setIsDeletedModalOpen] = useState(false);
+    const [deletedTickets, setDeletedTickets] = useState([]);
+    const [loadingDeleted, setLoadingDeleted] = useState(false);
 
     // Completion states for breakdown
     const [ticketCompletions, setTicketCompletions] = useState([]);
@@ -451,6 +454,18 @@ const WorkAllocation = () => {
             console.error('Error fetching completions:', error);
         } finally {
             setIsFetchingCompletions(false);
+        }
+    };
+
+    const fetchDeletedTickets = async () => {
+        setLoadingDeleted(true);
+        try {
+            const data = await getTickets({ subdomain, isDeleted: true });
+            setDeletedTickets(data);
+        } catch (error) {
+            console.error('Error fetching deleted tickets:', error);
+        } finally {
+            setLoadingDeleted(false);
         }
     };
 
@@ -745,25 +760,41 @@ const WorkAllocation = () => {
     };
 
     const filteredTickets = tickets.filter(t => {
-        const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesAssignee = filterAssignee === 'unassigned'
-            ? !t.assignee
-            : filterAssignee
-                ? t.assignee?._id === filterAssignee
-                : true;
+        const matchesSearch = t.title?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Handle assignee filter (check both single assignee and assignees array)
+        let matchesAssignee = true;
+        if (filterAssignee === 'unassigned') {
+            matchesAssignee = !t.assignee && (!t.assignees || t.assignees.length === 0);
+        } else if (filterAssignee) {
+            const assigneeId = t.assignee?._id || t.assignee;
+            const inAssignees = t.assignees?.some(a => (typeof a === 'object' ? a._id === filterAssignee : a === filterAssignee));
+            matchesAssignee = assigneeId === filterAssignee || inAssignees;
+        }
 
         const matchesPriority = filterPriority ? t.priority === filterPriority : true;
 
         let matchesTeam = true;
         if (filterTeam) {
             if (filterTeam === 'unassigned') {
-                matchesTeam = !t.assignee && (!t.assignees || t.assignees.length === 0);
+                matchesTeam = !t.team;
             } else {
                 if (t.team) {
                     matchesTeam = t.team === filterTeam;
                 } else {
+                    // Fallback to checking assignee's team if task has no team set
                     const assigneeWorker = workers.find(w => w._id === (t.assignee?._id || t.assignee));
-                    matchesTeam = assigneeWorker && assigneeWorker.department === filterTeam;
+                    let teamMatched = assigneeWorker && assigneeWorker.department === filterTeam;
+
+                    // Also check assignees array if fallback didn't match
+                    if (!teamMatched && t.assignees?.length > 0) {
+                        teamMatched = t.assignees.some(a => {
+                            const wId = typeof a === 'object' ? a._id : a;
+                            const w = workers.find(worker => worker._id === wId);
+                            return w && w.department === filterTeam;
+                        });
+                    }
+                    matchesTeam = teamMatched;
                 }
             }
         }
@@ -803,6 +834,16 @@ const WorkAllocation = () => {
                                 className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-xl flex items-center justify-center text-xs transition-all shadow-lg shadow-blue-100 active:scale-95"
                             >
                                 <Plus className="w-4 h-4 mr-2" /> New Task
+                            </button>
+                            <button
+                                onClick={() => {
+                                    fetchDeletedTickets();
+                                    setIsDeletedModalOpen(true);
+                                }}
+                                className="flex-1 md:flex-none bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center text-xs transition-all border border-slate-200"
+                            >
+                                <History className="w-4 h-4 mr-2 text-slate-400" />
+                                <span>Deleted Tasks</span>
                             </button>
                         </div>
                     </div>
@@ -1135,7 +1176,7 @@ const WorkAllocation = () => {
                                             setLoading(true);
                                             try {
                                                 const taskToSave = { ...selectedTicket };
-                                                
+
                                                 // Remove UI-only fields
                                                 delete taskToSave._id;
                                                 taskToSave.subdomain = subdomain;
@@ -1144,9 +1185,9 @@ const WorkAllocation = () => {
                                                 if (taskToSave.assignee && typeof taskToSave.assignee === 'object') {
                                                     taskToSave.assignee = taskToSave.assignee._id;
                                                 }
-                                                
+
                                                 if (taskToSave.assignees && Array.isArray(taskToSave.assignees)) {
-                                                    taskToSave.assignees = taskToSave.assignees.map(a => 
+                                                    taskToSave.assignees = taskToSave.assignees.map(a =>
                                                         (a && typeof a === 'object') ? a._id : a
                                                     ).filter(Boolean);
                                                 }
@@ -1282,7 +1323,8 @@ const WorkAllocation = () => {
                                                                 type="date"
                                                                 value={selectedTicket.startDate || ''}
                                                                 onChange={(e) => updateSelectedTicket({ startDate: e.target.value })}
-                                                                className="w-full bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+                                                                onClick={(e) => e.target.showPicker?.()}
+                                                                className="w-full bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500 shadow-sm cursor-pointer"
                                                             />
                                                             <span className="absolute -top-4 left-1 text-[8px] font-bold text-teal-600/50 uppercase">Start</span>
                                                         </div>
@@ -1292,7 +1334,8 @@ const WorkAllocation = () => {
                                                                 type="date"
                                                                 value={selectedTicket.endDate || ''}
                                                                 onChange={(e) => updateSelectedTicket({ endDate: e.target.value })}
-                                                                className={`w-full border-none rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500 shadow-sm ${isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-gray-700 border border-gray-100'}`}
+                                                                onClick={(e) => e.target.showPicker?.()}
+                                                                className={`w-full border-none rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500 shadow-sm cursor-pointer ${isOverdue(selectedTicket.endDate, selectedTicket.status) ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-white text-gray-700 border border-gray-100'}`}
                                                             />
                                                             <span className="absolute -top-4 left-1 text-[8px] font-bold text-teal-600/50 uppercase">End</span>
                                                         </div>
@@ -1374,6 +1417,19 @@ const WorkAllocation = () => {
                                                         ))}
                                                     </div>
                                                 </div>
+
+                                                {/* Employee Query Display */}
+                                                {selectedTicket.workerQuery && (
+                                                    <div className="flex flex-col gap-2 pt-1 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <HelpCircle className="w-3 h-3 text-teal-600" />
+                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Employee Query</span>
+                                                        </div>
+                                                        <div className="w-full bg-teal-50 border border-teal-100 rounded-xl p-3 text-xs font-medium text-teal-800">
+                                                            {selectedTicket.workerQuery}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="flex flex-col gap-2 pt-1">
                                                     <div className="flex items-center gap-2">
@@ -1775,6 +1831,14 @@ const WorkAllocation = () => {
                 workers={workers}
                 columns={columns}
             />
+
+            {/* Deleted Tasks Modal */}
+            <DeletedTicketsModal
+                isOpen={isDeletedModalOpen}
+                onClose={() => setIsDeletedModalOpen(false)}
+                tickets={deletedTickets}
+                loading={loadingDeleted}
+            />
         </div >
     );
 };
@@ -1933,6 +1997,98 @@ const StatsBreakdownModal = ({ isOpen, onClose, tickets, workers, columns }) => 
                         className="px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-bold rounded-xl transition-all shadow-md active:scale-95"
                     >
                         Close Overview
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DeletedTicketsModal = ({ isOpen, onClose, tickets, loading }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-[250] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col transform animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="px-6 py-4 flex justify-between items-center text-gray-800 shrink-0 border-b border-gray-100 bg-gray-50/50">
+                    <div className="flex items-center space-x-2">
+                        <span className="text-rose-600">🗑️</span>
+                        <h2 className="text-lg font-bold">Deleted Tasks History</h2>
+                        <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2.5 py-0.5 rounded-full border border-rose-200 ml-2">
+                            {tickets.length} Tasks
+                        </span>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors bg-gray-100">
+                        <span>✕</span>
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
+                    {loading ? (
+                        <div className="flex justify-center items-center h-40">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+                        </div>
+                    ) : tickets.length === 0 ? (
+                        <div className="text-center text-gray-400 text-sm italic py-10">No deleted tasks found.</div>
+                    ) : (
+                        <div className="space-y-4">
+                            {tickets.map(ticket => (
+                                <div key={ticket._id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="text-sm font-bold text-gray-800">{ticket.title}</div>
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                            Deleted: {ticket.deletedAt ? new Date(ticket.deletedAt).toLocaleString('en-GB') : 'N/A'}
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 line-clamp-2 mb-3">{ticket.description || 'No description'}</p>
+                                    <div className="flex flex-wrap gap-2 items-center text-[10px] font-bold text-gray-500">
+                                        <span className={`px-2 py-0.5 rounded-md ${ticket.priority === 'High' ? 'bg-red-50 text-red-600' : ticket.priority === 'Medium' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+                                            {ticket.priority}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600">
+                                            {ticket.status}
+                                        </span>
+                                        {ticket.assignee && (
+                                            <span className="px-2 py-0.5 rounded-md bg-teal-50 text-teal-600">
+                                                Assigned: {ticket.assignee.name || ticket.assignee}
+                                            </span>
+                                        )}
+                                        {ticket.team && (
+                                            <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-600">
+                                                Team: {ticket.team}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Checklist */}
+                                    {ticket.checklist && ticket.checklist.length > 0 && (
+                                        <div className="mt-3 pl-3 border-l-2 border-slate-200 space-y-1">
+                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Checklist</div>
+                                            {ticket.checklist.map((item, idx) => (
+                                                <div key={idx} className="text-xs text-slate-600 flex items-center gap-1.5">
+                                                    <span className={item.completed ? 'text-teal-500' : 'text-slate-300'}>
+                                                        {item.completed ? '✓' : '○'}
+                                                    </span>
+                                                    <span className={item.completed ? 'line-through text-slate-400' : ''}>{item.text}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-bold rounded-xl transition-all shadow-md active:scale-95"
+                    >
+                        Close
                     </button>
                 </div>
             </div>

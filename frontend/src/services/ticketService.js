@@ -28,7 +28,7 @@ export const updateTicket = async (id, ticketData) => {
         const response = await api.put(`${API_URL}/${id}`, ticketData);
         return response.data;
     } catch (error) {
-        throw error.response?.data?.message || 'Error updating ticket';
+        throw error.response?.data?.error || error.response?.data?.message || 'Error updating ticket';
     }
 };
 

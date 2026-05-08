@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import { toast } from 'react-toastify';
 import appContext from '../../context/AppContext';
 import { useSocket } from '../../context/SocketContextNew';
 import { getTickets, updateTicket, getTicketCompletions, deleteSubTaskProof } from '../../services/ticketService';
@@ -7,7 +8,7 @@ import Spinner from '../common/Spinner';
 import { useAuth } from '../../hooks/useAuth';
 import {
     Search, CheckSquare, AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
-    Minus, X, User, AlignLeft, Calendar, Users, Paperclip, CheckCircle2, History, Upload, File
+    Minus, X, User, AlignLeft, Calendar, Users, Paperclip, CheckCircle2, History, Upload, File, HelpCircle
 } from 'lucide-react';
 import { getFullFileUrl } from '../../utils/fileUtils';
 
@@ -721,6 +722,52 @@ const WorkerWorkAllocation = () => {
                                                 {selectedTicket.description || 'No description provided.'}
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Employee Query Section */}
+                                    <div className="mt-6 pt-4 border-t border-gray-100">
+                                        <label className="text-sm font-bold text-gray-700 flex items-center mb-3">
+                                            <HelpCircle className="w-4 h-4 mr-2 text-teal-600" /> Ask a Question / Feedback
+                                        </label>
+                                        <div className="bg-gray-50/50 border border-gray-200 rounded-xl p-4">
+                                            {selectedTicket.workerQuery ? (
+                                                <div className="mb-3">
+                                                    <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Your Question</div>
+                                                    <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-100">{selectedTicket.workerQuery}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-500 mb-3">Have any doubts about this task? Ask here.</p>
+                                            )}
+                                            
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Type your question here..."
+                                                    id="workerQueryInput"
+                                                    className="flex-1 bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                                                />
+                                                <button
+                                                    onClick={async () => {
+                                                        const input = document.getElementById('workerQueryInput');
+                                                        const query = input.value.trim();
+                                                        if (!query) return;
+                                                        
+                                                        try {
+                                                            await updateTicket(selectedTicket._id, { workerQuery: query, subdomain });
+                                                            setSelectedTicket({ ...selectedTicket, workerQuery: query });
+                                                            input.value = '';
+                                                            toast.success('Question sent successfully!');
+                                                        } catch (e) {
+                                                            console.error('Failed to send query', e);
+                                                            toast.error('Failed to send question');
+                                                        }
+                                                    }}
+                                                    className="bg-teal-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-teal-700 transition-all"
+                                                >
+                                                    Send
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
