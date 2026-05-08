@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FaDonate, FaFileInvoiceDollar, FaFilePdf, FaTrash, FaCalendarAlt, FaList } from 'react-icons/fa';
+import { FaDonate, FaFileInvoiceDollar, FaFilePdf, FaTrash, FaCalendarAlt, FaList, FaChevronLeft } from 'react-icons/fa';
 import { FiRefreshCcw } from "react-icons/fi";
 import { getWorkers } from '../../services/workerService';
 import { getDepartments } from '../../services/departmentService';
@@ -1494,75 +1494,90 @@ const SalaryManagement = () => {
                 onFineAdded={loadData}
             />
 
-            {/* BULK REPORT MODAL */}
-            <Modal
-                isOpen={isBulkReportModalOpen}
-                onClose={() => setIsBulkReportModalOpen(false)}
-                title="Bulk Salary Reports"
-                size="xl"
-            >
-                <div className="space-y-8 overflow-x-hidden pr-1">
-                    {/* Filter & Selection Header */}
-                    <div className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 min-h-0">
-                            <div className="w-full space-y-4 min-w-0 min-h-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
-                                        <FaCalendarAlt size={18} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Report Period</p>
-                                        <div className="flex items-center gap-2">
-                                            <select
-                                                value={selectedMonth}
-                                                onChange={handleMonthChange}
-                                                className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-                                            >
-                                                <option value={1}>January</option>
-                                                <option value={2}>February</option>
-                                                <option value={3}>March</option>
-                                                <option value={4}>April</option>
-                                                <option value={5}>May</option>
-                                                <option value={6}>June</option>
-                                                <option value={7}>July</option>
-                                                <option value={8}>August</option>
-                                                <option value={9}>September</option>
-                                                <option value={10}>October</option>
-                                                <option value={11}>November</option>
-                                                <option value={12}>December</option>
-                                            </select>
-                                            <select
-                                                value={selectedYear}
-                                                onChange={handleYearChange}
-                                                className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
-                                            >
-                                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                                                    <option key={year} value={year}>{year}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="pt-2">
-                                    <Button
-                                        variant="primary"
-                                        onClick={generateBulkReport}
-                                        disabled={isBulkReportLoading || selectedWorkersForReport.length === 0}
-                                        className="w-full justify-center py-3 rounded-2xl shadow-lg shadow-teal-500/20"
-                                    >
-                                        {isBulkReportLoading ? <Spinner size="sm" /> : (
-                                            <div className="flex items-center gap-2">
-                                                <FiRefreshCcw className={isBulkReportLoading ? 'animate-spin' : ''} />
-                                                <span>Generate Reports for {selectedWorkersForReport.length} Workers</span>
-                                            </div>
-                                        )}
-                                    </Button>
+            {/* BULK REPORT — FULL PAGE OVERLAY */}
+            <AnimatePresence>
+                {isBulkReportModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+                        className="fixed inset-0 z-[999] bg-gradient-to-br from-slate-50 via-white to-slate-50 flex flex-col"
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        {/* ── Sticky Header ── */}
+                        <div className="flex-none bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 md:px-8 py-4 flex items-center justify-between shadow-sm gap-4">
+                            {/* Left: Back + Title */}
+                            <div className="flex items-center gap-4 min-w-0">
+                                <button
+                                    onClick={() => { setIsBulkReportModalOpen(false); setBulkReportData([]); }}
+                                    className="w-10 h-10 flex-none flex items-center justify-center rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all active:scale-90"
+                                >
+                                    <FaChevronLeft size={13} />
+                                </button>
+                                <div className="min-w-0">
+                                    <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Bulk Salary Reports</h1>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payroll Overview</p>
                                 </div>
                             </div>
 
-                            <div className="w-full space-y-4 min-w-0 min-h-0">
-                                <div className="flex justify-between items-center px-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Selection</p>
+                            {/* Right: Month/Year + Generate */}
+                            <div className="flex items-center gap-3 flex-none">
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-2xl">
+                                    <FaCalendarAlt size={12} className="text-teal-500 flex-none" />
+                                    <select
+                                        value={selectedMonth}
+                                        onChange={handleMonthChange}
+                                        className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                                    >
+                                        <option value={1}>January</option>
+                                        <option value={2}>February</option>
+                                        <option value={3}>March</option>
+                                        <option value={4}>April</option>
+                                        <option value={5}>May</option>
+                                        <option value={6}>June</option>
+                                        <option value={7}>July</option>
+                                        <option value={8}>August</option>
+                                        <option value={9}>September</option>
+                                        <option value={10}>October</option>
+                                        <option value={11}>November</option>
+                                        <option value={12}>December</option>
+                                    </select>
+                                    <select
+                                        value={selectedYear}
+                                        onChange={handleYearChange}
+                                        className="bg-transparent text-sm font-bold text-slate-700 focus:outline-none cursor-pointer"
+                                    >
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <Button
+                                    variant="primary"
+                                    onClick={generateBulkReport}
+                                    disabled={isBulkReportLoading || selectedWorkersForReport.length === 0}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl shadow-lg shadow-teal-500/20 text-sm"
+                                >
+                                    {isBulkReportLoading ? <Spinner size="sm" /> : (
+                                        <>
+                                            <FiRefreshCcw size={13} className={isBulkReportLoading ? 'animate-spin' : ''} />
+                                            <span>Generate · {selectedWorkersForReport.length}</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* ── Body: Sidebar + Content ── */}
+                        <div className="flex-1 flex overflow-hidden min-h-0">
+
+                            {/* Left Sidebar — Employee Selection */}
+                            <div className="w-64 md:w-72 flex-none border-r border-slate-100 flex flex-col bg-white/60 min-h-0">
+                                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 flex-none">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        {selectedWorkersForReport.length > 0 ? `${selectedWorkersForReport.length} Selected` : 'Employees'}
+                                    </p>
                                     <button
                                         onClick={toggleAllWorkersSelection}
                                         className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-700 transition-colors"
@@ -1570,28 +1585,30 @@ const SalaryManagement = () => {
                                         {selectedWorkersForReport.length === filteredWorkers.length ? 'Deselect All' : 'Select All'}
                                     </button>
                                 </div>
-                                <div className="h-64 overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                                <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar min-h-0">
                                     {filteredWorkers.map(worker => (
                                         <label
                                             key={worker._id}
-                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-colors cursor-pointer group ${selectedWorkersForReport.includes(worker._id) ? 'bg-white border-teal-200 shadow-sm' : 'bg-transparent border-slate-100 hover:border-slate-200'}`}
+                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${
+                                                selectedWorkersForReport.includes(worker._id)
+                                                    ? 'bg-teal-50 border-teal-200 shadow-sm'
+                                                    : 'bg-transparent border-slate-100 hover:border-slate-200 hover:bg-slate-50/60'
+                                            }`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="relative flex-none">
                                                     <img
                                                         src={worker.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.name)}&background=f1f5f9&color=64748b`}
                                                         alt=""
                                                         className="w-8 h-8 rounded-xl object-cover border border-slate-100"
                                                     />
                                                     {selectedWorkersForReport.includes(worker._id) && (
-                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-teal-500 rounded-full border-2 border-white flex items-center justify-center">
-                                                            <div className="w-1 h-1 bg-white rounded-full"></div>
-                                                        </div>
+                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-teal-500 rounded-full border-2 border-white" />
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs font-bold text-slate-700 group-hover:text-teal-600 transition-colors">{worker.name}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{worker.department?.name || worker.department}</p>
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-slate-700 truncate">{worker.name}</p>
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight truncate">{worker.department?.name || worker.department}</p>
                                                 </div>
                                             </div>
                                             <input
@@ -1600,166 +1617,178 @@ const SalaryManagement = () => {
                                                 checked={selectedWorkersForReport.includes(worker._id)}
                                                 onChange={() => toggleWorkerSelection(worker._id)}
                                             />
-                                            <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'}`}>
-                                                {selectedWorkersForReport.includes(worker._id) && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                            <div className={`w-5 h-5 rounded-lg border-2 flex-none flex items-center justify-center transition-colors ${
+                                                selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'
+                                            }`}>
+                                                {selectedWorkersForReport.includes(worker._id) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                                             </div>
                                         </label>
                                     ))}
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Report Table */}
-                    <AnimatePresence>
-                        {bulkReportData.length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="space-y-6"
-                            >
-                                {/* Quick Stats Summary */}
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
-                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Net Payout</p>
-                                        <p className="text-3xl font-black text-emerald-700">
-                                            ₹{bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-sm">
-                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Workers</p>
-                                        <p className="text-3xl font-black text-slate-700">{bulkReportData.length}</p>
-                                    </div>
-                                    <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm">
-                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Avg Attendance</p>
-                                        <p className="text-3xl font-black text-rose-700">
-                                            {(bulkReportData.reduce((sum, r) => sum + (r.totalWorkingDays / (r.totalWorkingDays + r.totalAbsentDays || 1)), 0) / bulkReportData.length * 100).toFixed(1)}%
-                                        </p>
-                                    </div>
-                                    <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 shadow-sm">
-                                        <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Avg Salary / Worker</p>
-                                        <p className="text-3xl font-black text-violet-700">
-                                            ₹{bulkReportData.length > 0 ? (bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0) / bulkReportData.length).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
-                                        </p>
-                                    </div>
-                                </div>
+                            {/* Right Content Area */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
 
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Report Summary</h4>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={downloadBulkSummaryPDF}
-                                                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-200"
-                                            >
-                                                <FaFilePdf size={12} />
-                                                <span>Summary Statement</span>
-                                            </button>
-                                            <button
-                                                onClick={downloadAllDetailedReportsPDF}
-                                                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-teal-600 text-white hover:bg-teal-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-teal-200"
-                                            >
-                                                <FaFilePdf size={12} />
-                                                <span>All Detailed PDFs</span>
-                                            </button>
+                                {/* Empty state */}
+                                {!bulkReportData.length && !isBulkReportLoading && (
+                                    <div className="flex flex-col items-center justify-center h-full text-center px-8 py-20">
+                                        <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center mb-5">
+                                            <FaFileInvoiceDollar size={32} className="text-slate-300" />
                                         </div>
+                                        <h3 className="text-lg font-black text-slate-400 mb-1">No Report Generated Yet</h3>
+                                        <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Select employees on the left, then click Generate</p>
                                     </div>
-                                    <div className="h-px flex-1 bg-slate-100 mx-4"></div>
-                                </div>
+                                )}
 
-                                <div className="rounded-[2.5rem] border border-slate-100 overflow-visible bg-white shadow-xl shadow-slate-200/40">
-                                    <div className="overflow-y-auto overflow-x-auto max-h-[400px] min-h-0 custom-scrollbar">
-                                        <table className="min-w-full divide-y divide-slate-100 text-xs">
-                                            <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
-                                                <tr>
-                                                    {['Employee', 'Department', 'Working', 'Absent', 'Final Salary', 'Actions'].map(h => (
-                                                        <th key={h} className="px-6 py-5 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-50">
-                                                {bulkReportData.map((report, index) => (
-                                                    <tr key={index} className="hover:bg-slate-50/50 transition-colors group">
-                                                        <td className="px-6 py-4">
-                                                            <p className="font-bold text-slate-700">{report.name}</p>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-bold text-[9px] uppercase tracking-wider">
-                                                                {report.department}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 font-bold text-slate-600">
-                                                            {report.totalWorkingDays} <span className="text-[9px] text-slate-400 font-medium">Days</span>
-                                                        </td>
-                                                        <td className="px-6 py-4 font-bold text-rose-500">
-                                                            {report.totalAbsentDays} <span className="text-[9px] text-rose-400 font-medium">Days</span>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <p className="font-black text-emerald-600 text-sm">₹{Math.max(0, report.totalFinalSalary - (deductionView ? (report.taskPenalty || 0) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <button
-                                                                    onClick={() => openIndividualReport(report)}
-                                                                    className="px-4 py-2 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-all font-black text-[9px] uppercase tracking-widest"
-                                                                >
-                                                                    View
-                                                                </button>
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        // Temporary fetch to download PDF
-                                                                        try {
-                                                                            const year = selectedYear;
-                                                                            const month = selectedMonth;
-                                                                            const firstDay = new Date(year, month - 1, 1);
-                                                                            const lastDay = new Date(year, month, 0);
-                                                                            const formatDate = (date) => {
-                                                                                const d = new Date(date);
-                                                                                let m = '' + (d.getMonth() + 1);
-                                                                                let day = '' + d.getDate();
-                                                                                const yr = d.getFullYear();
-                                                                                if (m.length < 2) m = '0' + m;
-                                                                                if (day.length < 2) day = '0' + day;
-                                                                                return [yr, m, day].join('-');
-                                                                            };
-                                                                            const data = await getSalaryReport(report.workerId, formatDate(firstDay), formatDate(lastDay));
-                                                                            
-                                                                            // Reuse existing download logic
-                                                                            const doc = new jsPDF();
-                                                                            const startY = 20;
-                                                                            doc.setFontSize(18);
-                                                                            doc.text(`Salary Report for ${report.name}`, 14, startY);
-                                                                            
-                                                                            // This is a bit redundant but safe for now to ensure it works without major refactoring
-                                                                            // I will use a helper for this later if needed
-                                                                            // For now just triggering the downloadPDF with custom data
-                                                                            
-                                                                            // Set state temporarily to use downloadPDF
-                                                                            setSelectedWorker(workers.find(w => w._id === report.workerId));
-                                                                            setReportData(data);
-                                                                            setTimeout(() => downloadPDF(), 100);
-                                                                        } catch (e) {
-                                                                            toast.error("Failed to download PDF");
-                                                                        }
-                                                                    }}
-                                                                    className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all"
-                                                                    title="Download PDF"
-                                                                >
-                                                                    <FaFilePdf size={14} />
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                {/* Loading */}
+                                {isBulkReportLoading && (
+                                    <div className="flex items-center justify-center h-full py-20">
+                                        <Spinner size="lg" />
                                     </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </Modal>
+                                )}
+
+                                {/* Report Data */}
+                                <AnimatePresence>
+                                    {bulkReportData.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.05 }}
+                                            className="p-6 md:p-8 space-y-8"
+                                        >
+                                            {/* Stats Cards */}
+                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Net Payout</p>
+                                                    <p className="text-2xl font-black text-emerald-700">
+                                                        ₹{bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-sm">
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Workers</p>
+                                                    <p className="text-2xl font-black text-slate-700">{bulkReportData.length}</p>
+                                                </div>
+                                                <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm">
+                                                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Avg Attendance</p>
+                                                    <p className="text-2xl font-black text-rose-700">
+                                                        {(bulkReportData.reduce((sum, r) => sum + (r.totalWorkingDays / (r.totalWorkingDays + r.totalAbsentDays || 1)), 0) / bulkReportData.length * 100).toFixed(1)}%
+                                                    </p>
+                                                </div>
+                                                <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 shadow-sm">
+                                                    <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Avg Salary / Worker</p>
+                                                    <p className="text-2xl font-black text-violet-700">
+                                                        ₹{bulkReportData.length > 0 ? (bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0) / bulkReportData.length).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Report Summary Header */}
+                                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Report Summary</h4>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={downloadBulkSummaryPDF}
+                                                        className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-900 text-white hover:bg-slate-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg"
+                                                    >
+                                                        <FaFilePdf size={12} />
+                                                        <span>Summary Statement</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={downloadAllDetailedReportsPDF}
+                                                        className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-teal-600 text-white hover:bg-teal-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-teal-200"
+                                                    >
+                                                        <FaFilePdf size={12} />
+                                                        <span>All Detailed PDFs</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Table */}
+                                            <div className="rounded-[2rem] border border-slate-100 overflow-hidden bg-white shadow-xl shadow-slate-200/40">
+                                                <div className="overflow-x-auto">
+                                                    <table className="min-w-full divide-y divide-slate-100 text-xs">
+                                                        <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
+                                                            <tr>
+                                                                {['Employee', 'Department', 'Working', 'Absent', 'Final Salary', 'Actions'].map(h => (
+                                                                    <th key={h} className="px-6 py-5 text-left font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{h}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-50">
+                                                            {bulkReportData.map((report, index) => (
+                                                                <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                                                                    <td className="px-6 py-4">
+                                                                        <p className="font-bold text-slate-700">{report.name}</p>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500 font-bold text-[9px] uppercase tracking-wider">
+                                                                            {report.department}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-bold text-slate-600">
+                                                                        {report.totalWorkingDays} <span className="text-[9px] text-slate-400 font-medium">Days</span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-bold text-rose-500">
+                                                                        {report.totalAbsentDays} <span className="text-[9px] text-rose-400 font-medium">Days</span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <p className="font-black text-emerald-600 text-sm">₹{Math.max(0, report.totalFinalSalary - (deductionView ? (report.taskPenalty || 0) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <button
+                                                                                onClick={() => openIndividualReport(report)}
+                                                                                className="px-4 py-2 rounded-xl bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition-all font-black text-[9px] uppercase tracking-widest"
+                                                                            >
+                                                                                View
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        const year = selectedYear;
+                                                                                        const month = selectedMonth;
+                                                                                        const firstDay = new Date(year, month - 1, 1);
+                                                                                        const lastDay = new Date(year, month, 0);
+                                                                                        const formatDate = (date) => {
+                                                                                            const d = new Date(date);
+                                                                                            let m = '' + (d.getMonth() + 1);
+                                                                                            let day = '' + d.getDate();
+                                                                                            const yr = d.getFullYear();
+                                                                                            if (m.length < 2) m = '0' + m;
+                                                                                            if (day.length < 2) day = '0' + day;
+                                                                                            return [yr, m, day].join('-');
+                                                                                        };
+                                                                                        const data = await getSalaryReport(report.workerId, formatDate(firstDay), formatDate(lastDay));
+                                                                                        setSelectedWorker(workers.find(w => w._id === report.workerId));
+                                                                                        setReportData(data);
+                                                                                        setTimeout(() => downloadPDF(), 100);
+                                                                                    } catch (e) {
+                                                                                        toast.error('Failed to download PDF');
+                                                                                    }
+                                                                                }}
+                                                                                className="p-2 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all"
+                                                                                title="Download PDF"
+                                                                            >
+                                                                                <FaFilePdf size={14} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* INDIVIDUAL REPORT MODAL */}
             <Modal
                 isOpen={isIndividualReportModalOpen}
