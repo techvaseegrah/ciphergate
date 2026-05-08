@@ -16,7 +16,10 @@ import {
     Check,
     Search,
     Globe,
-    Lock
+    Lock,
+    Maximize2,
+    Minimize2,
+    Plus
 } from "lucide-react"
 import githubService from "@/services/githubService"
 
@@ -63,11 +66,12 @@ function renderMarkdown(text) {
 
 export default function RepoChat() {
     const [isExpanded, setIsExpanded] = useState(false)
+    const [isFullscreen, setIsFullscreen] = useState(false)
     const [messages, setMessages] = useState([])
     const [inputValue, setInputValue] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [repos, setRepos] = useState([])
-    const [selectedRepo, setSelectedRepo] = useState(null)
+    const [selectedRepos, setSelectedRepos] = useState([])
     const [showRepoDropdown, setShowRepoDropdown] = useState(false)
     const [repoSearchQuery, setRepoSearchQuery] = useState('')
     const [copiedIndex, setCopiedIndex] = useState(null)
@@ -109,12 +113,33 @@ export default function RepoChat() {
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
+    // Escape key to exit fullscreen
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false)
+            }
+        }
+        document.addEventListener('keydown', handleEsc)
+        return () => document.removeEventListener('keydown', handleEsc)
+    }, [isFullscreen])
+
+    // Lock body scroll when fullscreen
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+        }
+        return () => { document.body.style.overflow = '' }
+    }, [isFullscreen])
+
     // Add welcome message on first expand
     useEffect(() => {
         if (isExpanded && messages.length === 0) {
             setMessages([{
                 role: 'assistant',
-                content: `👋 **Welcome to CipherGate Repo Intelligence!**\n\nI can help you understand your GitHub repositories. Here's what you can ask me:\n\n- **"What tech stack does [repo name] use?"**\n- **"Give me an overview of [repo name]"**\n- **"Who are the top contributors to [repo name]?"**\n- **"What was the recent activity in [repo name]?"**\n- **"Compare [repo A] and [repo B]"**\n\nYou can also select a specific repo from the dropdown above for focused analysis. Let's get started! 🚀`,
+                content: `👋 **Welcome to CipherGate Repo Intelligence!**\n\nI can help you understand your GitHub repositories. Here's what you can ask me:\n\n- **"What tech stack does [repo name] use?"**\n- **"Give me an overview of [repo name]"**\n- **"Who are the top contributors to [repo name]?"**\n- **"Compare [repo A] and [repo B]"**\n\nYou can select **multiple repositories** from the dropdown above to compare or analyze them together. Let's get started! 🚀`,
                 timestamp: new Date()
             }])
         }
@@ -156,7 +181,7 @@ export default function RepoChat() {
 
             const result = await githubService.sendRepoChatMessage(
                 trimmed,
-                selectedRepo?.name || null,
+                selectedRepos.map(r => r.name),
                 history
             )
 
@@ -165,14 +190,16 @@ export default function RepoChat() {
                     role: 'assistant',
                     content: result.response,
                     timestamp: new Date(),
-                    detectedRepo: result.detectedRepo
+                    detectedRepos: result.detectedRepos
                 }
                 setMessages(prev => [...prev, assistantMessage])
 
-                // Auto-select detected repo if none selected
-                if (result.detectedRepo && !selectedRepo) {
-                    const found = repos.find(r => r.name === result.detectedRepo.name)
-                    if (found) setSelectedRepo(found)
+                // Auto-add detected repos if none selected
+                if (result.detectedRepos?.length > 0 && selectedRepos.length === 0) {
+                    const newRepos = result.detectedRepos
+                        .map(dr => repos.find(r => r.name === dr.name))
+                        .filter(Boolean)
+                    if (newRepos.length > 0) setSelectedRepos(newRepos)
                 }
             } else {
                 setMessages(prev => [...prev, {
@@ -208,7 +235,20 @@ export default function RepoChat() {
             content: '🗑️ Chat cleared. How can I help you with your repositories?',
             timestamp: new Date()
         }])
-        setSelectedRepo(null)
+    }
+
+    const newChat = () => {
+        setMessages([])
+        setSelectedRepos([])
+        setInputValue('')
+        // Re-trigger welcome message
+        setTimeout(() => {
+            setMessages([{
+                role: 'assistant',
+                content: `✨ **New conversation started!**\n\nSelect repositories from the dropdown or just ask me anything about your GitHub projects.`,
+                timestamp: new Date()
+            }])
+        }, 100)
     }
 
     const copyMessage = (content, index) => {
@@ -226,7 +266,7 @@ export default function RepoChat() {
         "What tech stack is used?",
         "Give me an overview",
         "Who are the contributors?",
-        "What's the recent activity?"
+        "Compare these repositories"
     ]
 
     return (
@@ -253,9 +293,12 @@ export default function RepoChat() {
                 </button>
             )}
 
+            {/* Fullscreen backdrop */}
+            {isFullscreen && <div className="rc-fullscreen-backdrop" onClick={() => setIsFullscreen(false)} />}
+
             {/* Expanded Chat Panel */}
             {isExpanded && (
-                <div className="rc-panel">
+                <div className={`rc-panel ${isFullscreen ? 'rc-fullscreen' : ''}`}>
                     {/* Header */}
                     <div className="rc-header">
                         <div className="rc-header-left">
@@ -265,14 +308,21 @@ export default function RepoChat() {
                             <div>
                                 <h3 className="rc-header-title">Repo Intelligence</h3>
                                 <p className="rc-header-subtitle">
-                                    {selectedRepo 
-                                        ? `Focused on: ${selectedRepo.name}` 
+                                    {selectedRepos.length > 0
+                                        ? `Analyzing: ${selectedRepos.map(r => r.name).join(', ')}` 
                                         : 'Ask anything about your repos'
                                     }
                                 </p>
                             </div>
                         </div>
                         <div className="rc-header-actions">
+                            <button
+                                onClick={newChat}
+                                className="rc-header-btn rc-new-chat-btn"
+                                title="New chat"
+                            >
+                                <Plus className="rc-icon-sm" />
+                            </button>
                             <button
                                 onClick={clearChat}
                                 className="rc-header-btn"
@@ -281,38 +331,63 @@ export default function RepoChat() {
                                 <Trash2 className="rc-icon-sm" />
                             </button>
                             <button
-                                onClick={() => setIsExpanded(false)}
+                                onClick={() => setIsFullscreen(!isFullscreen)}
                                 className="rc-header-btn"
-                                title="Minimize"
+                                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
                             >
-                                <ChevronUp className="rc-icon-sm" />
+                                {isFullscreen 
+                                    ? <Minimize2 className="rc-icon-sm" />
+                                    : <Maximize2 className="rc-icon-sm" />
+                                }
                             </button>
+                            {!isFullscreen && (
+                                <button
+                                    onClick={() => setIsExpanded(false)}
+                                    className="rc-header-btn"
+                                    title="Minimize"
+                                >
+                                    <ChevronUp className="rc-icon-sm" />
+                                </button>
+                            )}
+                            {isFullscreen && (
+                                <button
+                                    onClick={() => { setIsFullscreen(false); setIsExpanded(false) }}
+                                    className="rc-header-btn"
+                                    title="Close"
+                                >
+                                    <X className="rc-icon-sm" />
+                                </button>
+                            )}
                         </div>
                     </div>
 
-                    {/* Repo Selector */}
+                    {/* Repo Selector - Multi Select */}
                     <div className="rc-repo-selector" ref={dropdownRef}>
-                        <button
-                            onClick={() => setShowRepoDropdown(!showRepoDropdown)}
-                            className="rc-repo-btn"
-                        >
-                            <GitBranch className="rc-icon-sm" />
-                            <span>
-                                {selectedRepo 
-                                    ? selectedRepo.name 
-                                    : 'Select a repository (optional)'
-                                }
-                            </span>
-                            {selectedRepo && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setSelectedRepo(null) }}
-                                    className="rc-repo-clear"
-                                >
-                                    <X className="rc-icon-xs" />
-                                </button>
-                            )}
-                            <ChevronDown className="rc-icon-sm rc-ml-auto" />
-                        </button>
+                        {/* Selected repo tags */}
+                        <div className="rc-repo-tags-row">
+                            {selectedRepos.map(repo => (
+                                <span key={repo.name} className="rc-repo-tag">
+                                    {repo.private 
+                                        ? <Lock className="rc-icon-xs" />
+                                        : <Globe className="rc-icon-xs" />
+                                    }
+                                    <span>{repo.name}</span>
+                                    <button
+                                        onClick={() => setSelectedRepos(prev => prev.filter(r => r.name !== repo.name))}
+                                        className="rc-repo-tag-remove"
+                                    >
+                                        <X className="rc-icon-xs" />
+                                    </button>
+                                </span>
+                            ))}
+                            <button
+                                onClick={() => setShowRepoDropdown(!showRepoDropdown)}
+                                className="rc-repo-add-btn"
+                            >
+                                <Plus className="rc-icon-xs" />
+                                <span>{selectedRepos.length === 0 ? 'Select repositories (optional)' : 'Add repo'}</span>
+                            </button>
+                        </div>
 
                         {showRepoDropdown && (
                             <div className="rc-dropdown">
@@ -336,28 +411,37 @@ export default function RepoChat() {
                                     ) : filteredRepos.length === 0 ? (
                                         <div className="rc-dropdown-empty">No repositories found</div>
                                     ) : (
-                                        filteredRepos.map(repo => (
-                                            <button
-                                                key={repo.full_name}
-                                                className={`rc-dropdown-item ${selectedRepo?.name === repo.name ? 'rc-selected' : ''}`}
-                                                onClick={() => {
-                                                    setSelectedRepo(repo)
-                                                    setShowRepoDropdown(false)
-                                                    setRepoSearchQuery('')
-                                                }}
-                                            >
-                                                <div className="rc-dropdown-item-left">
-                                                    {repo.private 
-                                                        ? <Lock className="rc-icon-xs rc-text-warning" />
-                                                        : <Globe className="rc-icon-xs rc-text-success" />
-                                                    }
-                                                    <span className="rc-dropdown-item-name">{repo.name}</span>
-                                                </div>
-                                                {repo.language && (
-                                                    <span className="rc-dropdown-item-lang">{repo.language}</span>
-                                                )}
-                                            </button>
-                                        ))
+                                        filteredRepos.map(repo => {
+                                            const isSelected = selectedRepos.some(r => r.name === repo.name)
+                                            return (
+                                                <button
+                                                    key={repo.full_name}
+                                                    className={`rc-dropdown-item ${isSelected ? 'rc-selected' : ''}`}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setSelectedRepos(prev => prev.filter(r => r.name !== repo.name))
+                                                        } else {
+                                                            setSelectedRepos(prev => [...prev, repo])
+                                                        }
+                                                        setRepoSearchQuery('')
+                                                    }}
+                                                >
+                                                    <div className="rc-dropdown-item-left">
+                                                        <div className={`rc-checkbox ${isSelected ? 'rc-checked' : ''}`}>
+                                                            {isSelected && <Check className="rc-icon-xs" />}
+                                                        </div>
+                                                        {repo.private 
+                                                            ? <Lock className="rc-icon-xs rc-text-warning" />
+                                                            : <Globe className="rc-icon-xs rc-text-success" />
+                                                        }
+                                                        <span className="rc-dropdown-item-name">{repo.name}</span>
+                                                    </div>
+                                                    {repo.language && (
+                                                        <span className="rc-dropdown-item-lang">{repo.language}</span>
+                                                    )}
+                                                </button>
+                                            )
+                                        })
                                     )}
                                 </div>
                             </div>
@@ -399,10 +483,10 @@ export default function RepoChat() {
                                             </button>
                                         )}
                                     </div>
-                                    {msg.detectedRepo && (
+                                    {msg.detectedRepos?.length > 0 && (
                                         <div className="rc-detected-repo">
                                             <GitBranch className="rc-icon-xs" />
-                                            <span>Analyzing: {msg.detectedRepo.name}</span>
+                                            <span>Analyzing: {msg.detectedRepos.map(r => r.name).join(', ')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -427,7 +511,7 @@ export default function RepoChat() {
                     </div>
 
                     {/* Quick Prompts */}
-                    {messages.length <= 1 && selectedRepo && (
+                    {messages.length <= 1 && selectedRepos.length > 0 && (
                         <div className="rc-quick-prompts">
                             {quickPrompts.map((prompt, idx) => (
                                 <button
@@ -452,8 +536,8 @@ export default function RepoChat() {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyPress}
-                                placeholder={selectedRepo 
-                                    ? `Ask about ${selectedRepo.name}...` 
+                                placeholder={selectedRepos.length > 0
+                                    ? `Ask about ${selectedRepos.map(r => r.name).join(', ')}...` 
                                     : "Ask about any repository..."
                                 }
                                 className="rc-textarea"

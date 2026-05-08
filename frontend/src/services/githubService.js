@@ -64,11 +64,11 @@ const githubService = {
     },
 
     // Repo Chat - Send message
-    sendRepoChatMessage: async (message, repoName = null, conversationHistory = []) => {
+    sendRepoChatMessage: async (message, repoNames = [], conversationHistory = []) => {
         try {
             const response = await api.post('/github/repo-chat/chat', {
                 message,
-                repoName,
+                repoNames,
                 conversationHistory
             });
             return response.data;

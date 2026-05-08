@@ -282,26 +282,22 @@ const fetchAllRepoNames = async (octokit) => {
 };
 
 /**
- * Try to find the best matching repo from user's message
+ * Try to find matching repos from user's message (returns multiple)
  */
-const findRepoInMessage = (message, repos) => {
+const findReposInMessage = (message, repos) => {
     const msgLower = message.toLowerCase();
+    const found = [];
     
-    // Exact name match first
     for (const repo of repos) {
         if (msgLower.includes(repo.name.toLowerCase())) {
-            return repo;
-        }
-    }
-    
-    // Full name match
-    for (const repo of repos) {
-        if (msgLower.includes(repo.full_name.toLowerCase())) {
-            return repo;
+            // Avoid duplicates
+            if (!found.some(r => r.name === repo.name)) {
+                found.push(repo);
+            }
         }
     }
 
-    return null;
+    return found;
 };
 
 
@@ -310,7 +306,7 @@ const findRepoInMessage = (message, repos) => {
 // @access  Private (Admin)
 const repoChat = async (req, res) => {
     try {
-        const { message, repoName, conversationHistory = [] } = req.body;
+        const { message, repoName, repoNames = [], conversationHistory = [] } = req.body;
 
         if (!message || message.trim().length === 0) {
             return res.status(400).json({ 
@@ -325,33 +321,47 @@ const repoChat = async (req, res) => {
         // Fetch all repos to help with repo detection
         const allRepos = await fetchAllRepoNames(octokit);
         
-        let targetRepo = null;
-        let repoContext = null;
+        let targetRepos = [];
         let contextSummary = '';
 
-        // If repoName is explicitly provided
-        if (repoName) {
-            targetRepo = allRepos.find(r => 
-                r.name.toLowerCase() === repoName.toLowerCase() ||
-                r.full_name.toLowerCase() === repoName.toLowerCase()
+        // Support both legacy single repoName and new repoNames array
+        const explicitNames = repoNames.length > 0 
+            ? repoNames 
+            : (repoName ? [repoName] : []);
+
+        // Resolve explicitly provided repo names
+        for (const name of explicitNames) {
+            const found = allRepos.find(r => 
+                r.name.toLowerCase() === name.toLowerCase() ||
+                r.full_name.toLowerCase() === name.toLowerCase()
             );
+            if (found && !targetRepos.some(t => t.name === found.name)) {
+                targetRepos.push(found);
+            }
         }
 
-        // Try to detect repo from message
-        if (!targetRepo) {
-            targetRepo = findRepoInMessage(message, allRepos);
+        // If no repos explicitly selected, try to detect from message
+        if (targetRepos.length === 0) {
+            targetRepos = findReposInMessage(message, allRepos);
         }
 
-        // If we found a repo, fetch its detailed context
-        if (targetRepo) {
-            repoContext = await fetchRepoContext(octokit, targetRepo.owner, targetRepo.name);
-            contextSummary = buildContextSummary(repoContext);
+        // Fetch context for all target repos (limit to 5 to avoid token overload)
+        const reposToFetch = targetRepos.slice(0, 5);
+        const contextParts = [];
+        for (const repo of reposToFetch) {
+            const ctx = await fetchRepoContext(octokit, repo.owner, repo.name);
+            contextParts.push(buildContextSummary(ctx));
         }
+        contextSummary = contextParts.join('\n\n---\n\n');
 
         // Build the system prompt
         const repoListSummary = allRepos.map(r => 
             `- ${r.name} (${r.private ? 'Private' : 'Public'}${r.language ? ', ' + r.language : ''}): ${r.description || 'No description'}`
         ).join('\n');
+
+        const repoFocusText = reposToFetch.length > 0
+            ? `## Currently Analyzing ${reposToFetch.length} Repository(ies):\n${reposToFetch.map(r => `- **${r.name}**`).join('\n')}\n\n${contextSummary}`
+            : '## No specific repository selected yet.\nHelp the user by asking which repository they want to know about, or answer general questions about their GitHub projects.';
 
         const systemPrompt = `You are CipherGate AI Assistant — an intelligent GitHub repository analyst embedded in the CipherGate platform. You help users understand their GitHub repositories, projects, and codebases.
 
@@ -366,7 +376,7 @@ const repoChat = async (req, res) => {
 ## Available Repositories:
 ${repoListSummary}
 
-${contextSummary ? `## Current Repository Context:\n${contextSummary}` : '## No specific repository selected yet.\nHelp the user by asking which repository they want to know about, or answer general questions about their GitHub projects.'}
+${repoFocusText}
 
 ## Guidelines:
 1. Be concise but thorough in your responses
@@ -375,7 +385,8 @@ ${contextSummary ? `## Current Repository Context:\n${contextSummary}` : '## No 
 4. If you don't have enough information, say so honestly
 5. For tech stack questions, analyze languages, dependencies, and project structure
 6. Always be helpful and professional
-7. When listing technologies, organize them by category (Frontend, Backend, Database, etc.)`;
+7. When listing technologies, organize them by category (Frontend, Backend, Database, etc.)
+8. When comparing repos, use tables or side-by-side format for clarity`;
 
         // Build conversation messages
         const messages = [
@@ -394,7 +405,7 @@ ${contextSummary ? `## Current Repository Context:\n${contextSummary}` : '## No 
         // Add current message
         messages.push({ role: 'user', content: message });
 
-        console.log(`[RepoChat] Processing chat - Repo: ${targetRepo?.name || 'none'}, Message: "${message.substring(0, 50)}..."`);
+        console.log(`[RepoChat] Processing chat - Repos: [${reposToFetch.map(r => r.name).join(', ') || 'none'}], Message: "${message.substring(0, 50)}..."`);
 
         // Call DeepSeek
         const response = await deepseek.chat.completions.create({
@@ -409,12 +420,12 @@ ${contextSummary ? `## Current Repository Context:\n${contextSummary}` : '## No 
         res.json({
             success: true,
             response: aiResponse,
-            detectedRepo: targetRepo ? {
-                name: targetRepo.name,
-                full_name: targetRepo.full_name,
-                language: targetRepo.language,
-                private: targetRepo.private
-            } : null
+            detectedRepos: reposToFetch.map(r => ({
+                name: r.name,
+                full_name: r.full_name,
+                language: r.language,
+                private: r.private
+            }))
         });
 
     } catch (error) {

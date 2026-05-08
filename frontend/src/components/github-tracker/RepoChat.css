@@ -154,11 +154,107 @@
     border-color: #e2e8f0;
 }
 
-/* Repo Selector */
+/* Repo Selector - Multi Select */
 .rc-repo-selector {
     padding: 8px 14px;
     border-bottom: 1px solid #f1f5f9;
     position: relative;
+}
+
+.rc-repo-tags-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.rc-repo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px 4px 10px;
+    border-radius: 8px;
+    background: #eef2ff;
+    border: 1px solid #e0e7ff;
+    color: #4338ca;
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.rc-repo-tag:hover {
+    background: #e0e7ff;
+}
+
+.rc-repo-tag-remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #6366f1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.rc-repo-tag-remove:hover {
+    background: #c7d2fe;
+    color: #4338ca;
+}
+
+.rc-repo-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    background: transparent;
+    color: #64748b;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rc-repo-add-btn:hover {
+    border-color: #818cf8;
+    color: #6366f1;
+    background: #f5f3ff;
+}
+
+/* New Chat button in header */
+.rc-new-chat-btn {
+    background: #eef2ff !important;
+    border-color: #e0e7ff !important;
+    color: #4f46e5 !important;
+}
+
+.rc-new-chat-btn:hover {
+    background: #e0e7ff !important;
+    color: #4338ca !important;
+}
+
+/* Checkbox in dropdown */
+.rc-checkbox {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid #d1d5db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.rc-checkbox.rc-checked {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: white;
 }
 
 .rc-repo-btn {
@@ -695,6 +791,99 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+/* ====================================
+   FULLSCREEN MODE
+   ==================================== */
+
+/* Backdrop overlay */
+.rc-fullscreen-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 9998;
+    animation: rcFadeIn 0.2s ease-out;
+}
+
+/* Fullscreen panel */
+.rc-panel.rc-fullscreen {
+    position: fixed;
+    inset: 16px;
+    z-index: 9999;
+    max-height: none;
+    border-radius: 20px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    animation: rcFullscreenIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rcFullscreenIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* In fullscreen, give the header a bit more padding */
+.rc-panel.rc-fullscreen .rc-header {
+    padding: 16px 24px;
+}
+
+.rc-panel.rc-fullscreen .rc-header-title {
+    font-size: 17px;
+}
+
+/* Messages take up all available space in fullscreen */
+.rc-panel.rc-fullscreen .rc-messages {
+    max-height: none;
+    flex: 1;
+    padding: 24px;
+    padding-left: 10%;
+    padding-right: 10%;
+}
+
+/* Slightly bigger message bubbles in fullscreen for readability */
+.rc-panel.rc-fullscreen .rc-message-content {
+    max-width: 75%;
+}
+
+.rc-panel.rc-fullscreen .rc-message-text {
+    font-size: 14.5px;
+    padding: 14px 20px;
+}
+
+/* Centered input area like ChatGPT */
+.rc-panel.rc-fullscreen .rc-input-area {
+    padding: 14px 10% 12px;
+}
+
+.rc-panel.rc-fullscreen .rc-input-wrapper {
+    max-width: 100%;
+}
+
+.rc-panel.rc-fullscreen .rc-textarea {
+    font-size: 14.5px;
+    max-height: 120px;
+}
+
+/* Repo selector in fullscreen */
+.rc-panel.rc-fullscreen .rc-repo-selector {
+    padding: 8px 10%;
+}
+
+/* Quick prompts in fullscreen */
+.rc-panel.rc-fullscreen .rc-quick-prompts {
+    padding: 0 10% 10px;
+}
+
+/* Code blocks wider in fullscreen */
+.rc-panel.rc-fullscreen .rc-message-text .rc-code-block {
+    font-size: 13px;
+    padding: 14px 18px;
+}
 
 /* Responsive */
 @media (max-width: 640px) {
@@ -724,5 +913,33 @@
 
     .rc-quick-prompts::-webkit-scrollbar {
         display: none;
+    }
+
+    /* Fullscreen on mobile = edge-to-edge */
+    .rc-panel.rc-fullscreen {
+        inset: 0;
+        border-radius: 0;
+    }
+
+    .rc-panel.rc-fullscreen .rc-messages {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .rc-panel.rc-fullscreen .rc-input-area {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .rc-panel.rc-fullscreen .rc-repo-selector {
+        padding: 8px 16px;
+    }
+
+    .rc-panel.rc-fullscreen .rc-quick-prompts {
+        padding: 0 16px 10px;
+    }
+
+    .rc-panel.rc-fullscreen .rc-message-content {
+        max-width: 88%;
     }
 }
