@@ -1501,11 +1501,11 @@ const SalaryManagement = () => {
                 title="Bulk Salary Reports"
                 size="xl"
             >
-                <div className="space-y-8">
+                <div className="space-y-8 overflow-x-hidden pr-1">
                     {/* Filter & Selection Header */}
                     <div className="bg-slate-50/50 rounded-[2rem] p-6 border border-slate-100">
-                        <div className="flex flex-col md:flex-row items-start gap-8">
-                            <div className="w-full md:w-1/2 space-y-4 flex-shrink-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 min-h-0">
+                            <div className="w-full space-y-4 min-w-0 min-h-0">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm">
                                         <FaCalendarAlt size={18} />
@@ -1560,7 +1560,7 @@ const SalaryManagement = () => {
                                 </div>
                             </div>
 
-                            <div className="w-full md:w-1/2 space-y-4">
+                            <div className="w-full space-y-4 min-w-0 min-h-0">
                                 <div className="flex justify-between items-center px-1">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Selection</p>
                                     <button
@@ -1620,47 +1620,27 @@ const SalaryManagement = () => {
                             >
                                 {/* Quick Stats Summary */}
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
-                                        <div className="absolute -right-4 -bottom-4 text-emerald-100 opacity-50 group-hover:scale-110 transition-transform">
-                                            <FaDonate size={80} />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Net Payout</p>
-                                            <p className="text-3xl font-black text-emerald-700">
-                                                ₹{bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                            </p>
-                                        </div>
+                                    <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 shadow-sm">
+                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Net Payout</p>
+                                        <p className="text-3xl font-black text-emerald-700">
+                                            ₹{bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </p>
                                     </div>
-                                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
-                                        <div className="absolute -right-4 -bottom-4 text-slate-100 opacity-50 group-hover:scale-110 transition-transform">
-                                            <FaList size={80} />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Workers</p>
-                                            <p className="text-3xl font-black text-slate-700">{bulkReportData.length}</p>
-                                        </div>
+                                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 shadow-sm">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Workers</p>
+                                        <p className="text-3xl font-black text-slate-700">{bulkReportData.length}</p>
                                     </div>
-                                    <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
-                                        <div className="absolute -right-4 -bottom-4 text-rose-100 opacity-50 group-hover:scale-110 transition-transform">
-                                            <FaCalendarAlt size={80} />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Avg Attendance</p>
-                                            <p className="text-3xl font-black text-rose-700">
-                                                {(bulkReportData.reduce((sum, r) => sum + (r.totalWorkingDays / (r.totalWorkingDays + r.totalAbsentDays || 1)), 0) / bulkReportData.length * 100).toFixed(1)}%
-                                            </p>
-                                        </div>
+                                    <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 shadow-sm">
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Avg Attendance</p>
+                                        <p className="text-3xl font-black text-rose-700">
+                                            {(bulkReportData.reduce((sum, r) => sum + (r.totalWorkingDays / (r.totalWorkingDays + r.totalAbsentDays || 1)), 0) / bulkReportData.length * 100).toFixed(1)}%
+                                        </p>
                                     </div>
-                                    <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
-                                        <div className="absolute -right-4 -bottom-4 text-violet-100 opacity-50 group-hover:scale-110 transition-transform">
-                                            <FaDonate size={80} />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Avg Salary / Worker</p>
-                                            <p className="text-3xl font-black text-violet-700">
-                                                ₹{bulkReportData.length > 0 ? (bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0) / bulkReportData.length).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
-                                            </p>
-                                        </div>
+                                    <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 shadow-sm">
+                                        <p className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Avg Salary / Worker</p>
+                                        <p className="text-3xl font-black text-violet-700">
+                                            ₹{bulkReportData.length > 0 ? (bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0) / bulkReportData.length).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -1688,7 +1668,7 @@ const SalaryManagement = () => {
                                 </div>
 
                                 <div className="rounded-[2.5rem] border border-slate-100 overflow-visible bg-white shadow-xl shadow-slate-200/40">
-                                    <div className="overflow-auto max-h-[400px] custom-scrollbar">
+                                    <div className="overflow-y-auto overflow-x-auto max-h-[400px] min-h-0 custom-scrollbar">
                                         <table className="min-w-full divide-y divide-slate-100 text-xs">
                                             <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10">
                                                 <tr>
