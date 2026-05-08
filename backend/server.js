@@ -83,6 +83,7 @@ const startServer = async () => {
     const communityFundRoutes = require('./routes/communityFundRoutes'); // ADD THIS
     const ticketRoutes = require('./routes/ticketRoutes');
     const githubRoutes = require('./routes/githubRoutes');
+    const repoChatRoutes = require('./routes/repoChatRoutes');
     const exitManagementRoutes = require('./routes/exitManagementRoutes');
 
     // Test App routes
@@ -123,6 +124,7 @@ const startServer = async () => {
     app.use('/api/tickets', ticketRoutes);
     app.use('/api/certificates', require('./routes/certificateRoutes'));
     app.use('/api/github', githubRoutes);
+    app.use('/api/github/repo-chat', repoChatRoutes);
     app.use('/api/exit-management', exitManagementRoutes);
 
 
