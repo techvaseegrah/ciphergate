@@ -1081,24 +1081,24 @@ const SalaryManagement = () => {
 
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
-        
+
         // Header
         doc.setFillColor(15, 23, 42); // slate-900
         doc.rect(0, 0, pageWidth, 40, 'F');
-        
+
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(22);
         doc.setFont('helvetica', 'bold');
         doc.text('Consolidated Salary Statement', 14, 25);
-        
+
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         const monthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth - 1];
         doc.text(`Period: ${monthName} ${selectedYear}`, 14, 33);
-        
+
         // Summary Stats
         const totalPayout = bulkReportData.reduce((sum, r) => sum + Math.max(0, r.totalFinalSalary - (deductionView ? (r.taskPenalty || 0) : 0)), 0);
-        
+
         doc.setTextColor(255, 255, 255);
         doc.text(`Total Employees: ${bulkReportData.length}`, pageWidth - 60, 25);
         doc.text(`Total Payout: Rs. ${totalPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, pageWidth - 60, 33);
@@ -1152,7 +1152,7 @@ const SalaryManagement = () => {
             doc.setFontSize(18);
             doc.setTextColor(15, 23, 42);
             doc.text(`Salary Report: ${data.name}`, 14, startY);
-            
+
             doc.setFontSize(10);
             doc.setTextColor(100, 116, 139);
             doc.text(`${monthName} ${selectedYear} | ${data.department}`, 14, startY + 7);
@@ -1589,11 +1589,10 @@ const SalaryManagement = () => {
                                     {filteredWorkers.map(worker => (
                                         <label
                                             key={worker._id}
-                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${
-                                                selectedWorkersForReport.includes(worker._id)
+                                            className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${selectedWorkersForReport.includes(worker._id)
                                                     ? 'bg-teal-50 border-teal-200 shadow-sm'
                                                     : 'bg-transparent border-slate-100 hover:border-slate-200 hover:bg-slate-50/60'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="relative flex-none">
@@ -1617,9 +1616,8 @@ const SalaryManagement = () => {
                                                 checked={selectedWorkersForReport.includes(worker._id)}
                                                 onChange={() => toggleWorkerSelection(worker._id)}
                                             />
-                                            <div className={`w-5 h-5 rounded-lg border-2 flex-none flex items-center justify-center transition-colors ${
-                                                selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'
-                                            }`}>
+                                            <div className={`w-5 h-5 rounded-lg border-2 flex-none flex items-center justify-center transition-colors ${selectedWorkersForReport.includes(worker._id) ? 'bg-teal-500 border-teal-500' : 'border-slate-200 group-hover:border-teal-200'
+                                                }`}>
                                                 {selectedWorkersForReport.includes(worker._id) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                                             </div>
                                         </label>
