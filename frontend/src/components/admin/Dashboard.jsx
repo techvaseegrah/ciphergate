@@ -46,7 +46,7 @@ const CircularProgress = ({ percentage, size = 100, strokeWidth = 6, color = '#0
       </svg>
       {showLabel && (
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`${size > 50 ? 'text-lg md:text-xl' : 'text-[10px] md:text-[11px]'} font-black text-slate-900`}>
+          <span className={`${size >= 100 ? 'text-lg md:text-xl' : size >= 50 ? 'text-xs' : 'text-[10px]'} font-black text-slate-900`}>
             {Math.round(percentage)}%
           </span>
         </div>
@@ -150,7 +150,7 @@ const Dashboard = () => {
           pending: pendingLeaves.length,
           approved: approvedLeaves.length,
           rejected: rejectedLeaves.length,
-          },
+        },
         comments: {
           total: commentsData.length,
           unread: unreadComments.length,
@@ -221,7 +221,7 @@ const Dashboard = () => {
 
         {/* Main Layout Grid */}
         <div className="flex flex-col gap-6">
-          
+
           {/* Top Row: Stat Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <StatCard title="Total Employees" value={stats.workers} icon={FaUsers} link="/admin/workers" />
@@ -310,10 +310,10 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <CircularProgress 
-                  percentage={attendancePercentage} 
-                  size={120} 
-                  strokeWidth={12} 
+                <CircularProgress
+                  percentage={attendancePercentage}
+                  size={120}
+                  strokeWidth={12}
                   color="#F59E0B"
                   showLabel={true}
                 />
@@ -323,7 +323,7 @@ const Dashboard = () => {
             {/* Needs Attention Panel (lg:col-span-1) */}
             <div className="lg:col-span-1 bg-[#0D9488] rounded-2xl p-6 text-white shadow-[0_20px_40px_rgba(13,148,136,0.2)] relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
-              
+
               <h2 className="text-xl md:text-2xl font-black tracking-tight mb-1">Needs Attention!</h2>
               <p className="text-white/70 text-xs font-medium mb-8">You have pending items requiring review</p>
 
@@ -351,7 +351,7 @@ const Dashboard = () => {
                     <p className="text-sm font-black">All Clear! 🎉</p>
                   </div>
                 )}
-                
+
                 <Link to="/admin/leaves" className="block w-full py-3 bg-white text-[#0D9488] rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-center hover:bg-slate-50 transition-all shadow-lg active:scale-95">
                   Review All Items
                 </Link>
@@ -369,9 +369,9 @@ const Dashboard = () => {
             </div>
 
             {departments.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {departments.map((dept) => (
-                  <div key={dept._id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-white shadow-sm hover:border-teal-100 transition-all group">
+                  <div key={dept._id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-white shadow-sm hover:border-teal-100 transition-all group">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-[#0D9488] shadow-sm border border-slate-50 group-hover:scale-110 transition-transform">
                         <FaBuilding size={20} />
@@ -381,11 +381,17 @@ const Dashboard = () => {
                         <p className="text-[11px] text-slate-500 font-bold">{dept.workerCount || 0} Employees</p>
                       </div>
                     </div>
-                    <CircularProgress 
-                      percentage={dept.attendancePercentage || 0} 
-                      size={52} 
-                      strokeWidth={5} 
-                      showLabel={true} 
+                    <CircularProgress
+                      percentage={dept.attendancePercentage || 0}
+                      size={52}
+                      strokeWidth={5}
+                      color={
+                        dept.attendancePercentage === 100 ? '#0D9488' :
+                          dept.attendancePercentage >= 70 ? '#0EA5E9' :
+                            dept.attendancePercentage >= 40 ? '#F59E0B' :
+                              '#EF4444'
+                      }
+                      showLabel={true}
                     />
                   </div>
                 ))}
