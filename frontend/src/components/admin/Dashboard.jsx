@@ -1,6 +1,9 @@
 import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUsers, FaTasks, FaCalendarAlt, FaBuilding, FaChartBar, FaArrowRight } from 'react-icons/fa';
+import {
+  FaUsers, FaTasks, FaCalendarAlt, FaBuilding,
+  FaChartBar, FaArrowRight, FaComments
+} from 'react-icons/fa';
 import { getWorkers } from '../../services/workerService';
 import { getAllTasks } from '../../services/taskService';
 import { getAllLeaves } from '../../services/leaveService';
@@ -13,40 +16,34 @@ import { getAttendanceSummary } from '../../services/attendanceService';
 import { getTickets } from '../../services/ticketService';
 import Spinner from '../common/Spinner';
 import appContext from '../../context/AppContext';
+import SalesVelocityWidget from './SalesVelocityWidget';
+import renewalService from '../../services/renewalService';
 
-// Circular Progress Component - Refined
-const CircularProgress = ({ percentage, size = 100, strokeWidth = 6, color = '#0D9488', showLabel = true }) => {
+/* ─────────────────────────────────────────
+   Circular Progress
+───────────────────────────────────────── */
+const CircularProgress = ({
+  percentage, size = 80, strokeWidth = 6,
+  color = '#0D9488', showLabel = true
+}) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
-
   return (
-    <div className="relative inline-flex items-center justify-center">
+    <div className="relative inline-flex items-center justify-center flex-shrink-0">
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
+        <circle cx={size/2} cy={size/2} r={radius}
+          stroke="rgba(0,0,0,0.06)" strokeWidth={strokeWidth} fill="none" />
+        <circle cx={size/2} cy={size/2} r={radius}
+          stroke={color} strokeWidth={strokeWidth} fill="none"
+          strokeDasharray={circumference} strokeDashoffset={offset}
           strokeLinecap="round"
-          className="transition-all duration-[1500ms] ease-in-out"
-        />
+          className="transition-all duration-[1400ms] ease-in-out" />
       </svg>
       {showLabel && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`${size >= 100 ? 'text-lg md:text-xl' : size >= 50 ? 'text-xs' : 'text-[10px]'} font-black text-slate-900`}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span style={{ fontSize: size >= 80 ? 14 : size >= 50 ? 11 : 9 }}
+            className="font-black text-[#111827] leading-none">
             {Math.round(percentage)}%
           </span>
         </div>
@@ -55,53 +52,104 @@ const CircularProgress = ({ percentage, size = 100, strokeWidth = 6, color = '#0
   );
 };
 
+/* ─────────────────────────────────────────
+   KPI Calculation
+───────────────────────────────────────── */
 const calculateKpiStats = (tickets) => {
   const closedTickets = tickets.filter(t => t.status === 'Done');
   let totalDays = 0;
-
   closedTickets.forEach(t => {
     const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
-    if (doneStatus) {
-      totalDays += (new Date(doneStatus.changedAt) - new Date(t.createdAt)) / (1000 * 60 * 60 * 24);
-    }
+    if (doneStatus)
+      totalDays += (new Date(doneStatus.changedAt) - new Date(t.createdAt)) / 86400000;
   });
   const avgCycleTime = closedTickets.length > 0 ? (totalDays / closedTickets.length).toFixed(1) : 0;
-
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   const closedThisWeek = closedTickets.filter(t => {
-    const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
-    return doneStatus && new Date(doneStatus.changedAt) >= oneWeekAgo;
+    const d = t.statusHistory?.find(h => h.status === 'Done');
+    return d && new Date(d.changedAt) >= oneWeekAgo;
   }).length;
-
   const breached = closedTickets.filter(t => {
-    const doneStatus = t.statusHistory?.find(h => h.status === 'Done');
-    if (!doneStatus) return false;
-    const days = (new Date(doneStatus.changedAt) - new Date(t.createdAt)) / (1000 * 60 * 60 * 24);
-    return days > 7;
+    const d = t.statusHistory?.find(h => h.status === 'Done');
+    if (!d) return false;
+    return (new Date(d.changedAt) - new Date(t.createdAt)) / 86400000 > 7;
   }).length;
   const slaBreachRate = closedTickets.length > 0 ? Math.round((breached / closedTickets.length) * 100) : 0;
-
   return { avgCycleTime, closedThisWeek, slaBreachRate };
 };
 
+/* ─────────────────────────────────────────
+   Compact Stat Card  (top strip + bottom strip)
+───────────────────────────────────────── */
+const StatCard = ({ title, value, icon: Icon, link }) => {
+  const inner = (
+    <div className="bg-white rounded-xl px-4 py-3 border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] hover:border-[#0D9488]/25 transition-all duration-200 group flex items-center justify-between gap-3 h-[72px]">
+      <div className="min-w-0">
+        <p className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] truncate leading-none mb-1.5">
+          {title}
+        </p>
+        <p className="text-[26px] font-black text-[#111827] leading-none">
+          {value}
+        </p>
+      </div>
+      <div className="w-9 h-9 rounded-lg bg-[#F0FDF9] text-[#0D9488] flex items-center justify-center flex-shrink-0 group-hover:bg-[#0D9488] group-hover:text-white transition-colors duration-200">
+        <Icon size={16} />
+      </div>
+    </div>
+  );
+  return link ? <Link to={link}>{inner}</Link> : inner;
+};
+
+/* ─────────────────────────────────────────
+   Section Header
+───────────────────────────────────────── */
+const SectionHeader = ({ title, sub, action, actionLink }) => (
+  <div className="flex items-start justify-between mb-3">
+    <div>
+      <h2 className="text-[12px] font-black text-[#111827] uppercase tracking-[0.12em] leading-none">
+        {title}
+      </h2>
+      {sub && <p className="text-[11px] text-[#9CA3AF] font-medium mt-0.5">{sub}</p>}
+    </div>
+    {action && actionLink && (
+      <Link to={actionLink}
+        className="text-[9.5px] font-black text-[#0D9488] uppercase tracking-[0.14em] hover:underline flex items-center gap-1 flex-shrink-0">
+        {action} <FaArrowRight size={8} />
+      </Link>
+    )}
+  </div>
+);
+
+/* ─────────────────────────────────────────
+   Status Pill for Work Allocation
+───────────────────────────────────────── */
+const StatusPill = ({ label, value, borderColor, badgeClass }) => (
+  <div className={`flex items-center justify-between h-[34px] px-3 bg-white border border-[#E9EEF3] border-l-[4px] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.03)]`}
+    style={{ borderLeftColor: borderColor }}>
+    <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#6B7280]">{label}</span>
+    <span className={`text-[13px] font-black ${badgeClass}`}>{value}</span>
+  </div>
+);
+
+/* ─────────────────────────────────────────
+   Main Dashboard
+───────────────────────────────────────── */
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    workers: 0,
-    tasks: 0,
-    topics: 0,
-    columns: 0,
-    foodRequests: 0,
+    workers: 0, tasks: 0, topics: 0, foodRequests: 0,
     leaves: { total: 0, pending: 0, approved: 0, rejected: 0 },
     comments: { total: 0, unread: 0 },
     tickets: { todo: 0, inProgress: 0, review: 0, done: 0 },
-    kpi: { avgCycleTime: 0, closedThisWeek: 0, slaBreachRate: 0 }
+    kpi: { avgCycleTime: 0, closedThisWeek: 0, slaBreachRate: 0 },
+    renewals: { total: 0, expiringSoon: 0, expired: 0 }
   });
   const [isLoading, setIsLoading] = useState(true);
   const [departments, setDepartments] = useState([]);
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [attendancePercentage, setAttendancePercentage] = useState(0);
+  const [tickets, setTickets] = useState([]);
   const { subdomain } = useContext(appContext);
 
   const loadDashboardData = async () => {
@@ -117,333 +165,385 @@ const Dashboard = () => {
         getMealsSummary({ subdomain }),
         getDepartments({ subdomain }),
         getAttendanceSummary({ subdomain }),
-        getTickets({ subdomain })
+        getTickets({ subdomain }),
+        renewalService.getRenewals({ subdomain })
       ]);
 
-      const workersData = results[0].status === 'fulfilled' ? results[0].value : [];
-      const tasksData = results[1].status === 'fulfilled' ? results[1].value : [];
-      const topicsData = results[2].status === 'fulfilled' ? results[2].value : [];
-      const leavesData = results[4].status === 'fulfilled' ? results[4].value : [];
-      const commentsData = results[5].status === 'fulfilled' ? results[5].value : [];
-      const mealsSummary = results[6].status === 'fulfilled' ? results[6].value : { total: 0 };
-      const departmentsDataRaw = results[7].status === 'fulfilled' ? results[7].value : [];
-      const attendanceSummaryData = results[8].status === 'fulfilled' ? results[8].value : { percentage: 0 };
-      const ticketsData = results[9].status === 'fulfilled' ? results[9].value : [];
+      const workersData         = results[0].status === 'fulfilled' ? results[0].value : [];
+      const tasksData           = results[1].status === 'fulfilled' ? results[1].value : [];
+      const topicsData          = results[2].status === 'fulfilled' ? results[2].value : [];
+      const leavesData          = results[4].status === 'fulfilled' ? results[4].value : [];
+      const commentsData        = results[5].status === 'fulfilled' ? results[5].value : [];
+      const mealsSummary        = results[6].status === 'fulfilled' ? results[6].value : { total: 0 };
+      const departmentsDataRaw  = results[7].status === 'fulfilled' ? results[7].value : [];
+      const attendanceSummary   = results[8].status === 'fulfilled' ? results[8].value : { percentage: 0 };
+      const ticketsData         = results[9].status === 'fulfilled' ? results[9].value : [];
+      const renewalsData        = results[10]?.status === 'fulfilled' ? results[10].value.data || [] : [];
 
-      const departmentsDataSafe = Array.isArray(departmentsDataRaw) ? departmentsDataRaw : [];
-      const pendingLeaves = leavesData.filter(leave => leave.status === 'Pending');
-      const approvedLeaves = leavesData.filter(leave => leave.status === 'Approved');
-      const rejectedLeaves = leavesData.filter(leave => leave.status === 'Rejected');
-      const unreadComments = commentsData.filter(comment =>
-        comment.isNew || comment.replies?.some(reply => reply.isNew)
-      );
+      const deptsSafe      = Array.isArray(departmentsDataRaw) ? departmentsDataRaw : [];
+      const pending        = leavesData.filter(l => l.status === 'Pending');
+      const approved       = leavesData.filter(l => l.status === 'Approved');
+      const rejected       = leavesData.filter(l => l.status === 'Rejected');
+      const unread         = commentsData.filter(c => c.isNew || c.replies?.some(r => r.isNew));
+      const activeWorkers  = workersData.filter(w => w.status !== 'Relieved');
 
-      const activeWorkers = workersData.filter(w => w.status !== 'Relieved');
+      let expiringSoon = 0, expired = 0;
+      renewalsData.forEach(r => {
+        if (r.domain_status === 'EXPIRING_SOON' || r.server_status === 'EXPIRING_SOON') expiringSoon++;
+        if (r.domain_status === 'EXPIRED'       || r.server_status === 'EXPIRED')        expired++;
+      });
 
       setStats({
         workers: activeWorkers.length,
         tasks: tasksData.length,
         topics: topicsData.length,
         foodRequests: mealsSummary.total,
-        leaves: {
-          total: leavesData.length,
-          pending: pendingLeaves.length,
-          approved: approvedLeaves.length,
-          rejected: rejectedLeaves.length,
-        },
-        comments: {
-          total: commentsData.length,
-          unread: unreadComments.length,
-        },
+        leaves: { total: leavesData.length, pending: pending.length, approved: approved.length, rejected: rejected.length },
+        comments: { total: commentsData.length, unread: unread.length },
         tickets: {
-          todo: ticketsData.filter(t => t.status === 'To Do').length,
+          todo:       ticketsData.filter(t => t.status === 'To Do').length,
           inProgress: ticketsData.filter(t => t.status === 'In Progress').length,
-          review: ticketsData.filter(t => t.status === 'Review').length,
-          done: ticketsData.filter(t => t.status === 'Done').length,
+          review:     ticketsData.filter(t => t.status === 'Review').length,
+          done:       ticketsData.filter(t => t.status === 'Done').length,
         },
-        kpi: calculateKpiStats(ticketsData)
+        kpi: calculateKpiStats(ticketsData),
+        renewals: { total: renewalsData.length, expiringSoon, expired }
       });
 
-      setPendingLeaves(pendingLeaves.slice(0, 3));
-      setDepartments(departmentsDataSafe);
-      setAttendancePercentage(attendanceSummaryData?.percentage || 0);
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
+      setPendingLeaves(pending.slice(0, 4));
+      setDepartments(deptsSafe);
+      setAttendancePercentage(attendanceSummary?.percentage || 0);
+      setTickets(ticketsData);
+    } catch (err) {
+      console.error('Dashboard load error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [subdomain]);
+  useEffect(() => { loadDashboardData(); }, [subdomain]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
+      <div className="flex justify-center items-center h-screen bg-[#F5F7FA]">
         <Spinner size="lg" />
       </div>
     );
   }
 
-  // Helper component for Stat Cards
-  const StatCard = ({ title, value, icon: Icon, link }) => (
-    <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-xl hover:border-teal-100 transition-all duration-300 group">
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4">
-        <div className="p-2.5 md:p-3.5 rounded-xl bg-slate-50 text-slate-400 group-hover:text-[#0D9488] group-hover:bg-teal-50 transition-colors duration-300">
-          <Icon size={18} className="md:w-6 md:h-6" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-slate-500 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-[0.1em] mb-0.5 md:mb-1">
-            {title}
-          </h3>
-          <p className="text-lg md:text-2xl font-black text-slate-900 tracking-tight truncate">
-            {value}
-          </p>
-        </div>
-        {link && (
-          <Link to={link} className="hidden md:flex p-2 rounded-full hover:bg-teal-50 text-slate-200 hover:text-[#0D9488] transition-all">
-            <FaArrowRight size={12} />
-          </Link>
-        )}
-      </div>
-    </div>
+  const attentionTickets = tickets.filter(
+    t => t.status === 'Review' || t.status === 'In Progress'
   );
 
+  /* ── attendance colour helper ── */
+  const deptColor = (pct) =>
+    pct >= 90 ? '#0D9488' :
+    pct >= 70 ? '#3B82F6' :
+    pct >= 40 ? '#F59E0B' : '#EF4444';
+
   return (
-    <div className="bg-gray-50 min-h-screen p-3 md:p-6 lg:p-10 flex flex-col items-center">
-      <div className="w-full max-w-[1440px]">
-        {/* Header */}
-        <div className="mb-6 md:mb-10">
-          <h1 className="text-2xl md:text-[32px] font-black text-slate-900 tracking-tight leading-none uppercase">My Dashboard</h1>
-          <p className="text-slate-500 text-xs md:text-sm mt-2 font-medium">Strategic overview and management center</p>
+    <div className="bg-[#F5F7FA] min-h-screen p-4 lg:p-5">
+      <div className="max-w-[1440px] mx-auto flex flex-col gap-4">
+
+        {/* ══════════════════════════════════════════
+            ROW 1 — COMPACT STAT STRIP (6 cards)
+        ══════════════════════════════════════════ */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard title="Total Employees"  value={stats.workers}          icon={FaUsers}       link="/admin/workers"  />
+          <StatCard title="Active Tasks"     value={stats.tasks}            icon={FaTasks}       link="/admin/tasks"    />
+          <StatCard title="Topics"           value={stats.topics}           icon={FaTasks}       link="/admin/topics"   />
+          <StatCard title="Attendance"       value={`${Math.round(attendancePercentage)}%`} icon={FaChartBar} />
+          <StatCard title="Pending Leaves"   value={stats.leaves.pending}   icon={FaCalendarAlt} link="/admin/leaves"   />
+          <StatCard title="Unread Comments"  value={stats.comments.unread}  icon={FaComments}    link="/admin/comments" />
         </div>
 
-        {/* Main Layout Grid */}
-        <div className="flex flex-col gap-6">
+        {/* ══════════════════════════════════════════
+            ROW 2 — 3-COLUMN MAIN GRID
+            Col A: Work Allocation
+            Col B: Sales Velocity
+            Col C: KPI (top) + Attendance (bottom)
+        ══════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-          {/* Top Row: Stat Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            <StatCard title="Total Employees" value={stats.workers} icon={FaUsers} link="/admin/workers" />
-            <StatCard title="Active Tasks" value={stats.tasks} icon={FaTasks} link="/admin/tasks" />
-            <StatCard title="Topics" value={stats.topics} icon={FaTasks} link="/admin/topics" />
-            <StatCard title="Attendance" value={`${Math.round(attendancePercentage)}%`} icon={FaChartBar} />
-          </div>
+          {/* ── Col A: Work Allocation Board ── */}
+          <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4 flex flex-col gap-3">
+            <SectionHeader
+              title="Work Allocation"
+              sub="Task distribution by status"
+              action="View Board"
+              actionLink="/admin/work-allocation"
+            />
 
-          {/* Second Row: Work Board & Performance */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Work Allocation Board */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight">Work Allocation Board</h2>
-                  <p className="text-[11px] text-slate-500 font-medium">Task distribution by status</p>
-                </div>
-                <Link to="/admin/work-allocation" className="px-3 py-1.5 rounded-lg bg-teal-50 text-[#0D9488] font-black text-[10px] uppercase tracking-widest hover:bg-[#0D9488] hover:text-white transition-all flex items-center gap-2">
-                  View Board <FaArrowRight size={10} />
-                </Link>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-                {[
-                  { label: 'To Do', value: stats.tickets.todo, color: 'bg-slate-50 text-slate-600', border: 'border-slate-100' },
-                  { label: 'Active', value: stats.tickets.inProgress, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100/50' },
-                  { label: 'Review', value: stats.tickets.review, color: 'bg-purple-50 text-purple-600', border: 'border-purple-100/50' },
-                  { label: 'Done', value: stats.tickets.done, color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100/50' }
-                ].map((item) => (
-                  <div key={item.label} className={`${item.color} ${item.border} rounded-2xl p-4 md:p-5 border shadow-sm`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest mb-2 opacity-70">{item.label}</p>
-                    <p className="text-2xl md:text-3xl font-black">{item.value}</p>
+            {/* Status pills */}
+            <div className="flex flex-col gap-1.5">
+              <StatusPill label="To Do"  value={stats.tickets.todo}       borderColor="#9CA3AF" badgeClass="text-[#6B7280]"  />
+              <StatusPill label="Active" value={stats.tickets.inProgress}  borderColor="#3B82F6" badgeClass="text-[#3B82F6]"  />
+              <StatusPill label="Review" value={stats.tickets.review}      borderColor="#F59E0B" badgeClass="text-[#F59E0B]"  />
+              <StatusPill label="Done"   value={stats.tickets.done}        borderColor="#0D9488" badgeClass="text-[#0D9488]"  />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-[#F1F4F8]" />
+
+            {/* Needs Attention */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <p className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-2">
+                Needs Attention
+                {attentionTickets.length > 0 && (
+                  <span className="ml-2 bg-[#EF4444]/10 text-[#EF4444] px-1.5 py-0.5 rounded text-[8px]">
+                    {attentionTickets.length}
+                  </span>
+                )}
+              </p>
+              <div className="space-y-1.5 overflow-y-auto max-h-[200px] pr-0.5">
+                {attentionTickets.slice(0, 6).map(ticket => (
+                  <div key={ticket._id}
+                    onClick={() => navigate('/admin/work-allocation')}
+                    className="flex items-center justify-between px-3 py-2 bg-[#F8FAFC] rounded-lg border border-[#EEF1F5] hover:border-[#0D9488]/20 hover:bg-[#F0FDF9]/50 cursor-pointer transition-all duration-150 group">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11.5px] font-bold text-[#111827] truncate group-hover:text-[#0D9488] transition-colors">
+                        {ticket.title}
+                      </p>
+                      <p className="text-[9px] font-black text-[#9CA3AF] uppercase tracking-wide">
+                        #{ticket._id.substring(ticket._id.length - 4).toUpperCase()}
+                      </p>
+                    </div>
+                    <span className={`ml-2 text-[8.5px] font-black uppercase px-2 py-0.5 rounded flex-shrink-0 ${
+                      ticket.status === 'Review'
+                        ? 'bg-[#F59E0B]/10 text-[#D97706]'
+                        : 'bg-[#3B82F6]/10 text-[#2563EB]'
+                    }`}>
+                      {ticket.status}
+                    </span>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Performance KPI */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight">Performance KPI</h2>
-                  <p className="text-[11px] text-slate-500 font-medium">Core efficiency metrics</p>
-                </div>
-                <Link to="/admin/kpi-management" className="px-3 py-1.5 rounded-lg bg-teal-50 text-[#0D9488] font-black text-[10px] uppercase tracking-widest hover:bg-[#0D9488] hover:text-white transition-all">
-                  Analytics
-                </Link>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center py-4">
-                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mb-3">Turnaround</p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <p className="text-2xl md:text-3xl font-black text-slate-900">{stats.kpi.avgCycleTime}</p>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Days</span>
-                  </div>
-                </div>
-                <div className="text-center py-4 border-x border-slate-50">
-                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mb-3">Closed (7D)</p>
-                  <p className="text-2xl md:text-3xl font-black text-slate-900">{stats.kpi.closedThisWeek}</p>
-                </div>
-                <div className="text-center py-4">
-                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mb-3">SLA Index</p>
-                  <p className={`text-2xl md:text-3xl font-black ${stats.kpi.slaBreachRate > 20 ? 'text-rose-500' : 'text-[#0D9488]'}`}>
-                    {100 - stats.kpi.slaBreachRate}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Third Row: Overall Attendance & Attention */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Overall Attendance (lg:col-span-2) */}
-            <div className="lg:col-span-2 bg-white rounded-2xl p-8 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex-1">
-                <h2 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tight">Overall Attendance</h2>
-                <p className="text-xs md:text-sm text-slate-500 font-medium mt-2">Today's attendance overview across all departments</p>
-                <div className="mt-8 flex gap-8">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                    <p className="text-sm font-bold text-teal-600 uppercase">Healthy</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Present</p>
-                    <p className="text-sm font-bold text-slate-900 uppercase">{Math.round((attendancePercentage / 100) * stats.workers)} Employees</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-shrink-0">
-                <CircularProgress
-                  percentage={attendancePercentage}
-                  size={120}
-                  strokeWidth={12}
-                  color="#F59E0B"
-                  showLabel={true}
-                />
-              </div>
-            </div>
-
-            {/* Needs Attention Panel (lg:col-span-1) */}
-            <div className="lg:col-span-1 bg-[#0D9488] rounded-2xl p-6 text-white shadow-[0_20px_40px_rgba(13,148,136,0.2)] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
-
-              <h2 className="text-xl md:text-2xl font-black tracking-tight mb-1">Needs Attention!</h2>
-              <p className="text-white/70 text-xs font-medium mb-8">You have pending items requiring review</p>
-
-              <div className="space-y-4 relative z-10">
-                {stats.leaves.pending > 0 ? (
-                  <div className="bg-white rounded-xl p-4 text-slate-900 shadow-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-black uppercase tracking-tight">Leave Requests</p>
-                      <span className="text-[10px] font-black px-2 py-0.5 bg-rose-50 text-rose-600 rounded-md">{stats.leaves.pending} pending</span>
-                    </div>
-                    <div className="space-y-2">
-                      {pendingLeaves.map((leave) => (
-                        <div key={leave._id} className="text-[11px] font-bold border-t border-slate-50 pt-2 flex justify-between items-center first:border-0 first:pt-0">
-                          <span className="truncate pr-4">{leave.worker?.name || 'Unknown'}</span>
-                          <span className="text-slate-400 whitespace-nowrap">{new Date(leave.startDate).toLocaleDateString()}</span>
-                        </div>
-                      ))}
-                      {stats.leaves.pending > 3 && (
-                        <p className="text-[10px] text-[#0D9488] font-black text-center pt-2 uppercase tracking-widest cursor-pointer hover:underline">+{stats.leaves.pending - 3} more items</p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 text-center border border-white/10">
-                    <p className="text-sm font-black">All Clear! 🎉</p>
+                {attentionTickets.length === 0 && (
+                  <div className="flex items-center justify-center py-6 text-[11px] text-[#9CA3AF] font-medium">
+                    ✓ All clear — no tasks need attention
                   </div>
                 )}
-
-                <Link to="/admin/leaves" className="block w-full py-3 bg-white text-[#0D9488] rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-center hover:bg-slate-50 transition-all shadow-lg active:scale-95">
-                  Review All Items
-                </Link>
               </div>
             </div>
           </div>
 
-          {/* Fourth Row: Departments List */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight">Departments</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Organization structure overview</p>
+          {/* ── Col B: Sales Velocity ── */}
+          <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
+            <SalesVelocityWidget />
+          </div>
+
+          {/* ── Col C: KPI (top) + Attendance (bottom) ── */}
+          <div className="flex flex-col gap-4">
+
+            {/* Performance KPI */}
+            <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4">
+              <SectionHeader
+                title="Performance KPI"
+                sub="Core efficiency metrics"
+                action="Analytics"
+                actionLink="/admin/kpi-management"
+              />
+              <div className="grid grid-cols-3 divide-x divide-[#F1F4F8] pt-1">
+                {/* Turnaround */}
+                <div className="text-center px-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-1.5 leading-none">
+                    Turnaround
+                  </p>
+                  <div className="flex items-baseline justify-center gap-0.5">
+                    <span className="text-[24px] font-black text-[#111827] leading-none">
+                      {stats.kpi.avgCycleTime}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#9CA3AF] pb-0.5">D</span>
+                  </div>
+                </div>
+                {/* Closed 7D */}
+                <div className="text-center px-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-1.5 leading-none">
+                    Closed 7D
+                  </p>
+                  <span className="text-[24px] font-black text-[#111827] leading-none">
+                    {stats.kpi.closedThisWeek}
+                  </span>
+                </div>
+                {/* SLA Index */}
+                <div className="text-center px-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-1.5 leading-none">
+                    SLA Index
+                  </p>
+                  <span className={`text-[24px] font-black leading-none ${
+                    stats.kpi.slaBreachRate > 20 ? 'text-[#EF4444]' : 'text-[#0D9488]'
+                  }`}>
+                    {100 - stats.kpi.slaBreachRate}%
+                  </span>
+                </div>
               </div>
             </div>
 
+            {/* Overall Attendance */}
+            <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4 flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <SectionHeader title="Attendance" sub="Today's overview" />
+                <div className="flex gap-5 mt-1">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-0.5">Status</p>
+                    <p className="text-[11px] font-black text-[#0D9488] uppercase">
+                      {attendancePercentage >= 80 ? 'Healthy' :
+                       attendancePercentage >= 50 ? 'Moderate' : 'Low'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-0.5">Present</p>
+                    <p className="text-[11px] font-black text-[#111827]">
+                      {Math.round((attendancePercentage / 100) * stats.workers)} Emp
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <CircularProgress
+                percentage={attendancePercentage}
+                size={82}
+                strokeWidth={8}
+                color="#0D9488"
+                showLabel={true}
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            ROW 3 — Departments (left) + Renewals (right)
+        ══════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* ── Departments ── */}
+          <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4">
+            <SectionHeader title="Departments" sub="Organization attendance overview" />
             {departments.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto">
                 {departments.map((dept) => (
-                  <div key={dept._id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-white shadow-sm hover:border-teal-100 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-[#0D9488] shadow-sm border border-slate-50 group-hover:scale-110 transition-transform">
-                        <FaBuilding size={20} />
+                  <div key={dept._id}
+                    className="flex items-center justify-between px-3 py-2.5 bg-[#F8FAFC] rounded-lg border border-[#EEF1F5] hover:border-[#0D9488]/20 hover:bg-[#F0FDF9]/40 transition-all duration-150 group gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-7 h-7 rounded-lg bg-white border border-[#E9EEF3] flex items-center justify-center text-[#0D9488] flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                        <FaBuilding size={12} />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-black text-slate-900">{dept.name}</h3>
-                        <p className="text-[11px] text-slate-500 font-bold">{dept.workerCount || 0} Employees</p>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-[#111827] truncate leading-none">
+                          {dept.name}
+                        </p>
+                        <p className="text-[9px] text-[#9CA3AF] font-medium mt-0.5">
+                          {dept.workerCount || 0} emp
+                        </p>
                       </div>
                     </div>
                     <CircularProgress
                       percentage={dept.attendancePercentage || 0}
-                      size={52}
-                      strokeWidth={5}
-                      color={
-                        dept.attendancePercentage === 100 ? '#0D9488' :
-                          dept.attendancePercentage >= 70 ? '#0EA5E9' :
-                            dept.attendancePercentage >= 40 ? '#F59E0B' :
-                              '#EF4444'
-                      }
+                      size={38}
+                      strokeWidth={4}
+                      color={deptColor(dept.attendancePercentage || 0)}
                       showLabel={true}
                     />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                <p className="text-sm font-bold uppercase tracking-widest">No departments found</p>
+              <div className="flex items-center justify-center py-10 rounded-lg border border-dashed border-[#E9EEF3] bg-[#F8FAFC]">
+                <p className="text-[11px] text-[#9CA3AF] font-bold uppercase tracking-widest">
+                  No departments found
+                </p>
               </div>
             )}
           </div>
 
-          {/* Fifth Row: Summary Stats Footer */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Leaves (Pending)</p>
-                <p className="text-xl font-black text-slate-900">{stats.leaves.pending}</p>
-              </div>
-              <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                <FaCalendarAlt size={16} />
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Leaves (Approved)</p>
-                <p className="text-xl font-black text-slate-900">{stats.leaves.approved}</p>
-              </div>
-              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                <FaCalendarAlt size={16} />
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Comments (Unread)</p>
-                <p className="text-xl font-black text-slate-900">{stats.comments.unread}</p>
-              </div>
-              <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
-                <FaChartBar size={16} />
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Meals Requested</p>
-                <p className="text-xl font-black text-slate-900">{stats.foodRequests}</p>
-              </div>
-              <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
-                <FaUsers size={16} />
-              </div>
-            </div>
-          </div>
+          {/* ── Renewals ── */}
+          <div className="bg-white rounded-xl border border-[#E9EEF3] shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4 flex flex-col">
+            <SectionHeader
+              title="Renewals"
+              sub="Service timelines"
+              action="View All"
+              actionLink="/admin/renewals"
+            />
 
+            {/* 3-stat row */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { label: 'Total',    value: stats.renewals.total,       cls: 'text-[#111827]' },
+                { label: 'Expiring', value: stats.renewals.expiringSoon, cls: 'text-[#F59E0B]' },
+                { label: 'Expired',  value: stats.renewals.expired,      cls: 'text-[#EF4444]' },
+              ].map(({ label, value, cls }) => (
+                <div key={label} className="flex flex-col items-center justify-center py-3 bg-[#F8FAFC] rounded-lg border border-[#EEF1F5]">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-1">{label}</p>
+                  <p className={`text-[22px] font-black leading-none ${cls}`}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Status banner */}
+            <div className={`rounded-lg px-4 py-3 flex items-center justify-between ${
+              stats.renewals.expired > 0
+                ? 'bg-[#FEF2F2] border border-[#FCA5A5]/40'
+                : 'bg-[#F0FDF9] border border-[#6EE7B7]/40'
+            }`}>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-0.5">
+                  System Status
+                </p>
+                <p className={`text-[13px] font-black ${
+                  stats.renewals.expired > 0 ? 'text-[#EF4444]' : 'text-[#0D9488]'
+                }`}>
+                  {stats.renewals.expired > 0 ? 'Action Required' : 'All Systems Good'}
+                </p>
+              </div>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[16px] ${
+                stats.renewals.expired > 0 ? 'bg-[#FEE2E2]' : 'bg-[#CCFBF1]'
+              }`}>
+                {stats.renewals.expired > 0 ? '⚠' : '✓'}
+              </div>
+            </div>
+
+            {/* Pending leave quick list (re-used space) */}
+            {pendingLeaves.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[#9CA3AF] mb-2">
+                  Pending Leave Requests
+                  <span className="ml-1.5 bg-[#F59E0B]/10 text-[#D97706] text-[8px] font-black px-1.5 py-0.5 rounded">
+                    {stats.leaves.pending}
+                  </span>
+                </p>
+                <div className="space-y-1">
+                  {pendingLeaves.map(leave => (
+                    <div key={leave._id}
+                      className="flex items-center justify-between px-3 py-2 bg-[#FFFBEB] rounded-lg border border-[#FDE68A]/40">
+                      <span className="text-[11px] font-bold text-[#111827] truncate">
+                        {leave.worker?.name || 'Unknown'}
+                      </span>
+                      <span className="text-[9px] text-[#9CA3AF] font-medium whitespace-nowrap ml-2">
+                        {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                      </span>
+                    </div>
+                  ))}
+                  {stats.leaves.pending > 4 && (
+                    <Link to="/admin/leaves"
+                      className="block text-center text-[9.5px] font-black text-[#0D9488] uppercase tracking-widest pt-1 hover:underline">
+                      +{stats.leaves.pending - 4} more
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ══════════════════════════════════════════
+            ROW 4 — BOTTOM SUMMARY STRIP
+        ══════════════════════════════════════════ */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Leaves Pending"   value={stats.leaves.pending}   icon={FaCalendarAlt} link="/admin/leaves"   />
+          <StatCard title="Leaves Approved"  value={stats.leaves.approved}  icon={FaCalendarAlt} link="/admin/leaves"   />
+          <StatCard title="Comments Unread"  value={stats.comments.unread}  icon={FaComments}    link="/admin/comments" />
+          <StatCard title="Meals Requested"  value={stats.foodRequests}     icon={FaUsers}                              />
+        </div>
+
       </div>
     </div>
   );

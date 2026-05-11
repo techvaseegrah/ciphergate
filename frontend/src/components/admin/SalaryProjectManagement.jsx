@@ -169,8 +169,8 @@ const SalaryProjectManagement = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between md:justify-end mb-6 gap-4">
+        <div className="md:hidden">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FaProjectDiagram className="text-teal-600" /> Salary Projects
           </h1>

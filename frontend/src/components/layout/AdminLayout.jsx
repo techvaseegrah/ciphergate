@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, Suspense } from 'react';
-import { useNavigate, Outlet, Routes, Route, Navigate } from 'react-router-dom';
+import { useNavigate, Outlet, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import {
   FaHome,
   FaUsers,
@@ -81,6 +81,7 @@ const GoWhatsIntegration = React.lazy(() => import('../admin/GoWhatsIntegration'
 const HolidayManagement = React.lazy(() => import('../admin/HolidayManagement'));
 const Communication = React.lazy(() => import('../../pages/Communication'));
 const Settings = React.lazy(() => import('../admin/Settings'));
+const AdminProfile = React.lazy(() => import('../admin/AdminProfile'));
 const WorkerAttendance = React.lazy(() => import('../admin/WorkerAttendance'));
 const InvoiceManagement = React.lazy(() => import('../admin/InvoiceManagement'));
 const AdminDashboard = React.lazy(() => import('../../pages/Admin/AdminDashboard'));
@@ -178,7 +179,6 @@ const AdminLayout = () => {
         { to: '/admin/departments', label: 'Departments', icon: <FaBuilding /> },
         { to: '/admin/attendance', label: 'Attendance', icon: <FaClock /> },
         { to: '/admin/leaves', label: 'Leave Requests', icon: <FaCalendarMinus />, badge: pendingLeaves > 0 ? pendingLeaves : null },
-        { to: '/admin/holidays', label: 'Holidays', icon: <FaUmbrellaBeach /> },
       ],
     },
     {
@@ -218,8 +218,8 @@ const AdminLayout = () => {
       isDropdown: true,
       children: [
         { to: '/admin/communication', label: 'Communication', icon: <FaComments /> },
+        { to: '/admin/notifications', label: 'Notifications', icon: <FaRegBell /> },
         { to: '/admin/gowhats', label: 'GoWhats', icon: <FaWhatsapp /> },
-        { to: '/admin/notifications', label: 'Notifications', icon: <FaRegBell />, badge: newComments > 0 ? newComments : null },
         { to: '/admin/comments', label: 'Comments', icon: <FaCommentDots />, badge: newComments > 0 ? newComments : null },
         { to: '/admin/food-requests', label: 'Food Requests', icon: <FaPizzaSlice /> },
       ],
@@ -283,6 +283,27 @@ const AdminLayout = () => {
 
   const menuLinks = allLinks.filter(link => !bottomNavPaths.includes(link.to));
 
+  const location = useLocation();
+  const currentPath = location.pathname;
+  
+  const getPageTitle = () => {
+    // Search in sidebarLinks
+    for (const link of sidebarLinks) {
+      if (link.to === currentPath) return link.label;
+      if (link.children) {
+        for (const child of link.children) {
+          if (child.to === currentPath) return child.label;
+        }
+      }
+    }
+    // Fallback for sub-routes or specific pages
+    if (currentPath === '/admin') return 'Dashboard';
+    if (currentPath.startsWith('/admin/attendance/')) return 'Worker Attendance';
+    return 'Admin Portal'; // Default fallback
+  };
+  
+  const pageTitle = getPageTitle();
+
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans">
       
@@ -306,6 +327,7 @@ const AdminLayout = () => {
           onLogout={handleLogout} 
           isAdmin={true} 
           onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          title={pageTitle}
         />
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto pb-6 md:pb-10 custom-main-scroll">
@@ -331,16 +353,15 @@ const AdminLayout = () => {
               <Route path="columns" element={<ColumnManagement />} />
               <Route path="tasks" element={<TaskManagement />} />
               <Route path="leaves" element={<LeaveManagement />} />
-              <Route path="holidays" element={<HolidayManagement />} />
               <Route path="comments" element={<CommentManagement />} />
               <Route path="topics" element={<TopicManagement />} />
-              <Route path="food-requests" element={<FoodRequestManagement />} />
+               <Route path="food-requests" element={<FoodRequestManagement />} />
+              <Route path="notifications" element={<NotificationManagement />} />
               
               <Route path="github-tracker" element={<GitHubDashboard />} />
               
-              <Route path="custom-tasks" element={<CustomTasks />} />
-              <Route path="notifications" element={<NotificationManagement />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="profile" element={<AdminProfile />} />
               <Route path="gowhats" element={<GoWhatsIntegration />} />
               <Route path="communication" element={<Communication />} />
               <Route path="invoices" element={<InvoiceManagement />} />

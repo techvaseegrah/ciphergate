@@ -275,8 +275,8 @@ const InvoiceManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-gray-800">Invoice Management</h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between md:justify-end gap-4 mb-2">
+        <h1 className="text-2xl font-bold text-gray-800 md:hidden">Invoice Management</h1>
         <div className="flex gap-3">
           {(activeTab === 'invoice-history' || activeTab === 'unified-history') && (
             <button

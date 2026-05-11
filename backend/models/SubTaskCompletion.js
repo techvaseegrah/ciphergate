@@ -44,6 +44,26 @@ const subTaskCompletionSchema = new mongoose.Schema({
             default: Date.now
         }
     }],
+    referenceFiles: [{
+        url: {
+            type: String,
+            required: true
+        },
+        name: {
+            type: String,
+            required: true
+        },
+        type: {
+            type: String
+        },
+        size: {
+            type: Number
+        },
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
     completedAt: {
         type: Date
     },

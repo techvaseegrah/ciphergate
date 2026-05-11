@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import appContext from '../../context/AppContext';
 import { useSocket } from '../../context/SocketContextNew';
-import { getTickets, createTicket, updateTicket, deleteTicket, getTicketCompletions } from '../../services/ticketService';
+import { getTickets, createTicket, updateTicket, deleteTicket, getTicketCompletions, uploadReference } from '../../services/ticketService';
 import { getWorkers } from '../../services/workerService';
 import Spinner from '../common/Spinner';
 import {
@@ -11,6 +11,7 @@ import {
     Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText, HelpCircle
 } from 'lucide-react';
 import { getFullFileUrl } from '../../utils/fileUtils';
+import { toast } from 'react-toastify';
 import {
     Select,
     SelectContent,
@@ -339,6 +340,7 @@ const WorkAllocation = () => {
     // Modal state
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [refManager, setRefManager] = useState({ isOpen: false, ticketId: '', subTaskId: '', workerId: '', files: [] });
 
     // Inline creation state
     const [inlineCreateStatus, setInlineCreateStatus] = useState(null);
@@ -360,6 +362,8 @@ const WorkAllocation = () => {
     const [isFetchingCompletions, setIsFetchingCompletions] = useState(false);
     const [proofViewer, setProofViewer] = useState({ isOpen: false, files: [], userName: '', subTaskText: '' });
     const [zoomedImage, setZoomedImage] = useState(null);
+    const [uploadingRef, setUploadingRef] = useState({ ticketId: null, subTaskId: null, workerId: null });
+    const refFileInputRef = useRef(null);
 
     const columns = ['To Do', 'In Progress', 'Review', 'Done'];
 
@@ -455,6 +459,103 @@ const WorkAllocation = () => {
         } finally {
             setIsFetchingCompletions(false);
         }
+    };
+
+    const handleRefFileChange = async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        const formData = new FormData();
+        formData.append('ticketId', uploadingRef.ticketId);
+        formData.append('subTaskId', uploadingRef.subTaskId);
+        formData.append('workerId', uploadingRef.workerId);
+        for (let i = 0; i < files.length; i++) {
+            formData.append('references', files[i]);
+        }
+
+        try {
+            const data = await uploadReference(formData);
+            if (data.success) {
+                setTicketCompletions(prev => {
+                    const index = prev.findIndex(c => c._id === data.completion._id);
+                    if (index !== -1) {
+                        const newCompletions = [...prev];
+                        newCompletions[index] = data.completion;
+                        return newCompletions;
+                    } else {
+                        return [...prev, data.completion];
+                    }
+                });
+                setRefManager(prev => ({ ...prev, files: data.completion.referenceFiles }));
+                toast.success('Reference uploaded successfully!', {
+                    icon: <CheckCircle2 className="w-5 h-5 text-teal-500" />,
+                    className: 'bg-white rounded-xl shadow-xl border border-gray-100 p-4 min-h-0 text-gray-800 text-sm font-bold flex items-center gap-3',
+                    progressClassName: 'bg-teal-500',
+                });
+            } else {
+                toast.error('Failed to upload reference: ' + data.message, {
+                    icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+                    className: 'bg-white rounded-xl shadow-xl border border-gray-100 p-4 min-h-0 text-gray-800 text-sm font-bold flex items-center gap-3',
+                    progressClassName: 'bg-red-500',
+                });
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast.error('Error uploading reference', {
+                icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+                className: 'bg-white rounded-xl shadow-xl border border-gray-100 p-4 min-h-0 text-gray-800 text-sm font-bold flex items-center gap-3',
+                progressClassName: 'bg-red-500',
+            });
+        } finally {
+            if (refFileInputRef.current) refFileInputRef.current.value = '';
+        }
+    };
+
+    const handleDeleteReference = async (ticketId, subTaskId, workerId, fileId) => {
+        try {
+            const comp = ticketCompletions.find(c => c.ticketId === ticketId && c.subTaskId === subTaskId && (c.workerId?._id || c.workerId) === workerId);
+            if (!comp) return;
+
+            const res = await fetch(`${process.env.VITE_API_URL || '/api'}/tickets/completions/${comp._id}/reference/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Reference deleted successfully', {
+                    icon: <CheckCircle2 className="w-5 h-5 text-teal-500" />,
+                    className: 'bg-white rounded-xl shadow-xl border border-gray-100 p-4 min-h-0 text-gray-800 text-sm font-bold flex items-center gap-3',
+                    progressClassName: 'bg-teal-500',
+                });
+                // Update local state
+                setTicketCompletions(prev => prev.map(c => {
+                    if (c._id === comp._id) {
+                        return { ...c, referenceFiles: c.referenceFiles.filter(f => f._id !== fileId) };
+                    }
+                    return c;
+                }));
+                // Update refManager state
+                setRefManager(prev => ({ ...prev, files: prev.files.filter(f => f._id !== fileId) }));
+            } else {
+                toast.error('Failed to delete reference: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Error deleting reference');
+        }
+    };
+
+    const triggerReferenceUpload = (ticketId, subTaskId, workerId) => {
+        const comp = ticketCompletions.find(c => c.ticketId === ticketId && c.subTaskId === subTaskId && (c.workerId?._id || c.workerId) === workerId);
+        setRefManager({ 
+            isOpen: true, 
+            ticketId, 
+            subTaskId, 
+            workerId, 
+            files: comp?.referenceFiles || [] 
+        });
     };
 
     const fetchDeletedTickets = async () => {
@@ -809,8 +910,8 @@ const WorkAllocation = () => {
             {/* Sticky Header Area - Handles Page-level context */}
             <div className="sticky top-0 z-[100] bg-white border-b border-slate-200/60 shadow-sm backdrop-blur-xl bg-white/95">
                 <div className="px-6 md:px-10 py-5">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-4">
-                        <div>
+                    <div className="flex flex-col md:flex-row justify-between md:justify-end items-center gap-6 mb-4">
+                        <div className="md:hidden">
                             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Work Allocation</h1>
                             <p className="text-slate-400 text-sm font-medium mt-1">Manage and assign tasks efficiently seamlessly.</p>
                         </div>
@@ -1551,16 +1652,10 @@ const WorkAllocation = () => {
                                                                                         </span>
                                                                                     )}
 
-                                                                                    {/* Proof Status Badge */}
-                                                                                    {hasProof ? (
-                                                                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-blue-100 shadow-sm">
-                                                                                            <Paperclip className="w-3.5 h-3.5" /> Proof
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-400 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-gray-200">
-                                                                                            <X className="w-3.5 h-3.5" /> No Proof
-                                                                                        </span>
-                                                                                    )}
+                                                                                    {/* Proof Status Button */}
+                                                                                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-orange-100 hover:bg-orange-100 transition-all shadow-sm cursor-pointer" onClick={() => triggerReferenceUpload(selectedTicket._id, item._id, workerId)}>
+                                                                                        <Paperclip className="w-3.5 h-3.5" /> {comp?.referenceFiles?.length > 0 ? 'REF ✓' : 'REF'}
+                                                                                    </span>
 
                                                                                     {/* View Action */}
                                                                                     {hasProof && (
@@ -1703,7 +1798,7 @@ const WorkAllocation = () => {
             {/* Proof Viewer Modal */}
             {proofViewer.isOpen && (
                 <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 flex justify-between items-center border-b border-gray-100 bg-gray-50/50">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-800">Proof Viewer</h3>
@@ -1715,7 +1810,7 @@ const WorkAllocation = () => {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar bg-gray-50/30">
+                        <div className="p-6 overflow-y-auto max-h-[85vh] custom-scrollbar bg-gray-50/30">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {proofViewer.files.map((file, idx) => {
                                     const isImage = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|webp|jfif)$/i.test(file.url);
@@ -1823,6 +1918,16 @@ const WorkAllocation = () => {
                 </div>
             )}
 
+            {/* Hidden File Input for Reference Upload */}
+            <input
+                type="file"
+                ref={refFileInputRef}
+                onChange={handleRefFileChange}
+                className="hidden"
+                multiple
+                accept="image/*"
+            />
+
             {/* Stats Breakdown Modal */}
             <StatsBreakdownModal
                 isOpen={isStatsModalOpen}
@@ -1839,6 +1944,94 @@ const WorkAllocation = () => {
                 tickets={deletedTickets}
                 loading={loadingDeleted}
             />
+
+            {/* Reference Manager Modal */}
+            {refManager.isOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden transform animate-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-800">Reference Images</h3>
+                                <p className="text-xs text-gray-500 font-medium">Manage reference images for this task</p>
+                            </div>
+                            <button 
+                                onClick={() => setRefManager({ isOpen: false, ticketId: '', subTaskId: '', workerId: '', files: [] })}
+                                className="p-2 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto p-6 bg-white">
+                            {refManager.files && refManager.files.length > 0 ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {refManager.files.map((file, fIdx) => (
+                                        <div key={file._id || fIdx} className="group relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50/50 hover:shadow-md transition-all">
+                                            <div className="aspect-square flex items-center justify-center bg-gray-100">
+                                                {file.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || file.url.includes('blob:') ? (
+                                                    <img 
+                                                        src={getFullFileUrl(file.url)} 
+                                                        alt={file.name} 
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <FileText className="w-12 h-12 text-teal-600" />
+                                                )}
+                                            </div>
+                                            <div className="p-3 bg-white border-t border-gray-50">
+                                                <p className="text-xs font-bold text-gray-700 truncate" title={file.name}>{file.name}</p>
+                                                <div className="flex justify-between items-center mt-2">
+                                                    <a 
+                                                        href={getFullFileUrl(file.url)} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] font-bold text-teal-600 hover:text-teal-700 uppercase"
+                                                    >
+                                                        Full View
+                                                    </a>
+                                                    <button 
+                                                        onClick={() => handleDeleteReference(refManager.ticketId, refManager.subTaskId, refManager.workerId, file._id)}
+                                                        className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 text-gray-400">
+                                    <ImagePlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                                    <p className="text-sm font-bold text-gray-600 mb-1">No reference images yet</p>
+                                    <p className="text-xs text-gray-500">Upload images for employee reference.</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                            <span className="text-xs text-gray-500 font-medium">
+                                {refManager.files?.length || 0} file(s)
+                            </span>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setUploadingRef({ ticketId: refManager.ticketId, subTaskId: refManager.subTaskId, workerId: refManager.workerId });
+                                        if (refFileInputRef.current) refFileInputRef.current.click();
+                                    }}
+                                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" /> Add New
+                                </button>
+                                <button
+                                    onClick={() => setRefManager({ isOpen: false, ticketId: '', subTaskId: '', workerId: '', files: [] })}
+                                    className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-xs font-bold rounded-lg transition-all shadow-sm"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

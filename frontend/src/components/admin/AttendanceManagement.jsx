@@ -525,8 +525,8 @@ const AttendanceManagement = () => {
 
     return (
         <Fragment>
-            <div className="flex justify-between items-center mb-4 md:mb-6">
-                <h1 className="text-2xl font-bold admin-mobile-title">Attendance Management</h1>
+            <div className="flex justify-between md:justify-end items-center mb-4 md:mb-6">
+                <h1 className="text-2xl font-bold admin-mobile-title md:hidden">Attendance Management</h1>
                 {/* Desktop buttons - hidden on mobile */}
                 <div className='hidden md:flex space-x-6 justify-center items-center'>
                     {accessControl.addAttendance && (

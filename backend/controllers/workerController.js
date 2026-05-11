@@ -302,93 +302,113 @@ const updateWorker = asyncHandler(async (req, res) => {
     const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status, email, phoneNumber, joiningDate, designation } = req.body; // ADDED status and new fields
     const updateData = {};
 
-    // Validate department if provided
-    if (department) {
-      const departmentExists = await Department.findById(department);
-      if (!departmentExists) {
-        res.status(400);
-        throw new Error('Invalid department');
+    const isAdmin = req.user && req.user.role === 'admin';
+    const isSelf = req.user && req.user._id.toString() === req.params.id;
+
+    if (!isAdmin && !isSelf) {
+      res.status(403);
+      throw new Error('Not authorized to update this worker');
+    }
+
+    if (!isAdmin) {
+      // Workers can only update these fields
+      if (photo) updateData.photo = photo;
+      if (email !== undefined) updateData.email = email;
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(password, salt);
       }
-      updateData.department = department;
-    }
-
-    // Update status if provided
-    if (status) {
-      updateData.status = status;
-    }
-
-    // Update name if provided
-    if (name) updateData.name = name;
-
-    // Update username if provided and ensure uniqueness
-    if (username) {
-      const usernameExists = await Worker.findOne({
-        username,
-        _id: { $ne: req.params.id }
-      });
-      if (usernameExists) {
-        res.status(400);
-        throw new Error('Username already exists');
-      }
-      updateData.username = username;
-    }
-
-    // Update photo if provided
-    if (photo) {
-      updateData.photo = photo;
-    }
-
-    // Handle password update
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(password, salt);
-    }
-
-    // ADDED: Handle batch update
-    if (batch) {
-      updateData.batch = batch;
-    }
-
-    // ADDED: Handle face embeddings update
-    if (faceEmbeddings && faceEmbeddings.length > 0) {
-      updateData.faceEmbeddings = faceEmbeddings;
-    }
-
-    // ADDED: Handle employeeType update
-    if (employeeType) {
-      updateData.employeeType = employeeType;
-    }
-
-    // ADDED: Handle class update
-    if (classValue) {
-      updateData.class = classValue;
-    }
-    
-    if (email !== undefined) updateData.email = email;
-    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
-    if (joiningDate !== undefined) updateData.joiningDate = joiningDate;
-    if (designation !== undefined) updateData.designation = designation;
-
-    // ADDED: Certificate Tracking Logic
-    if (req.body.original_certificate_status) {
-      updateData.original_certificate_status = req.body.original_certificate_status;
-    }
-
-    if (req.body.certificate_notes !== undefined) {
-      updateData.certificate_notes = req.body.certificate_notes;
-    }
-
-    // Update salary-related fields if salary is provided
-    if (salary) {
-      const numericSalary = Number(salary);
-      if (isNaN(numericSalary) || numericSalary <= 0) {
-        res.status(400);
-        throw new Error('Invalid salary value');
+    } else {
+      // Admin can update everything
+      // Validate department if provided
+      if (department) {
+        const departmentExists = await Department.findById(department);
+        if (!departmentExists) {
+          res.status(400);
+          throw new Error('Invalid department');
+        }
+        updateData.department = department;
       }
 
-      updateData.salary = numericSalary;
-      updateData.finalSalary = numericSalary;
-      updateData.perDaySalary = numericSalary / 30;
+      // Update status if provided
+      if (status) {
+        updateData.status = status;
+      }
+
+      // Update name if provided
+      if (name) updateData.name = name;
+
+      // Update username if provided and ensure uniqueness
+      if (username) {
+        const usernameExists = await Worker.findOne({
+          username,
+          _id: { $ne: req.params.id }
+        });
+        if (usernameExists) {
+          res.status(400);
+          throw new Error('Username already exists');
+        }
+        updateData.username = username;
+      }
+
+      // Update photo if provided
+      if (photo) {
+        updateData.photo = photo;
+      }
+
+      // Handle password update
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(password, salt);
+      }
+
+      // ADDED: Handle batch update
+      if (batch) {
+        updateData.batch = batch;
+      }
+
+      // ADDED: Handle face embeddings update
+      if (faceEmbeddings && faceEmbeddings.length > 0) {
+        updateData.faceEmbeddings = faceEmbeddings;
+      }
+
+      // ADDED: Handle employeeType update
+      if (employeeType) {
+        updateData.employeeType = employeeType;
+      }
+
+      // ADDED: Handle class update
+      if (classValue) {
+        updateData.class = classValue;
+      }
+      
+      if (email !== undefined) updateData.email = email;
+      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+      if (joiningDate !== undefined) updateData.joiningDate = joiningDate;
+      if (designation !== undefined) updateData.designation = designation;
+
+      // ADDED: Certificate Tracking Logic
+      if (req.body.original_certificate_status) {
+        updateData.original_certificate_status = req.body.original_certificate_status;
+      }
+
+      if (req.body.certificate_notes !== undefined) {
+        updateData.certificate_notes = req.body.certificate_notes;
+      }
+
+      // Update salary-related fields if salary is provided
+      if (salary) {
+        const numericSalary = Number(salary);
+        if (isNaN(numericSalary) || numericSalary <= 0) {
+          res.status(400);
+          throw new Error('Invalid salary value');
+        }
+
+        updateData.salary = numericSalary;
+        updateData.finalSalary = numericSalary;
+        updateData.perDaySalary = numericSalary / 30;
+      }
     }
 
     const beforeData = worker.toObject();

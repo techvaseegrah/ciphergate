@@ -10,7 +10,9 @@ const {
     upsertCompletion,
     getTicketCompletions,
     deleteProofFile,
-    reviewCompletion
+    reviewCompletion,
+    uploadReference,
+    deleteReferenceFile
 } = require('../controllers/subTaskCompletionController');
 const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
@@ -41,7 +43,9 @@ router.route('/:id')
 // Sub-task completion routes
 router.get('/:ticketId/completions', protect, getTicketCompletions);
 router.post('/completions/upload', protect, upload.array('proofs', 10), upsertCompletion);
+router.post('/completions/reference', protect, upload.array('references', 10), uploadReference);
 router.delete('/completions/:completionId/proof/:fileId', protect, deleteProofFile);
+router.delete('/completions/:completionId/reference/:fileId', protect, deleteReferenceFile);
 router.put('/completions/:completionId/review', protect, reviewCompletion);
 
 module.exports = router;

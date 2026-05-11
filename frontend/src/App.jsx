@@ -49,6 +49,7 @@ import appContext from './context/AppContext';
 import { useEffect, useState } from 'react';
 const WorkerAttendance = lazy(() => import('./components/admin/WorkerAttendance'));
 const Settings = lazy(() => import('./components/admin/Settings'));
+const AdminProfile = lazy(() => import('./components/admin/AdminProfile'));
 import InstallPrompt from './components/common/InstallPrompt';
 
 // NEW COMPONENTS
@@ -174,6 +175,7 @@ function App() {
                   <Route path="custom-tasks" element={<CustomTasks />} />
                   <Route path="notifications" element={<NotificationManagement />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="profile" element={<AdminProfile />} />
                   <Route path="gowhats" element={<GoWhatsIntegration />} />
                   <Route path="communication" element={<Communication />} />
                   <Route path="intern-certificate" element={<InternCertificate />} />

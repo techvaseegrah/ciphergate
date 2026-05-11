@@ -5,6 +5,7 @@ import { FiLogOut, FiMenu, FiX } from 'react-icons/fi';
 import appContext from '../../context/AppContext';
 import ShatteredLogo from '../common/ShatteredLogo';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getFullFileUrl } from '../../utils/fileUtils';
 
 const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen, setMobileOpen, isAdmin = false }) => {
   const [isOpenInternal, setIsOpenInternal] = useState(false);
@@ -52,7 +53,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[400] md:hidden"
             onClick={() => setIsOpen(false)}
           />
         )}
@@ -62,7 +63,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
       <aside
         onMouseLeave={() => setExpandedDropdowns({})}
         className={`
-          group/sidebar z-50
+          group/sidebar z-[500]
           bg-white text-slate-900
           rounded-r-[20px]
           shadow-[4px_0_24px_rgba(0,0,0,0.02)] border-r border-slate-100
@@ -243,7 +244,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                   <div className="w-[36px] h-[36px] flex-shrink-0 rounded-lg overflow-hidden relative border-2 border-white shadow-sm">
                     <img
                       className="w-full h-full object-cover"
-                      src={user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}&background=0D9488&color=ffffff&bold=true`}
+                      src={user.photo ? getFullFileUrl(user.photo) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}&background=0D9488&color=ffffff&bold=true`}
                       alt="User"
                     />
                   </div>

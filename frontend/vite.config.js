@@ -113,17 +113,17 @@ export default defineConfig({
         host: true,
         proxy: {
             '/api': {
-                target: 'http://localhost:5001',
+                target: 'http://127.0.0.1:5001',
                 changeOrigin: true,
             },
             // Proxy Socket.IO in dev so the same domain-only URL works locally
             '/socket.io': {
-                target: 'http://localhost:5001',
+                target: 'http://127.0.0.1:5001',
                 changeOrigin: true,
                 ws: true,   // <-- enables WebSocket proxying in Vite
             },
             '/uploads': {
-                target: 'http://localhost:5001',
+                target: 'http://127.0.0.1:5001',
                 changeOrigin: true,
             },
         },

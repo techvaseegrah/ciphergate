@@ -75,3 +75,17 @@ export const deleteSubTaskProof = async (completionId, fileId) => {
         throw error.response?.data?.message || 'Error deleting proof file';
     }
 };
+
+// Upload reference files
+export const uploadReference = async (formData) => {
+    try {
+        const response = await api.post(`${API_URL}/completions/reference`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data?.message || 'Error uploading reference';
+    }
+};

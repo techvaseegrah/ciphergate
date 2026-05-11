@@ -3,7 +3,7 @@ import { X, Upload, File, Trash2, CheckCircle, AlertCircle, CheckCircle2 } from 
 import { uploadSubTaskProof } from '../../../services/ticketService';
 import { toast } from 'react-toastify';
 
-const SubTaskProofModal = ({ isOpen, onClose, ticketId, subTaskId, subTaskText, onUploadSuccess }) => {
+const SubTaskProofModal = ({ isOpen, onClose, ticketId, subTaskId, subTaskText, onUploadSuccess, existingFiles = [], completionId }) => {
     const [files, setFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -11,6 +11,29 @@ const SubTaskProofModal = ({ isOpen, onClose, ticketId, subTaskId, subTaskText, 
     const fileInputRef = useRef(null);
 
     if (!isOpen) return null;
+
+    const handleDeleteExistingFile = async (fileId) => {
+        if (!completionId) return;
+        
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/tickets/completions/${completionId}/proof/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success('File deleted successfully');
+                onUploadSuccess(data);
+            } else {
+                toast.error('Failed to delete file: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Error deleting file');
+        }
+    };
 
     const handleFileChange = (e) => {
         const selectedFiles = Array.from(e.target.files);
@@ -139,30 +162,70 @@ const SubTaskProofModal = ({ isOpen, onClose, ticketId, subTaskId, subTaskText, 
                                 />
                             </div>
 
-                            {/* Selected Files List */}
-                            {files.length > 0 && (
+                            {/* Files List */}
+                            {(existingFiles.length > 0 || files.length > 0) && (
                                 <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar flex-1">
-                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Selected Files ({files.length})</h4>
-                                    {files.map((file, index) => (
-                                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-xl group hover:border-teal-200 transition-colors">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="p-2 bg-white rounded-lg border border-gray-100 text-gray-400 group-hover:text-teal-500 transition-colors">
-                                                    <File className="w-4 h-4" />
+                                    {/* Existing Files */}
+                                    {existingFiles.length > 0 && (
+                                        <>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Uploaded Files ({existingFiles.length})</h4>
+                                            {existingFiles.map((file, index) => (
+                                                <div key={file._id || index} className="flex justify-between items-center p-3 bg-teal-50/50 border border-teal-100 rounded-xl group hover:border-teal-200 transition-colors">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="p-1 bg-white rounded-lg border border-gray-100 text-gray-400 group-hover:text-teal-500 transition-colors w-12 h-12 flex items-center justify-center overflow-hidden shrink-0">
+                                                            {file.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i) || file.url?.includes('blob:') ? (
+                                                                <img src={file.url.startsWith('http') ? file.url : `/${file.url}`} alt={file.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <File className="w-5 h-5" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-gray-700 truncate">{file.name}</p>
+                                                            <p className="text-[10px] text-teal-600 font-bold uppercase">Uploaded</p>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteExistingFile(file._id); }}
+                                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        disabled={uploading}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-gray-700 truncate">{file.name}</p>
-                                                    <p className="text-[10px] text-gray-400 font-medium">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            ))}
+                                        </>
+                                    )}
+
+                                    {/* New Files */}
+                                    {files.length > 0 && (
+                                        <>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-4 mb-2">New Files ({files.length})</h4>
+                                            {files.map((file, index) => (
+                                                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-xl group hover:border-teal-200 transition-colors">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="p-1 bg-white rounded-lg border border-gray-100 text-gray-400 group-hover:text-teal-500 transition-colors w-12 h-12 flex items-center justify-center overflow-hidden shrink-0">
+                                                            {file.type?.startsWith('image/') ? (
+                                                                <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <File className="w-5 h-5" />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-gray-700 truncate">{file.name}</p>
+                                                            <p className="text-[10px] text-gray-400 font-medium">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); removeFile(index); }}
+                                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        disabled={uploading}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                            </div>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); removeFile(index); }}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                disabled={uploading}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </>

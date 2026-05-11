@@ -163,7 +163,6 @@ const WorkerLogin = () => {
         subdomain
       }, 'worker');
 
-      toast.success(`Welcome, ${selectedWorker.name}!`);
       navigate('/worker');
     } catch (error) {
       // Show error message but don't redirect

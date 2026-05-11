@@ -67,7 +67,7 @@ router.post('/upload-photo', protect, upload.single('photo'), (req, res) => {
 
 router.route('/:id')
   .get(protect, getWorkerById)
-  .put(protect, adminOnly, updateWorker)
+  .put(protect, updateWorker)
   .delete(protect, adminOnly, deleteWorker);
 
 router.route('/:id/activities')

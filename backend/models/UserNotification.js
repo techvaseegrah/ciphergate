@@ -25,7 +25,14 @@ const userNotificationSchema = mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['task_assigned', 'task_updated', 'task_approved', 'task_rejected', 'system_alert'],
+        enum: [
+            'task_assigned',
+            'task_updated',
+            'task_approved',
+            'task_rejected',
+            'system_alert',
+            'proof_submitted'
+        ],
         default: 'task_assigned'
     },
     isRead: {

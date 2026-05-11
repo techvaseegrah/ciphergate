@@ -111,17 +111,18 @@ const loginAdmin = asyncHandler(async (req, res) => {
   // Find admin and include password field
   const admin = await Admin.findOne({ username }).select('+password');
 
-  if (admin && (await bcrypt.compare(password, admin.password))) {
-    res.json({
-      _id: admin._id,
-      username: admin.username,
-      email: admin.email,
-      role: 'admin',
-      subdomain: admin.subdomain,
-      organizationId: admin.organizationId,
-      token: generateToken(admin._id, 'admin')
-    });
-  } else {
+    if (admin && (await bcrypt.compare(password, admin.password))) {
+      res.json({
+        _id: admin._id,
+        username: admin.username,
+        email: admin.email,
+        photo: admin.photo,
+        role: 'admin',
+        subdomain: admin.subdomain,
+        organizationId: admin.organizationId,
+        token: generateToken(admin._id, 'admin')
+      });
+    } else {
     res.status(401);
     throw new Error('Invalid credentials');
   }
@@ -262,12 +263,44 @@ const resetPasswordWithOtp = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Password reset successfully. You can now log in.' });
 });
 
+// @desc    Update current admin
+// @route   PUT /api/auth/me
+// @access  Private
+const updateMe = asyncHandler(async (req, res) => {
+  const admin = await Admin.findById(req.user._id);
+
+  if (!admin) {
+    res.status(404);
+    throw new Error('Admin not found');
+  }
+
+  if (req.body.email) admin.email = req.body.email;
+  if (req.body.photo) admin.photo = req.body.photo;
+  
+  if (req.body.password) {
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(req.body.password, salt);
+  }
+
+  const updatedAdmin = await admin.save();
+
+  res.json({
+    _id: updatedAdmin._id,
+    username: updatedAdmin.username,
+    email: updatedAdmin.email,
+    photo: updatedAdmin.photo,
+    role: 'admin',
+    subdomain: updatedAdmin.subdomain
+  });
+});
+
 module.exports = {
   subdomainAvailable,
   registerAdmin,
   loginAdmin,
   loginWorker,
   getMe,
+  updateMe,
   checkAdminInitialization,
   requestPasswordResetOtp,
   resetPasswordWithOtp

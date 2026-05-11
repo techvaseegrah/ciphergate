@@ -1199,7 +1199,7 @@ const SalaryManagement = () => {
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4 md:hidden">
                 <h1 className="text-2xl font-bold">Salary Management</h1>
                 {/* MOBILE BUTTONS: Show only on mobile */}
                 <div className="md:hidden flex flex-col space-y-2">

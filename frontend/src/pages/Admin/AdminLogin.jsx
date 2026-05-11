@@ -71,7 +71,6 @@ const AdminLogin = () => {
                 setSubdomain(result.subdomain);
             }
 
-            toast.success('Login successful!');
             navigate('/admin');
         } catch (error) {
             toast.error(error.response?.data?.message || 'Login failed. Please check your credentials.');

@@ -164,21 +164,19 @@ exports.deleteProofFile = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to delete this file' });
         }
 
-        const fileIndex = completion.proofFiles.findIndex(f => f._id.toString() === fileId);
-        if (fileIndex === -1) {
+        const file = completion.proofFiles.find(f => f._id.toString() === fileId);
+        if (!file) {
             return res.status(404).json({ message: 'File not found' });
         }
 
-        const file = completion.proofFiles[fileIndex];
         // Delete from filesystem
-        // Correct path logic: extract filename from URL or just use filename if stored
         const filename = file.url.split('/').pop();
         const filePath = path.join(__dirname, '..', 'uploads', filename);
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
 
-        completion.proofFiles.splice(fileIndex, 1);
+        completion.proofFiles.pull(fileId);
 
         // If no files left, maybe mark as not completed? 
         // User says mandatory proof for completion.
@@ -200,6 +198,55 @@ exports.deleteProofFile = async (req, res) => {
         res.status(200).json(completion);
     } catch (error) {
         res.status(500).json({ message: 'Error deleting file', error: error.message });
+    }
+};
+
+// @desc    Delete a reference file
+// @route   DELETE /api/tickets/completions/:completionId/reference/:fileId
+// @access  Private/Admin
+exports.deleteReferenceFile = async (req, res) => {
+    try {
+        const { completionId, fileId } = req.params;
+        const completion = await SubTaskCompletion.findById(completionId);
+
+        if (!completion) {
+            return res.status(404).json({ message: 'Completion record not found' });
+        }
+
+        // Only admin can delete reference files
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Not authorized to delete reference files' });
+        }
+
+        const file = completion.referenceFiles.find(f => f._id.toString() === fileId);
+        if (!file) {
+            return res.status(404).json({ message: 'File not found' });
+        }
+
+        // Delete from filesystem
+        const filename = file.url.split('/').pop();
+        const filePath = path.join(__dirname, '..', 'uploads', filename);
+        const fs = require('fs');
+        const path = require('path');
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+
+        completion.referenceFiles.pull(fileId);
+        await completion.save();
+
+        const { getIO } = require('../utils/socket');
+        const io = getIO();
+        io.to(completion.subdomain).emit('subtask:completion_updated', {
+            ticketId: completion.ticketId,
+            subTaskId: completion.subTaskId,
+            workerId: completion.workerId,
+            completion
+        });
+
+        res.status(200).json({ success: true, completion });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting reference file', error: error.message });
     }
 };
 
@@ -271,6 +318,72 @@ exports.reviewCompletion = async (req, res) => {
         res.status(200).json(completion);
     } catch (error) {
         res.status(500).json({ message: 'Error reviewing completion', error: error.message });
+    }
+};
+
+// @desc    Upload reference files by Admin
+// @route   POST /api/tickets/completions/reference
+// @access  Private/Admin
+exports.uploadReference = async (req, res) => {
+    try {
+        const { ticketId, subTaskId, workerId } = req.body;
+        const subdomain = req.user.subdomain;
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'Reference files are mandatory' });
+        }
+
+        const fullBaseUrl = `${req.protocol}://${req.get('host')}`;
+        const referenceFiles = req.files.map(file => ({
+            url: `${fullBaseUrl}/uploads/${file.filename}`,
+            name: file.originalname,
+            type: file.mimetype,
+            size: file.size,
+            uploadedAt: new Date()
+        }));
+
+        let completion = await SubTaskCompletion.findOne({ ticketId, subTaskId, workerId });
+
+        if (completion) {
+            // Append new files
+            if (!completion.referenceFiles) completion.referenceFiles = [];
+            completion.referenceFiles.push(...referenceFiles);
+            await completion.save();
+        } else {
+            completion = await SubTaskCompletion.create({
+                ticketId,
+                subTaskId,
+                workerId,
+                isCompleted: false, // Not completed yet
+                status: 'Pending',
+                referenceFiles,
+                subdomain
+            });
+        }
+
+        // Socket emission
+        try {
+            const io = require('../utils/socket').getIO();
+            if (io) {
+                io.to(subdomain).emit('subtask:completion_updated', {
+                    ticketId,
+                    subTaskId,
+                    workerId,
+                    completion
+                });
+            }
+        } catch (socketErr) {
+            console.error('Socket emission error:', socketErr.message);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Reference files uploaded successfully',
+            completion
+        });
+    } catch (error) {
+        console.error('Upload Reference Error:', error);
+        res.status(500).json({ success: false, message: 'Error saving reference', error: error.message });
     }
 };
 

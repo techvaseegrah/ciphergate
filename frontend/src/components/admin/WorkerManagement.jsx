@@ -430,7 +430,11 @@ const WorkerManagement = () => {
         username: formData.username,
         department: formData.department, // Always include department
         original_certificate_status: formData.original_certificate_status, // ADDED
-        faceEmbeddings: workerFaceEmbeddings // Include face embeddings
+        faceEmbeddings: workerFaceEmbeddings, // Include face embeddings
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        joiningDate: formData.joiningDate,
+        designation: formData.designation
       };
 
       // ADDED: Only include batch if it has a value
@@ -776,8 +780,8 @@ const WorkerManagement = () => {
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between md:justify-end mb-8 gap-4">
+        <div className="md:hidden">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Employee Management</h1>
           <p className="text-gray-500 mt-1">Manage, filter and track your workforce efficiently.</p>
         </div>

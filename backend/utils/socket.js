@@ -11,9 +11,9 @@ const init = (server) => {
                     'http://localhost:3000',
                     'http://localhost:5173',
                     'https://tvtasks.netlify.app',
-                    'https://techvaseegrah.ciphergate.in',
+                    'https://ciphergate.techvaseegrah.com',
                 ];
-                const subdomainRegex = /^(https?:\/\/)?([\w-]+\.)+(localhost:3000|netlify\.app|ciphergate\.in)$/;
+                const subdomainRegex = /^(https?:\/\/)?([\w-]+\.)+(localhost:3000|netlify\.app|techvaseegrah\.com)$/;
                 
                 if (!origin || allowedOrigins.includes(origin) || subdomainRegex.test(origin)) {
                     callback(null, true);

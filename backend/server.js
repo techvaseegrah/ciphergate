@@ -19,24 +19,7 @@ const startServer = async () => {
     const app = express();
 
     const corsOptions = {
-      origin: (origin, callback) => {
-        const allowedOrigins = [
-          'http://localhost:3000',
-          'http://localhost:5173',
-          'https://tvtasks.netlify.app',
-          'https://techvaseegrah.ciphergate.in',
-        ];
-        
-        // Allow subdomains of localhost, netlify.app and ciphergate.in
-        const subdomainRegex = /^(https?:\/\/)?([\w-]+\.)+(localhost:3000|netlify\.app|ciphergate\.in)$/;
-
-        if (!origin || allowedOrigins.includes(origin) || subdomainRegex.test(origin)) {
-          callback(null, true);
-        } else {
-          console.warn(`[CORS] Origin ${origin} not allowed`);
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+      origin: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
       credentials: true
@@ -85,6 +68,7 @@ const startServer = async () => {
     const githubRoutes = require('./routes/githubRoutes');
     const repoChatRoutes = require('./routes/repoChatRoutes');
     const exitManagementRoutes = require('./routes/exitManagementRoutes');
+    const salesVelocityRoutes = require('./routes/salesVelocityRoutes');
 
     // Test App routes
     const testQuestionRoutes = require('./routes/testQuestionRoutes');
@@ -126,6 +110,7 @@ const startServer = async () => {
     app.use('/api/github', githubRoutes);
     app.use('/api/github/repo-chat', repoChatRoutes);
     app.use('/api/exit-management', exitManagementRoutes);
+    app.use('/api/sales-velocity', salesVelocityRoutes);
 
 
     // Test App routes

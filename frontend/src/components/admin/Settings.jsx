@@ -20,8 +20,11 @@ import {
     FiMapPin,
     FiActivity,
     FiUserCheck,
-    FiInfo
+    FiInfo,
+    FiCalendar
 } from 'react-icons/fi';
+import Modal from '../common/Modal';
+import HolidayManagement from './HolidayManagement';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
@@ -36,6 +39,7 @@ const Settings = () => {
     const [currentLocation, setCurrentLocation] = useState(null); // Add this state to track current location
 
     const { subdomain } = useContext(appContext);
+    const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
 
     // Original settings (for comparison)
     const [originalSettings, setOriginalSettings] = useState({});
@@ -543,8 +547,8 @@ const Settings = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
                 <div className="mb-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                        <div className="mb-4 sm:mb-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between md:justify-end">
+                        <div className="mb-4 sm:mb-0 md:hidden">
                             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                                 <FiSettings className="mr-3 text-blue-600" />
                                 Application Settings
@@ -796,6 +800,35 @@ const Settings = () => {
                                         })}
                                     />
                                 </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Holiday Settings */}
+                    <Card className="hover:shadow-lg transition-shadow duration-200">
+                        <div className="h-2 bg-gradient-to-r from-emerald-400 to-teal-400" />
+                        <div className="p-6">
+                            <h3 className="text-lg font-semibold mb-6 flex items-center text-gray-900">
+                                <div className="p-2 bg-emerald-100 rounded-lg mr-3">
+                                    <FiCalendar className="h-5 w-5 text-emerald-600" />
+                                </div>
+                                Holidays
+                            </h3>
+
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700">Manage Holidays</label>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        View and manage company holidays
+                                    </p>
+                                </div>
+                                <Button
+                                    onClick={() => setIsHolidayModalOpen(true)}
+                                    variant="primary"
+                                    size="sm"
+                                >
+                                    Open
+                                </Button>
                             </div>
                         </div>
                     </Card>
@@ -1652,6 +1685,17 @@ const Settings = () => {
                         </div>
                     </div>
                 </Card> */}
+                {/* Holiday Management Modal */}
+                <Modal
+                    isOpen={isHolidayModalOpen}
+                    onClose={() => setIsHolidayModalOpen(false)}
+                    title="Holiday Management"
+                    size="xl"
+                >
+                    <div className="max-h-[80vh] overflow-y-auto">
+                        <HolidayManagement />
+                    </div>
+                </Modal>
             </div>
         </div>
     );

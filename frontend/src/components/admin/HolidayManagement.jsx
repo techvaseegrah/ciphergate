@@ -267,8 +267,8 @@ const HolidayManagement = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Holiday Management</h1>
+      <div className="flex justify-between md:justify-end items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 md:hidden">Holiday Management</h1>
         <Button variant="primary" onClick={openAddModal} className="flex items-center">
           <FaPlus className="mr-2" /> Add Holiday
         </Button>

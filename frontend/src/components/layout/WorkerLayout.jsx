@@ -93,7 +93,6 @@ const WorkerLayout = ({ children }) => {
       icon: <FaComments />,
       isDropdown: true,
       children: [
-        { to: '/worker/notifications', label: 'Notifications', badge: newComments > 0 ? newComments : null },
         { to: '/worker/comments', label: 'Comments', badge: newComments > 0 ? newComments : null },
         { to: '/worker/communication', label: 'Communication' },
         { to: '/worker/food-request', label: 'Food Request' },

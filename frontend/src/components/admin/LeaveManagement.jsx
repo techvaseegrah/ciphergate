@@ -235,7 +235,7 @@ const LeaveManagement = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Leave Management</h1>
+      <h1 className="text-2xl font-bold mb-6 md:hidden">Leave Management</h1>
 
       {loading ? (
         <Spinner size="md" variant="default" />

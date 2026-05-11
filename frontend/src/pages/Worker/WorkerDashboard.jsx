@@ -17,6 +17,7 @@ const RFIDAttendance = lazy(() => import('../../components/worker/RFIDAttendance
 const WorkerInvoiceManagement = lazy(() => import('../../components/worker/WorkerInvoiceManagement'));
 const Communication = lazy(() => import('../../pages/Communication'));
 const WorkerWorkAllocation = lazy(() => import('../../components/worker/WorkerWorkAllocation'));
+const Profile = lazy(() => import('../../components/worker/Profile'));
 
 // Simple loader for worker dashboard
 const WorkerPageLoader = () => (
@@ -52,6 +53,7 @@ const WorkerDashboard = () => {
           <Route path="/invoices" element={<WorkerInvoiceManagement />} />
           <Route path="communication" element={<Communication />} />
           <Route path="/work-allocation" element={<WorkerWorkAllocation />} />
+          <Route path="/profile" element={<Profile />} />
 
           <Route path="*" element={<Navigate to="/worker" replace />} />
         </Routes>
