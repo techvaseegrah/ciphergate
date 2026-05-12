@@ -80,7 +80,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
           <div className="relative flex items-center px-3 flex-shrink-0 mb-8">
             <Link 
               to={isAdmin ? "/admin" : "/worker"} 
-              onClick={() => setIsOpen(false)}
+              onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
               className="flex items-center w-full"
             >
               <div className="w-[48px] h-[40px] flex-shrink-0 flex items-center justify-center">
@@ -116,7 +116,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                   <div key={link.to} className="relative group/link">
                     <Link
                       to={link.to}
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
                       className={`relative flex items-center h-[46px] rounded-xl transition-all duration-200 ${isActive ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'}`}
                     >
                       <div className="flex items-center w-full">
@@ -217,7 +217,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                                 to={child.to}
                                 onClick={() => {
                                   setExpandedDropdowns({});
-                                  setIsOpen(false);
+                                  if (window.innerWidth < 768) setIsOpen(false);
                                 }}
                                 className={`flex items-center h-[36px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-500 hover:text-slate-900'}`}
                               >

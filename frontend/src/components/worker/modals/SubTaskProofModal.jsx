@@ -98,7 +98,7 @@ const SubTaskProofModal = ({ isOpen, onClose, ticketId, subTaskId, subTaskText, 
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/60 z-[700] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="px-6 py-4 flex justify-between items-center border-b border-gray-100 bg-gray-50/50">

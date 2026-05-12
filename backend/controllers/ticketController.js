@@ -105,6 +105,21 @@ exports.createTicket = async (req, res) => {
 
         const savedTicket = await newTicket.save();
 
+        // Update any completions created with temp ID
+        const tempId = req.body.tempId;
+        if (tempId) {
+            const SubTaskCompletion = require('../models/SubTaskCompletion');
+            const completions = await SubTaskCompletion.find({ ticketId: tempId, subdomain });
+            for (const comp of completions) {
+                comp.ticketId = savedTicket._id;
+                const idx = parseInt(comp.subTaskId);
+                if (!isNaN(idx) && savedTicket.checklist[idx]) {
+                    comp.subTaskId = savedTicket.checklist[idx]._id.toString();
+                }
+                await comp.save();
+            }
+        }
+
         // Populate assignees before returning
         await savedTicket.populate([
             { path: 'assignee', select: 'name username status' },

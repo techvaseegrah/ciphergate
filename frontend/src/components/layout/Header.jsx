@@ -156,7 +156,7 @@ const Header = ({ user, menuLinks = [], sidebarLinks = [], onLogout, isAdmin = f
                     {isAdmin && (
                         <button
                             onClick={onMenuClick}
-                            className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-all md:hidden"
+                            className="p-2 -ml-2 rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
                         >
                             <Menu size={24} />
                         </button>

@@ -531,7 +531,7 @@ const WorkerWorkAllocation = () => {
 
             {/* Responsive Detail Modal */}
             {isModalOpen && selectedTicket && (
-                <div className="fixed inset-0 bg-black/40 z-[100] flex flex-col items-center justify-center sm:p-6 backdrop-blur-sm transition-opacity">
+                <div className="fixed inset-0 bg-black/40 z-[600] flex flex-col items-center justify-center sm:p-6 backdrop-blur-sm transition-opacity">
                     <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-5xl h-[95vh] sm:h-[85vh] flex flex-col mt-auto sm:mt-0 overflow-hidden">
 
                         {/* Header */}
@@ -565,33 +565,33 @@ const WorkerWorkAllocation = () => {
                                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
                                                     <span className="text-sm font-bold text-gray-500">
                                                         My Progress: <span className="text-teal-600">
-                                                            {selectedTicket.checklist.filter(item => {
-                                                                const comp = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                            {selectedTicket.checklist.filter((item, idx) => {
+                                                                const comp = ticketCompletions.find(c => (String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx)) && String(c.workerId?._id || c.workerId) === String(user._id));
                                                                 return comp && (comp.status === 'Submitted' || comp.status === 'Approved');
                                                             }).length} / {selectedTicket.checklist.length}
                                                         </span> completed
-                                                        {selectedTicket.checklist.some(item => {
-                                                            const comp = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                        {selectedTicket.checklist.some((item, idx) => {
+                                                            const comp = ticketCompletions.find(c => (String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx)) && String(c.workerId?._id || c.workerId) === String(user._id));
                                                             return comp && comp.status === 'Submitted';
                                                         }) && (
                                                                 <span className="ml-2 text-[10px] text-orange-500 animate-pulse">(Waiting for approval)</span>
                                                             )}
                                                     </span>
                                                     <span className="text-sm font-extrabold text-teal-600">
-                                                        {selectedTicket.checklist.length > 0 ? Math.round((selectedTicket.checklist.filter(item => ticketCompletions.some(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id && c.isCompleted)).length / selectedTicket.checklist.length) * 100) : 0}%
+                                                        {selectedTicket.checklist.length > 0 ? Math.round((selectedTicket.checklist.filter((item, idx) => ticketCompletions.some(c => (String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx)) && String(c.workerId?._id || c.workerId) === String(user._id) && c.isCompleted)).length / selectedTicket.checklist.length) * 100) : 0}%
                                                     </span>
                                                 </div>
 
                                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-6 shadow-inner">
                                                     <div
                                                         className="bg-teal-500 h-2 rounded-full transition-all duration-500 shadow-sm"
-                                                        style={{ width: `${selectedTicket.checklist.length > 0 ? (selectedTicket.checklist.filter(item => ticketCompletions.some(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id && c.isCompleted)).length / selectedTicket.checklist.length) * 100 : 0}%` }}
+                                                        style={{ width: `${selectedTicket.checklist.length > 0 ? (selectedTicket.checklist.filter((item, idx) => ticketCompletions.some(c => (String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx)) && String(c.workerId?._id || c.workerId) === String(user._id) && c.isCompleted)).length / selectedTicket.checklist.length) * 100 : 0}%` }}
                                                     ></div>
                                                 </div>
 
                                                 <ul className="space-y-4">
                                                     {selectedTicket.checklist.map((item, idx) => {
-                                                        const myCompletion = ticketCompletions.find(c => c.subTaskId === item._id && (c.workerId?._id || c.workerId) === user._id);
+                                                        const myCompletion = ticketCompletions.find(c => (String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx)) && String(c.workerId?._id || c.workerId) === String(user._id));
                                                         const status = myCompletion?.status || 'Pending';
                                                         const isDone = status === 'Submitted' || status === 'Approved';
                                                         const isRejected = status === 'Rejected';
@@ -926,7 +926,7 @@ const WorkerWorkAllocation = () => {
 
             {/* Reference Viewer Modal */}
             {refViewer.isOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[700] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div>

@@ -8,7 +8,7 @@ import {
     Search, Plus, Trash2, CheckSquare,
     AlertCircle, Bookmark, Zap, ArrowUp, ArrowDown,
     Minus, X, User, AlignLeft, LayoutDashboard, Flag, List, ListOrdered,
-    Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText, HelpCircle
+    Calendar, Clock, Check, ChevronDown, BarChart2, Users, Info, Eye, Paperclip, CheckCircle2, History, Tag, MessageSquare, Download, Maximize2, FileText, HelpCircle, ImagePlus
 } from 'lucide-react';
 import { getFullFileUrl } from '../../utils/fileUtils';
 import { toast } from 'react-toastify';
@@ -198,7 +198,7 @@ const MultiSelect = ({ options, selected, onChange, placeholder }) => {
             {isOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[300] max-h-60 overflow-y-auto animate-in zoom-in-95 duration-200">
                     <div className="p-2 space-y-1">
-                        {options.map(opt => (
+                        {options.filter(opt => opt.status !== 'Relieved' || selected.includes(opt.id)).map(opt => (
                             <div
                                 key={opt.id}
                                 className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${selected.includes(opt.id) ? 'bg-teal-50 text-teal-700' : 'hover:bg-gray-50 text-gray-700'} ${opt.status === 'Relieved' ? 'opacity-60 grayscale' : ''}`}
@@ -290,14 +290,18 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
             {(assignmentType === 'Team' || assignmentType === 'Both') && (
                 <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
                     <span className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Select Team</span>
-                    <Select value={selectedTicket.team || ''} onValueChange={handleTeamChange}>
+                    <Select value={selectedTicket.team || undefined} onValueChange={handleTeamChange}>
                         <SelectTrigger className="w-full bg-white border-gray-300 h-11 text-sm shadow-sm rounded-lg">
                             <SelectValue placeholder="Select a team..." />
                         </SelectTrigger>
-                        <SelectContent className="z-[300]">
-                            {[...new Set(workers.map(w => w.department).filter(Boolean))].map(team => (
-                                <SelectItem key={team} value={team}>{team}</SelectItem>
-                            ))}
+                        <SelectContent className="z-[700]">
+                            {[...new Set(workers.map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].length > 0 ? (
+                                [...new Set(workers.map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].map(team => (
+                                    <SelectItem key={team} value={team}>{team}</SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="none" disabled>No teams available</SelectItem>
+                            )}
                         </SelectContent>
                     </Select>
                     {selectedTicket.team && (
@@ -339,8 +343,10 @@ const WorkAllocation = () => {
 
     // Modal state
     const [selectedTicket, setSelectedTicket] = useState(null);
+    const [tempTicketId, setTempTicketId] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [refManager, setRefManager] = useState({ isOpen: false, ticketId: '', subTaskId: '', workerId: '', files: [] });
+    const [isDraggingRef, setIsDraggingRef] = useState(false);
 
     // Inline creation state
     const [inlineCreateStatus, setInlineCreateStatus] = useState(null);
@@ -461,14 +467,13 @@ const WorkAllocation = () => {
         }
     };
 
-    const handleRefFileChange = async (e) => {
-        const files = e.target.files;
+    const uploadRefFiles = async (files, ticketId, subTaskId, workerId) => {
         if (!files || files.length === 0) return;
 
         const formData = new FormData();
-        formData.append('ticketId', uploadingRef.ticketId);
-        formData.append('subTaskId', uploadingRef.subTaskId);
-        formData.append('workerId', uploadingRef.workerId);
+        formData.append('ticketId', ticketId);
+        formData.append('subTaskId', subTaskId);
+        formData.append('workerId', workerId);
         for (let i = 0; i < files.length; i++) {
             formData.append('references', files[i]);
         }
@@ -506,14 +511,22 @@ const WorkAllocation = () => {
                 className: 'bg-white rounded-xl shadow-xl border border-gray-100 p-4 min-h-0 text-gray-800 text-sm font-bold flex items-center gap-3',
                 progressClassName: 'bg-red-500',
             });
-        } finally {
-            if (refFileInputRef.current) refFileInputRef.current.value = '';
         }
+    };
+
+    const handleRefFileChange = async (e) => {
+        const files = e.target.files;
+        await uploadRefFiles(files, uploadingRef.ticketId, uploadingRef.subTaskId, uploadingRef.workerId);
+        if (refFileInputRef.current) refFileInputRef.current.value = '';
     };
 
     const handleDeleteReference = async (ticketId, subTaskId, workerId, fileId) => {
         try {
-            const comp = ticketCompletions.find(c => c.ticketId === ticketId && c.subTaskId === subTaskId && (c.workerId?._id || c.workerId) === workerId);
+            const comp = ticketCompletions.find(c => 
+                String(c.ticketId) === String(ticketId) && 
+                String(c.subTaskId) === String(subTaskId) && 
+                String(c.workerId?._id || c.workerId) === String(workerId)
+            );
             if (!comp) return;
 
             const res = await fetch(`${process.env.VITE_API_URL || '/api'}/tickets/completions/${comp._id}/reference/${fileId}`, {
@@ -548,7 +561,11 @@ const WorkAllocation = () => {
     };
 
     const triggerReferenceUpload = (ticketId, subTaskId, workerId) => {
-        const comp = ticketCompletions.find(c => c.ticketId === ticketId && c.subTaskId === subTaskId && (c.workerId?._id || c.workerId) === workerId);
+        const comp = ticketCompletions.find(c => 
+            String(c.ticketId) === String(ticketId) && 
+            String(c.subTaskId) === String(subTaskId) && 
+            String(c.workerId?._id || c.workerId) === String(workerId)
+        );
         setRefManager({ 
             isOpen: true, 
             ticketId, 
@@ -929,6 +946,8 @@ const WorkAllocation = () => {
                                     setSelectedTicket({
                                         _id: 'new', title: '', description: '', priority: 'Medium', status: 'To Do', issueType: 'Task', storyPoints: 0, labels: [], assignee: null, assignees: [], team: '', startDate: '', endDate: '', checklist: [{ text: '', completed: false }]
                                     });
+                                    const tempId = Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+                                    setTempTicketId(tempId);
                                     setModalFilterTeam('');
                                     setIsModalOpen(true);
                                 }}
@@ -1253,7 +1272,7 @@ const WorkAllocation = () => {
 
             {/* Full-Screen Workspace Task Modal */}
             {isModalOpen && selectedTicket && (
-                <div className="fixed inset-0 bg-black/60 z-[150] flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300 p-4">
+                <div className="fixed inset-0 bg-black/60 z-[600] flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300 p-4">
                     <div className="bg-white rounded-2xl lg:rounded-3xl shadow-2xl w-full max-w-[1400px] h-[95vh] lg:h-[92vh] flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden border border-white/20">
 
                         {/* Header */}
@@ -1297,6 +1316,9 @@ const WorkAllocation = () => {
                                                 if (taskToSave.startDate === '') taskToSave.startDate = undefined;
                                                 if (taskToSave.endDate === '') taskToSave.endDate = undefined;
 
+                                                if (selectedTicket._id === 'new') {
+                                                    taskToSave.tempId = tempTicketId;
+                                                }
                                                 const newT = await createTicket(taskToSave);
                                                 setTickets([newT, ...tickets]);
                                                 setIsModalOpen(false);
@@ -1599,9 +1621,9 @@ const WorkAllocation = () => {
                                                         <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                                                         <p className="text-xs font-bold uppercase tracking-widest">Loading Analytics...</p>
                                                     </div>
-                                                ) : selectedTicket._id !== 'new' && selectedTicket.assignees?.length > 0 ? (
+                                                ) : selectedTicket.assignees?.length > 0 ? (
                                                     selectedTicket.checklist?.map((item, idx) => {
-                                                        const itemCompletions = ticketCompletions.filter(c => c.subTaskId === item._id);
+                                                        const itemCompletions = ticketCompletions.filter(c => String(c.subTaskId) === String(item._id) || String(c.subTaskId) === String(idx));
                                                         return (
                                                             <div key={item._id || idx} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                                                                 <div className="bg-gray-50/80 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
@@ -1615,7 +1637,7 @@ const WorkAllocation = () => {
                                                                     </div>
                                                                     <div className="flex -space-x-1.5">
                                                                         {selectedTicket.assignees.slice(0, 5).map(w => (
-                                                                            <div key={w._id || w} className={`w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-extrabold shadow-sm ${itemCompletions.some(c => (c.workerId?._id || c.workerId) === (w._id || w)) ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                                                            <div key={w._id || w} className={`w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-extrabold shadow-sm ${itemCompletions.some(c => String(c.workerId?._id || c.workerId) === String(w._id || w)) ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                                                                                 {(w.name || 'W').charAt(0)}
                                                                             </div>
                                                                         ))}
@@ -1625,7 +1647,7 @@ const WorkAllocation = () => {
                                                                 <div className="p-3 space-y-3">
                                                                     {selectedTicket.assignees.map(worker => {
                                                                         const workerId = worker._id || worker;
-                                                                        const comp = itemCompletions.find(c => (c.workerId?._id || c.workerId) === workerId);
+                                                                        const comp = itemCompletions.find(c => String(c.workerId?._id || c.workerId) === String(workerId));
                                                                         const isDone = comp && comp.isCompleted;
                                                                         const hasProof = comp?.proofFiles?.length > 0;
 
@@ -1653,7 +1675,7 @@ const WorkAllocation = () => {
                                                                                     )}
 
                                                                                     {/* Proof Status Button */}
-                                                                                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-orange-100 hover:bg-orange-100 transition-all shadow-sm cursor-pointer" onClick={() => triggerReferenceUpload(selectedTicket._id, item._id, workerId)}>
+                                                                                    <span className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border border-orange-100 hover:bg-orange-100 transition-all shadow-sm cursor-pointer" onClick={() => triggerReferenceUpload(selectedTicket._id === 'new' ? tempTicketId : selectedTicket._id, item._id || idx, workerId)}>
                                                                                         <Paperclip className="w-3.5 h-3.5" /> {comp?.referenceFiles?.length > 0 ? 'REF ✓' : 'REF'}
                                                                                     </span>
 
@@ -1797,7 +1819,7 @@ const WorkAllocation = () => {
 
             {/* Proof Viewer Modal */}
             {proofViewer.isOpen && (
-                <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 bg-black/80 z-[750] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 flex justify-between items-center border-b border-gray-100 bg-gray-50/50">
                             <div>
@@ -1887,7 +1909,7 @@ const WorkAllocation = () => {
 
             {/* Lightbox Style Image Preview */}
             {zoomedImage && (
-                <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+                <div className="fixed inset-0 bg-black/90 z-[800] flex flex-col items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
                     <div className="absolute top-4 right-4 flex gap-3">
                         <a
                             href={zoomedImage.url}
@@ -1947,7 +1969,7 @@ const WorkAllocation = () => {
 
             {/* Reference Manager Modal */}
             {refManager.isOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[700] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden transform animate-in zoom-in-95 duration-200">
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div>
@@ -2000,10 +2022,42 @@ const WorkAllocation = () => {
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-12 text-gray-400">
-                                    <ImagePlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                                    <p className="text-sm font-bold text-gray-600 mb-1">No reference images yet</p>
-                                    <p className="text-xs text-gray-500">Upload images for employee reference.</p>
+                                <div 
+                                    onClick={() => {
+                                        setUploadingRef({ ticketId: refManager.ticketId, subTaskId: refManager.subTaskId, workerId: refManager.workerId });
+                                        if (refFileInputRef.current) refFileInputRef.current.click();
+                                    }}
+                                    onDragOver={(e) => {
+                                        e.preventDefault();
+                                        setIsDraggingRef(true);
+                                    }}
+                                    onDragEnter={(e) => {
+                                        e.preventDefault();
+                                        setIsDraggingRef(true);
+                                    }}
+                                    onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        setIsDraggingRef(false);
+                                    }}
+                                    onDrop={async (e) => {
+                                        e.preventDefault();
+                                        setIsDraggingRef(false);
+                                        const files = e.dataTransfer.files;
+                                        await uploadRefFiles(files, refManager.ticketId, refManager.subTaskId, refManager.workerId);
+                                    }}
+                                    className={`text-center py-12 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                                        isDraggingRef 
+                                            ? 'border-teal-500 bg-teal-50/50' 
+                                            : 'border-gray-200 hover:border-teal-400 hover:bg-gray-50/50'
+                                    }`}
+                                >
+                                    <ImagePlus className={`w-12 h-12 mx-auto mb-3 transition-colors ${isDraggingRef ? 'text-teal-500' : 'text-gray-300'}`} />
+                                    <p className="text-sm font-bold text-gray-600 mb-1">
+                                        {isDraggingRef ? 'Drop images here!' : 'No reference images yet'}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {isDraggingRef ? 'Release to upload' : 'Click to upload or drag and drop here.'}
+                                    </p>
                                 </div>
                             )}
                         </div>
