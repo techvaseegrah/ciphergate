@@ -254,6 +254,7 @@ const resetPasswordWithOtp = asyncHandler(async (req, res) => {
   // Hash new password
   const salt = await bcrypt.genSalt(10);
   admin.password = await bcrypt.hash(password, salt);
+  admin.passwordChangedAt = Date.now() - 1000; // Subtract 1s to ensure token issued right after is valid
 
   // Clear OTP fields
   admin.resetPasswordOtp = undefined;
@@ -280,6 +281,7 @@ const updateMe = asyncHandler(async (req, res) => {
   if (req.body.password) {
     const salt = await bcrypt.genSalt(10);
     admin.password = await bcrypt.hash(req.body.password, salt);
+    admin.passwordChangedAt = Date.now() - 1000; // Subtract 1s to account for slight time differences
   }
 
   const updatedAdmin = await admin.save();

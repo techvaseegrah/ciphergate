@@ -1068,9 +1068,13 @@ const calculateWorkerProductivity = (productivityParameters) => {
         }
 
         // External Thresholds (Company/Dept)
-        if (!isPenaltyTriggered && (options.isCompanyPenalty || options.isDeptPenalty)) {
+        const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+        const isCompanyPenaltyForDay = options.companyPenaltyMap ? options.companyPenaltyMap[dateKey] : options.isCompanyPenalty;
+        const isDeptPenaltyForDay = options.deptPenaltyMap ? options.deptPenaltyMap[dateKey] : options.isDeptPenalty;
+
+        if (!isPenaltyTriggered && (isCompanyPenaltyForDay || isDeptPenaltyForDay)) {
           isPenaltyTriggered = true;
-          dayData.issues.push(options.isCompanyPenalty ? 'Company Attendance Low' : 'Dept Attendance Low');
+          dayData.issues.push(isCompanyPenaltyForDay ? 'Company Attendance Low' : 'Dept Attendance Low');
         }
       }
 
@@ -1598,7 +1602,11 @@ const calculateWorkerProductivity = (productivityParameters) => {
               const currentRate = runningWorkingDays > 0 ? (runningPresentDays / runningWorkingDays) * 100 : 100;
               if (currentRate < empVal) isPenaltyTriggered = true;
             }
-            if (!isPenaltyTriggered && (options.isCompanyPenalty || options.isDeptPenalty)) {
+            const dateKey = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+            const isCompanyPenaltyForDay = options.companyPenaltyMap ? options.companyPenaltyMap[dateKey] : options.isCompanyPenalty;
+            const isDeptPenaltyForDay = options.deptPenaltyMap ? options.deptPenaltyMap[dateKey] : options.isDeptPenalty;
+
+            if (!isPenaltyTriggered && (isCompanyPenaltyForDay || isDeptPenaltyForDay)) {
               isPenaltyTriggered = true;
             }
           }

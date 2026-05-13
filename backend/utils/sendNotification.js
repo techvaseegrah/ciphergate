@@ -5,7 +5,7 @@ const Admin = require('../models/Admin');
 const Worker = require('../models/Worker');
 const { getIO } = require('./socket');
 
-const sendNotification = async ({ userId, userModel, subdomain, title, message, type, link }) => {
+const sendNotification = async ({ userId, userModel, subdomain, title, message, type, link, image }) => {
     try {
         // 1. Save to database
         const notification = await UserNotification.create({
@@ -15,7 +15,8 @@ const sendNotification = async ({ userId, userModel, subdomain, title, message, 
             title,
             message,
             type,
-            link
+            link,
+            image
         });
 
         // 2. Fetch user to check settings
@@ -47,7 +48,8 @@ const sendNotification = async ({ userId, userModel, subdomain, title, message, 
                 body: message,
                 url: link,
                 type,
-                playSound: settings.soundEnabled
+                playSound: settings.soundEnabled,
+                image
             });
 
             for (const sub of subscriptions) {

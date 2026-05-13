@@ -41,6 +41,9 @@ const userNotificationSchema = mongoose.Schema({
     },
     link: {
         type: String // URL to navigate to when clicked
+    },
+    image: {
+        type: String // Optional image URL for push notifications
     }
 }, { timestamps: true });
 
