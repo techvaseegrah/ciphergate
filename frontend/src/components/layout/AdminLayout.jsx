@@ -352,6 +352,7 @@ const AdminLayout = () => {
               <Route path="kpi-management" element={<KpiManagement />} />
               <Route path="columns" element={<ColumnManagement />} />
               <Route path="tasks" element={<TaskManagement />} />
+              <Route path="custom-tasks" element={<CustomTasks />} />
               <Route path="leaves" element={<LeaveManagement />} />
               <Route path="comments" element={<CommentManagement />} />
               <Route path="topics" element={<TopicManagement />} />

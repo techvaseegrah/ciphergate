@@ -10,6 +10,77 @@ const SalaryProject = require('../models/SalaryProject');
 const { calculateWorkerProductivity } = require('../utils/productivityCalculator');
 const Ticket = require('../models/ticketModel');
 
+const calculateDailyAttendancePenalties = async (subdomain, fromDate, toDate, workerId, workerDeptId, thresh) => {
+  const companyPenaltyMap = {};
+  const deptPenaltyMap = {};
+
+  const companyEnabled = thresh.company?.enabled ?? true;
+  const deptEnabled = thresh.department?.enabled ?? true;
+
+  if (!companyEnabled && !deptEnabled) return { companyPenaltyMap, deptPenaltyMap };
+
+  const companyVal = thresh.company?.value ?? thresh.company ?? 80;
+  const deptVal = thresh.department?.value ?? thresh.department ?? 80;
+
+  const allCompanyWorkers = await Worker.find({ subdomain, status: { $ne: 'Relieved' } });
+  const totalCompanyWorkers = allCompanyWorkers.length;
+  const deptWorkers = allCompanyWorkers.filter(w => {
+    const wDeptId = w.department?._id?.toString() || w.department?.toString();
+    return wDeptId === workerDeptId;
+  });
+  const totalDeptWorkers = deptWorkers.length;
+
+  const allAttendancesInRange = await Attendance.find({
+    subdomain,
+    date: { $gte: fromDate, $lte: toDate },
+    presence: true
+  });
+
+  const attendanceByDate = {};
+  allAttendancesInRange.forEach(att => {
+    if (!attendanceByDate[att.date]) attendanceByDate[att.date] = { company: [], dept: [] };
+    const wId = att.worker.toString();
+    attendanceByDate[att.date].company.push(wId);
+    
+    const attWorker = allCompanyWorkers.find(w => w._id.toString() === wId);
+    if (attWorker) {
+      const attWorkerDeptId = attWorker.department?._id?.toString() || attWorker.department?.toString();
+      if (attWorkerDeptId === workerDeptId) {
+        attendanceByDate[att.date].dept.push(wId);
+      }
+    }
+  });
+
+  const workerIdStr = workerId.toString();
+  const dates = [];
+  let curDate = new Date(fromDate);
+  const endD = new Date(toDate);
+  while (curDate <= endD) {
+    dates.push(curDate.toISOString().split('T')[0]);
+    curDate.setDate(curDate.getDate() + 1);
+  }
+
+  dates.forEach(dateStr => {
+    const dayData = attendanceByDate[dateStr] || { company: [], dept: [] };
+    
+    if (companyEnabled) {
+      const otherCompanyWorkers = Math.max(1, totalCompanyWorkers - 1);
+      const presentOtherCompanyWorkers = dayData.company.filter(id => id !== workerIdStr).length;
+      const companyRate = (presentOtherCompanyWorkers / otherCompanyWorkers) * 100;
+      companyPenaltyMap[dateStr] = companyRate < companyVal;
+    }
+
+    if (deptEnabled) {
+      const otherDeptWorkers = Math.max(1, totalDeptWorkers - 1);
+      const presentOtherDeptWorkers = dayData.dept.filter(id => id !== workerIdStr).length;
+      const deptRate = (presentOtherDeptWorkers / otherDeptWorkers) * 100;
+      deptPenaltyMap[dateStr] = deptRate < deptVal;
+    }
+  });
+
+  return { companyPenaltyMap, deptPenaltyMap };
+};
+
 const giveBonus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { amount, fromDate, toDate } = req.body;
@@ -188,40 +259,18 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ subdomain: worker.subdomain });
     const batches = settings ? settings.batches : [];
 
-    // Calculate Company/Dept Attendance Penalties (Today's rate)
-    let isCompanyPenalty = false;
-    let isDeptPenalty = false;
+    // Calculate Company/Dept Attendance Penalties (Daily rates)
+    let companyPenaltyMap = {};
+    let deptPenaltyMap = {};
 
     if (settings && settings.advancedLeaveDeduction && settings.advancedLeaveDeduction.attendanceRuleEnabled) {
       const adv = settings.advancedLeaveDeduction;
       const thresh = adv.thresholds || {};
+      const workerDeptId = worker.department?._id?.toString() || worker.department?.toString();
 
-      const now = new Date();
-      const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      const todayDateFormatted = indiaTimezoneDate.format(now);
-
-      // Company Status
-      if (thresh.company?.enabled ?? true) {
-        const totalCompanyWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, status: { $ne: 'Relieved' } });
-        const presentCompanyWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, date: todayDateFormatted, presence: true });
-        const companyRate = totalCompanyWorkers > 0 ? (presentCompanyWorkerIds.length / totalCompanyWorkers) * 100 : 100;
-        const companyVal = thresh.company?.value ?? thresh.company ?? 80;
-        if (companyRate < companyVal) isCompanyPenalty = true;
-      }
-
-      // Dept Status
-      if (thresh.department?.enabled ?? true) {
-        const totalDeptWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, department: worker.department?._id || worker.department, status: { $ne: 'Relieved' } });
-        const presentDeptWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, department: worker.department?._id || worker.department, date: todayDateFormatted, presence: true });
-        const deptRate = totalDeptWorkers > 0 ? (presentDeptWorkerIds.length / totalDeptWorkers) * 100 : 100;
-        const deptVal = thresh.department?.value ?? thresh.department ?? 80;
-        if (deptRate < deptVal) isDeptPenalty = true;
-      }
+      const penaltyMaps = await calculateDailyAttendancePenalties(worker.subdomain, fromDate, toDate, id, workerDeptId, thresh);
+      companyPenaltyMap = penaltyMaps.companyPenaltyMap;
+      deptPenaltyMap = penaltyMaps.deptPenaltyMap;
     }
 
     // FIXED THIS LINE: Pass the worker object to the calculator function
@@ -262,8 +311,8 @@ const getWorkerSalaryReport = asyncHandler(async (req, res) => {
         deductSalary: settings ? settings.deductSalary : true,
         intervals: settings ? settings.intervals : [],
         advancedLeaveDeduction: settings ? settings.advancedLeaveDeduction : null,
-        isCompanyPenalty,
-        isDeptPenalty,
+        companyPenaltyMap,
+        deptPenaltyMap,
         includePermission: settings?.includePermission || false,
         paidLeaveConfig: settings ? settings.paidLeaveConfig : null
       }
@@ -450,40 +499,18 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ subdomain: worker.subdomain });
     const batches = settings ? settings.batches : [];
 
-    // Calculate Company/Dept Attendance Penalties (Today's rate)
-    let isCompanyPenalty = false;
-    let isDeptPenalty = false;
+    // Calculate Company/Dept Attendance Penalties (Daily rates)
+    let companyPenaltyMap = {};
+    let deptPenaltyMap = {};
 
     if (settings && settings.advancedLeaveDeduction && settings.advancedLeaveDeduction.attendanceRuleEnabled) {
       const adv = settings.advancedLeaveDeduction;
       const thresh = adv.thresholds || {};
+      const workerDeptId = worker.department?._id?.toString() || worker.department?.toString();
 
-      const now = new Date();
-      const indiaTimezoneDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      const todayDateFormatted = indiaTimezoneDate.format(now);
-
-      // Company Status
-      if (thresh.company?.enabled ?? true) {
-        const totalCompanyWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, status: { $ne: 'Relieved' } });
-        const presentCompanyWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, date: todayDateFormatted, presence: true });
-        const companyRate = totalCompanyWorkers > 0 ? (presentCompanyWorkerIds.length / totalCompanyWorkers) * 100 : 100;
-        const companyVal = thresh.company?.value ?? thresh.company ?? 80;
-        if (companyRate < companyVal) isCompanyPenalty = true;
-      }
-
-      // Dept Status
-      if (thresh.department?.enabled ?? true) {
-        const totalDeptWorkers = await Worker.countDocuments({ subdomain: worker.subdomain, department: worker.department?._id || worker.department, status: { $ne: 'Relieved' } });
-        const presentDeptWorkerIds = await Attendance.distinct('worker', { subdomain: worker.subdomain, department: worker.department?._id || worker.department, date: todayDateFormatted, presence: true });
-        const deptRate = totalDeptWorkers > 0 ? (presentDeptWorkerIds.length / totalDeptWorkers) * 100 : 100;
-        const deptVal = thresh.department?.value ?? thresh.department ?? 80;
-        if (deptRate < deptVal) isDeptPenalty = true;
-      }
+      const penaltyMaps = await calculateDailyAttendancePenalties(worker.subdomain, start, end, id, workerDeptId, thresh);
+      companyPenaltyMap = penaltyMaps.companyPenaltyMap;
+      deptPenaltyMap = penaltyMaps.deptPenaltyMap;
     }
 
     // Hybrid: Fetch and enrichment projects
@@ -522,8 +549,8 @@ const getMySalaryReport = asyncHandler(async (req, res) => {
         deductSalary: settings ? settings.deductSalary : true,
         intervals: settings ? settings.intervals : [],
         advancedLeaveDeduction: settings ? settings.advancedLeaveDeduction : null,
-        isCompanyPenalty,
-        isDeptPenalty,
+        companyPenaltyMap,
+        deptPenaltyMap,
         includePermission: settings?.includePermission || false,
         paidLeaveConfig: settings ? settings.paidLeaveConfig : null
       }

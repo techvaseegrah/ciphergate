@@ -43,7 +43,8 @@ const adminSchema = mongoose.Schema(
       pushEnabled: { type: Boolean, default: true },
       soundEnabled: { type: Boolean, default: true },
       priorityFilter: { type: String, enum: ['All', 'High', 'Medium'], default: 'All' }
-    }
+    },
+    passwordChangedAt: Date
   },
   {
     timestamps: true,

@@ -318,6 +318,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       if (password) {
         const salt = await bcrypt.genSalt(10);
         updateData.password = await bcrypt.hash(password, salt);
+        updateData.passwordChangedAt = Date.now() - 1000;
       }
     } else {
       // Admin can update everything
@@ -361,6 +362,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       if (password) {
         const salt = await bcrypt.genSalt(10);
         updateData.password = await bcrypt.hash(password, salt);
+        updateData.passwordChangedAt = Date.now() - 1000;
       }
 
       // ADDED: Handle batch update

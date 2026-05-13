@@ -11,7 +11,9 @@ self.addEventListener('push', function (event) {
             body: data.body,
             icon: '/appicon.png',
             badge: '/appicon.png',
-            vibrate: [100, 50, 100],
+            image: data.image,
+            silent: data.playSound === false,
+            vibrate: data.playSound === false ? undefined : [100, 50, 100],
             data: {
                 dateOfArrival: Date.now(),
                 primaryKey: '2',

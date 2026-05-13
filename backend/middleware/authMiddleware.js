@@ -45,6 +45,15 @@ const protect = asyncHandler(async (req, res, next) => {
       }
     }
 
+    // Check if password was changed after token was issued
+    if (req.user.passwordChangedAt) {
+      const changedDate = new Date(req.user.passwordChangedAt);
+      const changedTimestamp = parseInt(changedDate.getTime() / 1000, 10);
+      if (decoded.iat < changedTimestamp) {
+        return res.status(401).json({ message: 'Password recently changed. Please log in again.' });
+      }
+    }
+
     next();
   } catch (error) {
     console.error('Token verification error:', error);
