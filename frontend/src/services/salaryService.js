@@ -66,6 +66,19 @@ export const getMySalaryReport = async () => {
   }
 };
 
+export const getBulkSalaryReport = async (subdomain, fromDate, toDate) => {
+  try {
+    const token = getAuthToken();
+    const response = await api.get('/salary/bulk-report', {
+      params: { subdomain, fromDate, toDate },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : new Error('Failed to get bulk salary report');
+  }
+};
+
 // Get compensation report for all workers
 export const getCompensationReport = async (subdomain, filters = {}) => {
   try {

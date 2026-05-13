@@ -32,7 +32,17 @@ export default {
         // Custom theme colors
         'theme-red': '#0d9488',
         'theme-white': '#FFFFFF',
-        'theme-black': '#000000'
+        'theme-black': '#000000',
+        // Dashboard Premium UI colors
+        'dash-green': '#5EB063',
+        'dash-orange': '#FFA756',
+        'dash-bg': '#F9FBFF',
+        'dash-card': '#FFFFFF',
+        'dash-text': '#111827',
+        'dash-muted': '#9CA3AF',
+        'dash-border': '#E9EEF3',
+        'dash-soft-green': '#F0FDF4',
+        'dash-soft-orange': '#FFF7ED',
       },
       keyframes: {
         float: {

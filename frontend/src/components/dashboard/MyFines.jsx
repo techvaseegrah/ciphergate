@@ -5,7 +5,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import { toast } from 'react-toastify';
 
-const MyFines = () => {
+const MyFines = ({ noCard = false }) => {
     const [fines, setFines] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [fromDate, setFromDate] = useState('');
@@ -50,11 +50,12 @@ const MyFines = () => {
 
     const totalFines = fines.reduce((sum, fine) => sum + (fine.amount || 0), 0);
 
-    return (
-        <Card className="mb-4" padding="p-4">
-            <h2 className="text-lg font-bold mb-3 text-gray-800">My Fines</h2>
+    const content = (
+        <>
+            {!noCard && <h2 className="text-lg font-bold mb-3 text-gray-800">My Fines</h2>}
 
-            <div className="flex flex-col sm:flex-row gap-2 mb-4 items-end">
+            <div className="flex flex-col sm:flex-row gap-4 mb-6 items-end">
+
                 <div className="flex-1 w-full">
                     <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest ml-1">From Date</label>
                     <input
@@ -90,39 +91,39 @@ const MyFines = () => {
             ) : (
                 <>
                     {fines.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                            <p>No fines recorded for the selected period.</p>
+                        <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-2xl border-2 border-dotted border-slate-200">
+                            <p className="text-sm font-medium">No fines recorded for the selected period.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                        <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
+                            <table className="min-w-full divide-y divide-slate-100">
+                                <thead className="bg-slate-50/80">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Date</th>
+                                        <th className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Reason</th>
+                                        <th className="px-6 py-3 text-right text-[11px] font-black text-slate-500 uppercase tracking-widest">Amount</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-slate-50">
                                     {fines.map((fine, index) => (
-                                        <tr key={index} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">
                                                 {formatDate(fine.date)}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900">
+                                            <td className="px-6 py-4 text-sm text-slate-700">
                                                 {fine.reason}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
-                                                ₹{fine.amount?.toLocaleString()}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-rose-600 text-right font-bold">
+                                                ₹{fine.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
                                         </tr>
                                     ))}
-                                    <tr className="bg-gray-50 font-semibold">
-                                        <td colSpan="2" className="px-6 py-4 text-sm text-gray-900 text-right">
-                                            Total
+                                    <tr className="bg-slate-50/30 font-bold">
+                                        <td colSpan="2" className="px-6 py-4 text-sm text-slate-900 text-right uppercase tracking-wider">
+                                            Total Penalties
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-700 text-right">
-                                            ₹{totalFines.toLocaleString()}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-rose-700 text-right">
+                                            ₹{totalFines.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -131,6 +132,14 @@ const MyFines = () => {
                     )}
                 </>
             )}
+        </>
+    );
+
+    if (noCard) return content;
+
+    return (
+        <Card className="mb-4" padding="p-4">
+            {content}
         </Card>
     );
 };

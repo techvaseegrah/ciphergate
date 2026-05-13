@@ -65,7 +65,6 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
         className={`
           group/sidebar z-[500]
           bg-white text-slate-900
-          rounded-r-[20px]
           shadow-[4px_0_24px_rgba(0,0,0,0.02)] border-r border-slate-100
           transition-all duration-[300ms] ease-[cubic-bezier(0.4,0,0.2,1)]
           flex flex-col overflow-hidden md:overflow-visible flex-shrink-0
@@ -81,7 +80,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
             <Link 
               to={isAdmin ? "/admin" : "/worker"} 
               onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
-              className="flex items-center w-full"
+              className="flex items-center w-full bg-emerald-50 hover:bg-emerald-100 transition-colors duration-200 rounded-xl py-1"
             >
               <div className="w-[48px] h-[40px] flex-shrink-0 flex items-center justify-center">
                 <ShatteredLogo
@@ -117,30 +116,32 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                     <Link
                       to={link.to}
                       onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
-                      className={`relative flex items-center h-[46px] rounded-xl transition-all duration-200 ${isActive ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'}`}
+                      className={`relative flex items-center h-[46px] rounded-lg transition-all duration-200 ${isActive ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                     >
                       <div className="flex items-center w-full">
                         <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
-                          <span className={`text-[18px] transition-colors duration-200 ${isActive ? 'text-[#0D9488]' : 'text-slate-400 group-hover/link:text-slate-600'}`}>
+                          <span className={`text-[18px] transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
                             {link.icon}
                           </span>
                         </div>
 
                         <div className={`flex-1 flex items-center justify-between transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pr-4 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
-                          <span className={`text-[13.5px] tracking-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>
+                          <span className={`text-[14.5px] tracking-tight ${isActive ? 'font-bold' : 'font-semibold'}`}>
                             {link.label}
                           </span>
                           
                           {link.badge && (
-                            <span className="text-[10px] font-black rounded-full px-1.5 py-0.5 bg-rose-500 text-white shadow-sm">
-                              {link.badge}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {link.label === 'Schedules' && (
+                                <span className="w-[18px] h-[18px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 text-[12px] font-bold bg-white shadow-sm">+</span>
+                              )}
+                              <span className={`text-[11px] font-bold rounded-md px-2 py-0.5 ${link.label === 'Posts' ? 'bg-emerald-100 text-emerald-800' : link.label === 'Schedules' ? 'bg-orange-100 text-orange-800' : 'bg-slate-200 text-slate-700'}`}>
+                                {link.badge}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
-                      {isActive && (
-                        <div className="absolute left-0 w-1 h-6 bg-[#0D9488] rounded-r-full" />
-                      )}
                     </Link>
 
                     {/* Desktop Tooltip */}
@@ -161,24 +162,24 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                 <div key={key} className="space-y-1 relative group/link">
                   <button
                     onClick={() => toggleDropdown(key)}
-                    className={`relative flex items-center w-full h-[46px] rounded-xl transition-all duration-200 ${hasActive ? 'bg-teal-50/50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'}`}
+                    className={`relative flex items-center w-full h-[46px] rounded-lg transition-all duration-200 ${isExpanded || hasActive ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                   >
                     <div className="flex items-center w-full">
                       <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
-                        <span className={`text-[18px] transition-colors duration-200 ${hasActive ? 'text-[#0D9488]' : 'text-slate-400 group-hover/link:text-slate-600'}`}>
+                        <span className={`text-[18px] transition-colors duration-200 ${isExpanded || hasActive ? 'text-slate-900' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
                           {link.icon}
                         </span>
                       </div>
 
                       <div className={`flex-1 flex items-center justify-between transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pr-4 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
-                        <span className={`text-[13.5px] tracking-tight ${hasActive ? 'font-bold' : 'font-semibold'}`}>
+                        <span className={`text-[14.5px] tracking-tight ${hasActive || isExpanded ? 'font-bold' : 'font-semibold'}`}>
                           {link.label}
                         </span>
                         
                         <motion.span
                           animate={{ rotate: isExpanded ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`${hasActive ? 'text-[#0D9488]' : 'text-slate-300'}`}
+                          className={`${isExpanded || hasActive ? 'text-slate-900' : 'text-slate-400'}`}
                         >
                           <FaChevronDown size={10} />
                         </motion.span>
@@ -200,7 +201,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="ml-10 space-y-1 mt-1 mb-2">
+                        <div className="ml-[28px] pl-4 border-l border-slate-200 space-y-1 mt-1 mb-2">
                           {link.children?.map((child, idx) => {
                             if (child.isSubHeader) {
                               return (
@@ -216,12 +217,11 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                                 key={child.to}
                                 to={child.to}
                                 onClick={() => {
-                                  setExpandedDropdowns({});
                                   if (window.innerWidth < 768) setIsOpen(false);
                                 }}
-                                className={`flex items-center h-[36px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-teal-50 text-[#0D9488]' : 'hover:bg-slate-50 text-slate-500 hover:text-slate-900'}`}
+                                className={`flex items-center justify-between w-full h-[40px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                               >
-                                <span className={`text-[12.5px] tracking-tight ${active ? 'font-bold' : 'font-semibold'}`}>
+                                <span className={`text-[13px] tracking-tight ${active ? 'font-bold' : 'font-medium'}`}>
                                   {child.label}
                                 </span>
                               </Link>

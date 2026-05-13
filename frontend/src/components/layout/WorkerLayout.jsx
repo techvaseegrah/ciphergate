@@ -160,7 +160,7 @@ const WorkerLayout = ({ children }) => {
           isAdmin={false}
           onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden overflow-y-auto custom-main-scroll">
+        <main className="flex-1 p-1 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden overflow-y-auto custom-main-scroll">
           {children}
         </main>
         <BottomNavigation navItems={bottomNavItems} badges={{ comments: newComments, leaves: leaveUpdates }} />

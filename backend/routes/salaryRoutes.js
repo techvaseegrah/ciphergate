@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect, adminOnly, adminOrWorker, workerOnly } = require('../middleware/authMiddleware');
-const { giveBonus, removeBonus, resetSalary, getWorkerSalaryReport, getMySalaryReport, getCompensationReport, addDeveloperProject, getDeveloperProjects, deleteDeveloperProject, getAllDeveloperProjectsSummary, createSalaryProject, getSalaryProjects, getSalaryProjectsForWorker, updateSalaryProject, deleteSalaryProject } = require('../controllers/salaryController');
+const { giveBonus, removeBonus, resetSalary, getWorkerSalaryReport, getMySalaryReport, getCompensationReport, getBulkSalaryReport, getTopTeamsEarnings, addDeveloperProject, getDeveloperProjects, deleteDeveloperProject, getAllDeveloperProjectsSummary, createSalaryProject, getSalaryProjects, getSalaryProjectsForWorker, updateSalaryProject, deleteSalaryProject } = require('../controllers/salaryController');
 const router = express.Router();
 
 router.route('/give-bonus/:id').post(protect, adminOnly, giveBonus);
@@ -8,6 +8,8 @@ router.route('/remove-bonus/:id').post(protect, adminOnly, removeBonus);
 router.route('/reset-salary').post(protect, adminOnly, resetSalary);
 router.route('/report/:id').get(protect, adminOnly, getWorkerSalaryReport);
 router.route('/my-report').get(protect, adminOrWorker, getMySalaryReport);
+router.route('/bulk-report').get(protect, adminOnly, getBulkSalaryReport);
+router.route('/top-teams-earnings').get(protect, getTopTeamsEarnings);
 router.route('/compensation-report').post(protect, getCompensationReport); // Add this route
 
 // Developer project routes

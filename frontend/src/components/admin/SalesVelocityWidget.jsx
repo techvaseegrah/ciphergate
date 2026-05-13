@@ -36,56 +36,57 @@ const SalesVelocityWidget = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] animate-pulse">
-        <div className="h-6 bg-slate-100 rounded w-1/3 mb-4"></div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="h-16 bg-slate-50 rounded-2xl"></div>
-          <div className="h-16 bg-slate-50 rounded-2xl"></div>
-          <div className="h-16 bg-slate-50 rounded-2xl"></div>
+      <div className="p-6 animate-pulse">
+        <div className="h-6 bg-dash-bg rounded w-1/3 mb-6"></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="h-20 bg-dash-bg rounded-[24px]"></div>
+          <div className="h-20 bg-dash-bg rounded-[24px]"></div>
+          <div className="h-20 bg-dash-bg rounded-[24px]"></div>
+          <div className="h-20 bg-dash-bg rounded-[24px]"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-xl hover:border-teal-100 transition-all duration-300">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6 flex flex-col h-full">
+      <div className="flex justify-between items-center mb-4 md:mb-6">
         <div>
-          <h2 className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight">
+          <h2 className="dash-title">
             Sales Velocity
           </h2>
-          <p className="text-[11px] text-slate-500 font-medium">Pipeline speed & revenue efficiency</p>
+          <p className="text-[12px] text-dash-muted font-medium mt-0.5">Pipeline speed & revenue efficiency</p>
         </div>
-        <div className="p-2 rounded-xl bg-teal-50 text-[#0D9488]">
-          <FaChartLine size={16} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Opportunities</p>
-          <p className="text-lg font-black text-slate-900">{metrics.totalOpportunities}</p>
-        </div>
-        <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Win Rate</p>
-          <p className="text-lg font-black text-slate-900">{metrics.winRate}%</p>
-        </div>
-        <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Cycle Time</p>
-          <p className="text-lg font-black text-slate-900">{metrics.avgCycleTime} <span className="text-[10px] text-slate-400">Days</span></p>
-        </div>
-        <div className="bg-slate-50/50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center text-center">
-          <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-1">Avg Deal Size</p>
-          <p className="text-base font-black text-slate-900">₹{metrics.avgDealSize}</p>
+        <div className="w-10 h-10 rounded-2xl bg-dash-soft-green text-dash-green flex items-center justify-center">
+          <FaChartLine size={18} />
         </div>
       </div>
 
-      <div className="bg-[#0D9488] text-white rounded-2xl p-4 flex justify-between items-center">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
+        <div className="bg-dash-bg/40 rounded-2xl md:rounded-[24px] p-3 md:p-4 border border-dash-border flex flex-col items-center justify-center text-center transition-all hover:bg-white hover:shadow-sm">
+          <p className="dash-label mb-0.5 md:mb-1">Opportunities</p>
+          <p className="text-[16px] md:text-[20px] font-bold text-dash-text">{metrics.totalOpportunities}</p>
+        </div>
+        <div className="bg-dash-bg/40 rounded-2xl md:rounded-[24px] p-3 md:p-4 border border-dash-border flex flex-col items-center justify-center text-center transition-all hover:bg-white hover:shadow-sm">
+          <p className="dash-label mb-0.5 md:mb-1">Win Rate</p>
+          <p className="text-[16px] md:text-[20px] font-bold text-dash-text">{metrics.winRate}%</p>
+        </div>
+        <div className="bg-dash-bg/40 rounded-2xl md:rounded-[24px] p-3 md:p-4 border border-dash-border flex flex-col items-center justify-center text-center transition-all hover:bg-white hover:shadow-sm">
+          <p className="dash-label mb-0.5 md:mb-1">Cycle Time</p>
+          <p className="text-[16px] md:text-[20px] font-bold text-dash-text">{metrics.avgCycleTime} <span className="text-[10px] md:text-[12px] text-dash-muted">Days</span></p>
+        </div>
+        <div className="bg-dash-bg/40 rounded-2xl md:rounded-[24px] p-3 md:p-4 border border-dash-border flex flex-col items-center justify-center text-center transition-all hover:bg-white hover:shadow-sm">
+          <p className="dash-label mb-0.5 md:mb-1">Avg Deal Size</p>
+          <p className="text-[14px] md:text-[18px] font-bold text-dash-text">₹{metrics.avgDealSize}</p>
+        </div>
+      </div>
+
+      <div className="mt-auto bg-dash-green text-white rounded-2xl md:rounded-[24px] p-4 md:p-5 flex justify-between items-center shadow-[0_10px_20px_rgba(94,176,99,0.2)]">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest opacity-80 mb-1">Calculated Sales Velocity</p>
-          <p className="text-2xl font-black">₹{metrics.salesVelocity} <span className="text-sm opacity-70">/ Day</span></p>
+          <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest opacity-80 mb-1">Calculated Velocity</p>
+          <p className="text-[18px] md:text-[24px] font-bold">₹{metrics.salesVelocity} <span className="text-[12px] md:text-[14px] opacity-70">/ Day</span></p>
         </div>
-        <div className="text-xs font-bold opacity-80">
+        <div className="text-[9px] md:text-[11px] font-bold bg-white/20 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full backdrop-blur-sm">
           Higher is better
         </div>
       </div>

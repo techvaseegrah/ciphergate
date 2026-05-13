@@ -335,7 +335,7 @@ const AdminLayout = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="h-full w-full max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-6"
+            className="h-full w-full max-w-[1600px] mx-auto px-2 sm:px-6 md:px-8 py-3 md:py-6"
           >
             <Suspense fallback={<PageLoader />}>
             <Routes>

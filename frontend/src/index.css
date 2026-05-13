@@ -99,6 +99,27 @@ h3 {
   .table tr:hover {
     @apply bg-slate-50/50;
   }
+
+  /* Premium Dashboard Utilities */
+  .dash-card {
+    @apply bg-white rounded-[32px] shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-transparent transition-all duration-300;
+  }
+
+  .dash-card:hover {
+    @apply shadow-[0_20px_50px_rgba(0,0,0,0.06)];
+  }
+
+  .dash-title {
+    @apply text-[16px] font-bold text-dash-text tracking-tight;
+  }
+
+  .dash-label {
+    @apply text-[12px] font-medium text-dash-muted uppercase tracking-wider;
+  }
+
+  .dash-value {
+    @apply text-[28px] font-bold text-dash-text leading-none;
+  }
 }
 
 /* Mobile Invoice Scaling - Ensures the invoice looks identical on mobile by scaling down */

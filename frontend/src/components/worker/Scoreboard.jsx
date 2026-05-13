@@ -4,7 +4,7 @@ import appContext from '../../context/AppContext';
 import Card from '../common/Card';
 import Spinner from '../common/Spinner';
 
-const Scoreboard = ({ department }) => {
+const Scoreboard = ({ department, noCard = false }) => {
   const [workers, setWorkers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { subdomain } = useContext(appContext);
@@ -35,56 +35,40 @@ const Scoreboard = ({ department }) => {
     
     loadWorkers();
   }, [department]);
+
+  const ScoreHeader = () => (
+    <div className="flex items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
+      </svg>
+      Department Scoreboard
+    </div>
+  );
+
+  const LoadingState = () => (
+    <div className="flex justify-center py-8">
+      <Spinner />
+    </div>
+  );
+
+  const EmptyState = () => (
+    <p className="text-center py-6 text-gray-500">
+      No workers found in this department.
+    </p>
+  );
   
   if (isLoading) {
-    return (
-      <Card
-      title={
-        <div className="flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
-          </svg>
-          Department Scoreboard
-        </div>
-      }
-    >
-        <div className="flex justify-center py-8">
-          <Spinner />
-        </div>
-      </Card>
-    );
+    return noCard ? <LoadingState /> : <Card title={<ScoreHeader />}><LoadingState /></Card>;
   }
   
   if (workers.length === 0) {
-    return (
-      <Card
-      title={
-        <div className="flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
-          </svg>
-          Department Scoreboard
-        </div>
-      }
-    >
-        <p className="text-center py-6 text-gray-500">
-          No workers found in this department.
-        </p>
-      </Card>
-    );
+    return noCard ? <EmptyState /> : <Card title={<ScoreHeader />}><EmptyState /></Card>;
   }
   
-  return (
-    <Card
-    title={
-      <div className="flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" />
-        </svg>
-        Department Scoreboard
-      </div>
-    }
-  >
+  const content = (
+    <>
+      {!noCard && <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><ScoreHeader /></h2>}
+      
       {/* Mobile Card View */}
       <div className="grid grid-cols-1 gap-3 md:hidden">
         {workers.map((worker, index) => (
@@ -125,25 +109,25 @@ const Scoreboard = ({ department }) => {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
+        <table className="min-w-full divide-y divide-slate-100">
+          <thead className="bg-slate-50/80">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">
                 Rank
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">
                 Employee
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">
                 Total Points
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-slate-50">
             {workers.map((worker, index) => (
-              <tr key={worker._id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-500">
+              <tr key={worker._id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-400">
                   #{index + 1}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -170,6 +154,14 @@ const Scoreboard = ({ department }) => {
           </tbody>
         </table>
       </div>
+    </>
+  );
+
+  if (noCard) return content;
+
+  return (
+    <Card title={<ScoreHeader />}>
+      {content}
     </Card>
   );
 };

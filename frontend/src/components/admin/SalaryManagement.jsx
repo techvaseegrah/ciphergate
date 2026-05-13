@@ -647,10 +647,11 @@ const SalaryManagement = () => {
     };
 
     const toggleAllWorkersSelection = () => {
-        if (selectedWorkersForReport.length === filteredWorkers.length) {
+        const activeFilteredWorkers = filteredWorkers.filter(w => w.status !== 'Relieved');
+        if (selectedWorkersForReport.length === activeFilteredWorkers.length) {
             setSelectedWorkersForReport([]);
         } else {
-            setSelectedWorkersForReport(filteredWorkers.map(w => w._id));
+            setSelectedWorkersForReport(activeFilteredWorkers.map(w => w._id));
         }
     };
 
@@ -1582,11 +1583,11 @@ const SalaryManagement = () => {
                                         onClick={toggleAllWorkersSelection}
                                         className="text-[10px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-700 transition-colors"
                                     >
-                                        {selectedWorkersForReport.length === filteredWorkers.length ? 'Deselect All' : 'Select All'}
+                                        {selectedWorkersForReport.length === filteredWorkers.filter(w => w.status !== 'Relieved').length ? 'Deselect All' : 'Select All'}
                                     </button>
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar min-h-0">
-                                    {filteredWorkers.map(worker => (
+                                    {filteredWorkers.filter(w => w.status !== 'Relieved').map(worker => (
                                         <label
                                             key={worker._id}
                                             className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${selectedWorkersForReport.includes(worker._id)
