@@ -18,32 +18,23 @@ const WelcomeBanner = ({ userName, pendingReviews, totalTasks, completionRate, t
       <div className="absolute bottom-[-20%] left-[-5%] w-[150px] h-[150px] bg-green-300/20 rounded-full blur-[60px]"></div>
 
       <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 items-center">
-        
+
         {/* Left Side: Team Pic + Welcome Message */}
-        <div className="flex items-center gap-6">
-          <div className="flex-shrink-0 w-24 md:w-44 transform hover:rotate-3 transition-transform duration-500">
-            <img 
-              src={teamIllustration} 
-              alt="Team Working" 
-              className="w-full h-auto drop-shadow-lg md:drop-shadow-xl"
-            />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-xl md:text-3xl font-extrabold text-slate-800 mb-1 tracking-tight">
-              Hi, <span className="text-green-600">{userName || 'Administrator'}</span>
-            </h1>
-            <div className="space-y-0.5 md:space-y-1">
-              <p className="text-[13px] md:text-lg text-slate-600 leading-tight">
-                You have <Link to="/admin/work-allocation" className="font-bold text-green-600 hover:underline">{pendingReviews || 0}</Link> tasks pending to review today.
+        <div className="flex flex-col items-center lg:items-start text-center lg:text-left gap-2">
+          <h1 className="text-xl md:text-3xl font-extrabold text-slate-800 mb-1 tracking-tight">
+            Hi, <span className="text-green-600">{userName || 'Administrator'}</span>
+          </h1>
+          <div className="space-y-0.5 md:space-y-1">
+            <p className="text-[13px] md:text-lg text-slate-600 leading-tight">
+              You have <Link to="/admin/work-allocation" className="font-bold text-green-600 hover:underline text-[14px] md:text-lg">{pendingReviews || 0}</Link> tasks pending to review today.
+            </p>
+            <p className="text-[11px] md:text-base text-slate-500 font-medium">
+              Your team has already completed <span className="font-bold text-green-600">{completionRate || 0}%</span> of total tasks.
+            </p>
+            <div className="mt-2 md:mt-3">
+              <p className="text-green-700 font-bold bg-green-200/60 inline-block px-3 py-0.5 md:px-4 md:py-1 rounded-full text-[10px] md:text-sm shadow-sm border border-green-300/30">
+                Keep up the great work!
               </p>
-              <p className="text-[11px] md:text-base text-slate-500 font-medium">
-                Your team has already completed <span className="font-bold text-green-600">{completionRate || 0}%</span> of total tasks.
-              </p>
-              <div className="mt-2 md:mt-3">
-                <p className="text-green-700 font-bold bg-green-200/60 inline-block px-3 py-0.5 md:px-4 md:py-1 rounded-full text-[10px] md:text-sm shadow-sm border border-green-300/30">
-                  Keep up the great work!
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -66,11 +57,10 @@ const WelcomeBanner = ({ userName, pendingReviews, totalTasks, completionRate, t
                 {topTeams.slice(0, 3).map((team, index) => (
                   <div key={index} className="flex items-center justify-between bg-white p-2 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
                     <div className="flex items-center gap-3">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
-                        index === 0 ? 'bg-yellow-100 text-yellow-600' :
-                        index === 1 ? 'bg-slate-200 text-slate-600' :
-                        'bg-green-100 text-green-600'
-                      }`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${index === 0 ? 'bg-yellow-100 text-yellow-600' :
+                          index === 1 ? 'bg-slate-200 text-slate-600' :
+                            'bg-green-100 text-green-600'
+                        }`}>
                         {index === 0 ? <FaTrophy size={12} /> : index === 1 ? <FaMedal size={12} /> : index + 1}
                       </div>
                       <span className="font-bold text-slate-700 text-xs md:text-sm group-hover:text-green-600 transition-colors">

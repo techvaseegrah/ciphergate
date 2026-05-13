@@ -17,7 +17,6 @@ import FaceTest from '../../components/admin/FaceTest'; // Import FaceTest
 import NotificationManagement from '../../components/admin/NotificationManagement'; // Import NotificationManagement
 import WorkAllocation from '../../components/admin/WorkAllocation';
 import KpiManagement from '../../components/admin/KpiManagement';
-
 const AdminDashboard = () => {
   return (
     <Routes>

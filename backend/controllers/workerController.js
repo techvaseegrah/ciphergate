@@ -37,6 +37,7 @@ const createWorker = asyncHandler(async (req, res) => {
     const phoneNumber = req.body.phoneNumber ? req.body.phoneNumber.trim() : '';
     const joiningDate = req.body.joiningDate ? req.body.joiningDate : new Date();
     const designation = req.body.designation ? req.body.designation.trim() : 'Employee';
+    const bankDetails = req.body.bankDetails || {};
     let perDaySalary = 0;
 
     if (salary <= 0) {
@@ -112,6 +113,14 @@ const createWorker = asyncHandler(async (req, res) => {
       designation,
       original_certificate_status: req.body.original_certificate_status || 'not_submitted', // ADDED
       certificate_notes: req.body.certificate_notes || '', // ADDED
+      bankDetails: {
+        accountHolderName: bankDetails.accountHolderName ? bankDetails.accountHolderName.trim() : '',
+        bankName: bankDetails.bankName ? bankDetails.bankName.trim() : '',
+        accountNumber: bankDetails.accountNumber ? bankDetails.accountNumber.trim() : '',
+        ifscCode: bankDetails.ifscCode ? bankDetails.ifscCode.trim() : '',
+        branchName: bankDetails.branchName ? bankDetails.branchName.trim() : '',
+        upiId: bankDetails.upiId ? bankDetails.upiId.trim() : ''
+      },
       totalPoints: 0
     });
 
@@ -142,7 +151,8 @@ const createWorker = asyncHandler(async (req, res) => {
       phoneNumber: worker.phoneNumber,
       joiningDate: worker.joiningDate,
       designation: worker.designation,
-      status: worker.status
+      status: worker.status,
+      bankDetails: worker.bankDetails
     });
 
   } catch (error) {
@@ -299,7 +309,7 @@ const updateWorker = asyncHandler(async (req, res) => {
       throw new Error('Worker not found');
     }
 
-    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status, email, phoneNumber, joiningDate, designation } = req.body; // ADDED status and new fields
+    const { name, username, salary, department, password, photo, batch, faceEmbeddings, employeeType, class: classValue, status, email, phoneNumber, joiningDate, designation, bankDetails } = req.body; // ADDED status and new fields
     const updateData = {};
 
     const isAdmin = req.user && req.user.role === 'admin';
@@ -399,6 +409,17 @@ const updateWorker = asyncHandler(async (req, res) => {
         updateData.certificate_notes = req.body.certificate_notes;
       }
 
+      if (bankDetails) {
+        updateData.bankDetails = {
+          accountHolderName: bankDetails.accountHolderName ? bankDetails.accountHolderName.trim() : '',
+          bankName: bankDetails.bankName ? bankDetails.bankName.trim() : '',
+          accountNumber: bankDetails.accountNumber ? bankDetails.accountNumber.trim() : '',
+          ifscCode: bankDetails.ifscCode ? bankDetails.ifscCode.trim() : '',
+          branchName: bankDetails.branchName ? bankDetails.branchName.trim() : '',
+          upiId: bankDetails.upiId ? bankDetails.upiId.trim() : ''
+        };
+      }
+
       // Update salary-related fields if salary is provided
       if (salary) {
         const numericSalary = Number(salary);
@@ -470,7 +491,8 @@ const updateWorker = asyncHandler(async (req, res) => {
       phoneNumber: updatedWorker.phoneNumber,
       joiningDate: updatedWorker.joiningDate,
       designation: updatedWorker.designation,
-      status: updatedWorker.status
+      status: updatedWorker.status,
+      bankDetails: updatedWorker.bankDetails
     });
   } catch (error) {
     console.error('Update Worker Error:', error);

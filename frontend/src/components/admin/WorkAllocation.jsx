@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
+ import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import appContext from '../../context/AppContext';
 import { useSocket } from '../../context/SocketContextNew';
 import { getTickets, createTicket, updateTicket, deleteTicket, getTicketCompletions, uploadReference } from '../../services/ticketService';
@@ -198,15 +198,14 @@ const MultiSelect = ({ options, selected, onChange, placeholder }) => {
             {isOpen && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-[300] max-h-60 overflow-y-auto animate-in zoom-in-95 duration-200">
                     <div className="p-2 space-y-1">
-                        {options.filter(opt => opt.status !== 'Relieved' || selected.includes(opt.id)).map(opt => (
+                        {options.filter(opt => opt.status !== 'Relieved').map(opt => (
                             <div
                                 key={opt.id}
-                                className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${selected.includes(opt.id) ? 'bg-teal-50 text-teal-700' : 'hover:bg-gray-50 text-gray-700'} ${opt.status === 'Relieved' ? 'opacity-60 grayscale' : ''}`}
+                                className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${selected.includes(opt.id) ? 'bg-teal-50 text-teal-700' : 'hover:bg-gray-50 text-gray-700'}`}
                                 onClick={() => toggleOption(opt.id)}
                             >
                                 <div className="flex flex-col">
                                     <span className="text-sm font-medium">{opt.name}</span>
-                                    {opt.status === 'Relieved' && <span className="text-[10px] text-orange-600 font-bold">Relieved</span>}
                                 </div>
                                 {selected.includes(opt.id) && <Check className="w-4 h-4" />}
                             </div>
@@ -224,7 +223,7 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
     useEffect(() => {
         if (selectedTicket.team && selectedTicket.assignees?.length > 0) {
             // Check if all team members are in assignees
-            const teamMembers = workers.filter(w => w.department === selectedTicket.team).map(w => w._id);
+            const teamMembers = workers.filter(w => w.status !== 'Relieved' && w.department === selectedTicket.team).map(w => w._id);
             const hasExtra = selectedTicket.assignees.some(id => !teamMembers.includes(typeof id === 'object' ? id._id : id));
             if (hasExtra) setAssignmentType('Both');
             else setAssignmentType('Team');
@@ -245,10 +244,10 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
     const handleTeamChange = (team) => {
         updateSelectedTicket({ team });
         if (assignmentType === 'Team') {
-            const teamMembers = workers.filter(w => w.department === team).map(w => w._id);
+            const teamMembers = workers.filter(w => w.status !== 'Relieved' && w.department === team).map(w => w._id);
             updateSelectedTicket({ assignees: teamMembers });
         } else if (assignmentType === 'Both') {
-            const teamMembers = workers.filter(w => w.department === team).map(w => w._id);
+            const teamMembers = workers.filter(w => w.status !== 'Relieved' && w.department === team).map(w => w._id);
             const currentAssignees = (selectedTicket.assignees || []).map(a => typeof a === 'object' ? a._id : a);
             const merged = [...new Set([...teamMembers, ...currentAssignees])];
             updateSelectedTicket({ assignees: merged });
@@ -259,7 +258,7 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
         let finalIds = [...employeeIds];
         if (assignmentType === 'Team' || assignmentType === 'Both') {
             if (selectedTicket.team) {
-                const teamMembers = workers.filter(w => w.department === selectedTicket.team).map(w => w._id);
+                const teamMembers = workers.filter(w => w.status !== 'Relieved' && w.department === selectedTicket.team).map(w => w._id);
                 finalIds = [...new Set([...teamMembers, ...finalIds])];
             }
         }
@@ -267,7 +266,7 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
     };
 
     const currentAssigneeIds = (selectedTicket.assignees || []).map(a => typeof a === 'object' ? a._id : a);
-    const teamMembersCount = selectedTicket.team ? workers.filter(w => w.department === selectedTicket.team).length : 0;
+    const teamMembersCount = selectedTicket.team ? workers.filter(w => w.status !== 'Relieved' && w.department === selectedTicket.team).length : 0;
     const finalCount = currentAssigneeIds.length;
 
     return (
@@ -295,8 +294,8 @@ const AssignmentSection = ({ selectedTicket, updateSelectedTicket, workers }) =>
                             <SelectValue placeholder="Select a team..." />
                         </SelectTrigger>
                         <SelectContent className="z-[700]">
-                            {[...new Set(workers.map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].length > 0 ? (
-                                [...new Set(workers.map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].map(team => (
+                            {[...new Set(workers.filter(w => w.status !== 'Relieved').map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].length > 0 ? (
+                                [...new Set(workers.filter(w => w.status !== 'Relieved').map(w => w.department).filter(d => d && d.trim() !== '' && d.trim().toUpperCase() !== 'N/A'))].map(team => (
                                     <SelectItem key={team} value={team}>{team}</SelectItem>
                                 ))
                             ) : (
@@ -989,7 +988,7 @@ const WorkAllocation = () => {
                                     <SelectContent className="z-[200]">
                                         <SelectItem value="all_assignees">All Employees</SelectItem>
                                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                                        {workers.map(w => (
+                                        {workers.filter(w => w.status !== 'Relieved').map(w => (
                                             <SelectItem key={w._id} value={w._id}>{w.name}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1003,7 +1002,7 @@ const WorkAllocation = () => {
                                     </SelectTrigger>
                                     <SelectContent className="z-[200]">
                                         <SelectItem value="all_teams">All Teams</SelectItem>
-                                        {[...new Set(workers.map(w => w.department).filter(Boolean))].map(team => (
+                                        {[...new Set(workers.filter(w => w.status !== 'Relieved').map(w => w.department).filter(Boolean))].map(team => (
                                             <SelectItem key={team} value={team}>{team}</SelectItem>
                                         ))}
                                     </SelectContent>

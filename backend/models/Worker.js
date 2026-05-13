@@ -137,6 +137,14 @@ const workerSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Certificate'
   },
+  bankDetails: {
+    accountHolderName: { type: String, trim: true },
+    bankName: { type: String, trim: true },
+    accountNumber: { type: String, trim: true },
+    ifscCode: { type: String, trim: true },
+    branchName: { type: String, trim: true },
+    upiId: { type: String, trim: true }
+  },
   notificationSettings: {
     pushEnabled: { type: Boolean, default: true },
     soundEnabled: { type: Boolean, default: true },

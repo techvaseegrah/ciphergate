@@ -87,12 +87,12 @@ const calculateKpiStats = (tickets) => {
 ───────────────────────────────────────── */
 const StatCard = ({ title, value, icon: Icon, link }) => {
   const inner = (
-    <div className="dash-card px-2.5 py-2.5 md:px-5 md:py-4 flex items-center justify-between gap-1.5 min-h-[68px] md:min-h-[90px] h-auto group cursor-pointer">
+    <div className="dash-card px-2 py-2 md:px-5 md:py-4 flex items-center justify-between gap-1.5 min-h-[60px] md:min-h-[90px] h-auto group cursor-pointer">
       <div className="min-w-0 flex-1">
         <p className="dash-label mb-0 text-[9px] md:text-[11px] leading-tight">
           {title}
         </p>
-        <p className="dash-value text-[15px] md:text-[21px] font-black leading-tight break-words">
+        <p className="dash-value text-[13px] md:text-[21px] font-black leading-tight truncate">
           {value}
         </p>
       </div>
@@ -110,7 +110,7 @@ const StatCard = ({ title, value, icon: Icon, link }) => {
    Section Header
 ───────────────────────────────────────── */
 const SectionHeader = ({ title, sub, action, actionLink }) => (
-  <div className="flex items-start justify-between mb-4">
+  <div className="flex items-start justify-between mb-2 md:mb-4">
     <div>
       <h2 className="dash-title">
         {title}
@@ -404,9 +404,9 @@ const Dashboard = () => {
                 action="Analytics"
                 actionLink="/admin/kpi-management"
               />
-              <div className="grid grid-cols-3 pt-2 flex-1 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 pt-2 flex-1 items-center divide-y divide-dash-border/50 sm:divide-y-0 sm:divide-x divide-dash-border/50">
                 {/* Turnaround */}
-                <div className="text-center px-2 flex flex-col items-center">
+                <div className="text-center px-2 flex flex-col items-center pb-3 sm:pb-0">
                   <p className="dash-label mb-2">Turnaround</p>
                   <div className="flex items-baseline gap-1">
                     <span className="dash-value">{stats.kpi.avgCycleTime}</span>
@@ -414,12 +414,12 @@ const Dashboard = () => {
                   </div>
                 </div>
                 {/* Closed 7D */}
-                <div className="text-center px-2 border-x border-dash-border flex flex-col items-center">
+                <div className="text-center px-2 flex flex-col items-center py-3 sm:py-0">
                   <p className="dash-label mb-2">Closed 7D</p>
                   <span className="dash-value">{stats.kpi.closedThisWeek}</span>
                 </div>
                 {/* SLA Index */}
-                <div className="text-center px-2 flex flex-col items-center">
+                <div className="text-center px-2 flex flex-col items-center pt-3 sm:pt-0">
                   <p className="dash-label mb-2">SLA Index</p>
                   <span className={`dash-value ${
                     stats.kpi.slaBreachRate > 20 ? 'text-rose-500' : 'text-dash-green'
@@ -431,8 +431,8 @@ const Dashboard = () => {
             </div>
 
             {/* Overall Attendance */}
-            <div className="dash-card p-4 md:p-6 flex-1 flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
+            <div className="dash-card p-4 md:p-6 flex-1 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex-1 min-w-0 text-center sm:text-left">
                 <SectionHeader title="Attendance" sub="Today's overview" />
                 <div className="flex gap-6 mt-2">
                   <div>
@@ -474,7 +474,7 @@ const Dashboard = () => {
           <div className="dash-card p-4 md:p-6 flex flex-col h-full">
             <SectionHeader title="Departments" sub="Organization attendance overview" />
             {departments.length > 0 ? (
-              <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 md:gap-3 pr-1 custom-scrollbar overflow-y-auto max-h-[440px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 pr-1 custom-scrollbar overflow-y-auto max-h-[440px]">
                 {departments.map((dept) => (
                   <div key={dept._id}
                     className="flex items-center justify-between px-2 py-2.5 md:px-4 md:py-3.5 bg-dash-bg/40 rounded-xl md:rounded-2xl border border-dash-border hover:border-dash-green/30 hover:bg-white transition-all duration-200 group gap-2 h-[60px] md:h-[75px]">
@@ -528,7 +528,7 @@ const Dashboard = () => {
               ].map(({ label, value, cls, bg }) => (
                 <div key={label} className={`flex flex-col items-center justify-center py-4 ${bg} rounded-2xl border border-dash-border shadow-sm`}>
                   <p className="dash-label mb-1">{label}</p>
-                  <p className={`text-[24px] font-bold leading-none ${cls}`}>{value}</p>
+                  <p className={`text-[18px] md:text-[24px] font-bold leading-none ${cls}`}>{value}</p>
                 </div>
               ))}
             </div>

@@ -82,7 +82,14 @@ const WorkerManagement = () => {
     email: '',
     phoneNumber: '',
     joiningDate: new Date().toISOString().split('T')[0],
-    designation: 'Employee'
+    designation: 'Employee',
+    accountHolderName: '',
+    bankName: '',
+    accountNumber: '',
+    confirmAccountNumber: '',
+    ifscCode: '',
+    branchName: '',
+    upiId: ''
   });
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -225,7 +232,14 @@ const WorkerManagement = () => {
       email: '',
       phoneNumber: '',
       joiningDate: new Date().toISOString().split('T')[0],
-      designation: 'Employee'
+      designation: 'Employee',
+      accountHolderName: '',
+      bankName: '',
+      accountNumber: '',
+      confirmAccountNumber: '',
+      ifscCode: '',
+      branchName: '',
+      upiId: ''
     }));
     getWorkerId();
     setIsAddModalOpen(true);
@@ -253,7 +267,14 @@ const WorkerManagement = () => {
       email: worker.email || '',
       phoneNumber: worker.phoneNumber || '',
       joiningDate: worker.joiningDate ? new Date(worker.joiningDate).toISOString().split('T')[0] : '',
-      designation: worker.designation || ''
+      designation: worker.designation || '',
+      accountHolderName: worker.bankDetails?.accountHolderName || '',
+      bankName: worker.bankDetails?.bankName || '',
+      accountNumber: worker.bankDetails?.accountNumber || '',
+      confirmAccountNumber: worker.bankDetails?.accountNumber || '',
+      ifscCode: worker.bankDetails?.ifscCode || '',
+      branchName: worker.bankDetails?.branchName || '',
+      upiId: worker.bankDetails?.upiId || ''
     });
     setIsEditModalOpen(true);
   };
@@ -372,9 +393,30 @@ const WorkerManagement = () => {
       return;
     }
 
-    // ADDED: Check if batch is selected
-    if (!formData.batch) {
-      toast.error('Batch is required');
+    if (!formData.accountNumber) {
+      toast.error('Account number is required');
+      return;
+    }
+
+    if (!formData.ifscCode) {
+      toast.error('IFSC code is required');
+      return;
+    }
+
+    if (formData.accountNumber !== formData.confirmAccountNumber) {
+      toast.error('Account numbers do not match');
+      return;
+    }
+
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(formData.ifscCode)) {
+      toast.error('Invalid IFSC code format');
+      return;
+    }
+
+    const duplicateAccount = workers.find(w => w.bankDetails?.accountNumber === formData.accountNumber);
+    if (duplicateAccount) {
+      toast.error('Account number already exists');
       return;
     }
 
@@ -389,7 +431,15 @@ const WorkerManagement = () => {
         password: trimmedPassword,
         photo: formData.photo || '',
         batch: formData.batch, // ADDED: Include the batch
-        faceEmbeddings: workerFaceEmbeddings // Include face embeddings
+        faceEmbeddings: workerFaceEmbeddings, // Include face embeddings
+        bankDetails: {
+          accountHolderName: formData.accountHolderName,
+          bankName: formData.bankName,
+          accountNumber: formData.accountNumber,
+          ifscCode: formData.ifscCode,
+          branchName: formData.branchName,
+          upiId: formData.upiId
+        }
       });
 
       generateQRCode(trimmedUsername, formData.rfid);
@@ -424,6 +474,33 @@ const WorkerManagement = () => {
       }
     }
 
+    if (!formData.accountNumber) {
+      toast.error('Account number is required');
+      return;
+    }
+
+    if (!formData.ifscCode) {
+      toast.error('IFSC code is required');
+      return;
+    }
+
+    if (formData.accountNumber !== formData.confirmAccountNumber) {
+      toast.error('Account numbers do not match');
+      return;
+    }
+
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscRegex.test(formData.ifscCode)) {
+      toast.error('Invalid IFSC code format');
+      return;
+    }
+
+    const duplicateAccount = workers.find(w => w._id !== selectedWorker._id && w.bankDetails?.accountNumber === formData.accountNumber);
+    if (duplicateAccount) {
+      toast.error('Account number already exists');
+      return;
+    }
+
     try {
       const updateData = {
         name: formData.name,
@@ -434,7 +511,15 @@ const WorkerManagement = () => {
         email: formData.email,
         phoneNumber: formData.phoneNumber,
         joiningDate: formData.joiningDate,
-        designation: formData.designation
+        designation: formData.designation,
+        bankDetails: {
+          accountHolderName: formData.accountHolderName,
+          bankName: formData.bankName,
+          accountNumber: formData.accountNumber,
+          ifscCode: formData.ifscCode,
+          branchName: formData.branchName,
+          upiId: formData.upiId
+        }
       };
 
       // ADDED: Only include batch if it has a value
@@ -1225,6 +1310,101 @@ const WorkerManagement = () => {
               />
             </div>
 
+            <div className="md:col-span-2 mt-4 mb-2">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Bank Details</h3>
+              <div className="border-t border-gray-200 mt-1"></div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Account Holder Name *</label>
+              <input
+                type="text"
+                name="accountHolderName"
+                className="form-input"
+                value={formData.accountHolderName}
+                onChange={handleChange}
+                placeholder="Enter account holder name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Bank Name *</label>
+              <input
+                type="text"
+                name="bankName"
+                className="form-input"
+                value={formData.bankName}
+                onChange={handleChange}
+                placeholder="Enter bank name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Account Number *</label>
+              <input
+                type="text"
+                name="accountNumber"
+                className="form-input"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                placeholder="Enter account number"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirm Account Number *</label>
+              <input
+                type="text"
+                name="confirmAccountNumber"
+                className="form-input"
+                value={formData.confirmAccountNumber}
+                onChange={handleChange}
+                placeholder="Confirm account number"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">IFSC Code *</label>
+              <input
+                type="text"
+                name="ifscCode"
+                className="form-input"
+                value={formData.ifscCode}
+                onChange={handleChange}
+                placeholder="Enter IFSC code"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Branch Name *</label>
+              <input
+                type="text"
+                name="branchName"
+                className="form-input"
+                value={formData.branchName}
+                onChange={handleChange}
+                placeholder="Enter branch name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">UPI ID (Optional)</label>
+              <input
+                type="text"
+                name="upiId"
+                className="form-input"
+                value={formData.upiId}
+                onChange={handleChange}
+                placeholder="Enter UPI ID"
+              />
+            </div>
+
             <div className="form-group md:col-span-2">
               <label className="form-label">Photo</label>
               <input
@@ -1431,6 +1611,101 @@ const WorkerManagement = () => {
                 value={formData.designation}
                 onChange={handleChange}
                 placeholder="Enter designation"
+              />
+            </div>
+
+            <div className="md:col-span-2 mt-4 mb-2">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Bank Details</h3>
+              <div className="border-t border-gray-200 mt-1"></div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Account Holder Name *</label>
+              <input
+                type="text"
+                name="accountHolderName"
+                className="form-input"
+                value={formData.accountHolderName}
+                onChange={handleChange}
+                placeholder="Enter account holder name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Bank Name *</label>
+              <input
+                type="text"
+                name="bankName"
+                className="form-input"
+                value={formData.bankName}
+                onChange={handleChange}
+                placeholder="Enter bank name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Account Number *</label>
+              <input
+                type="text"
+                name="accountNumber"
+                className="form-input"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                placeholder="Enter account number"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirm Account Number *</label>
+              <input
+                type="text"
+                name="confirmAccountNumber"
+                className="form-input"
+                value={formData.confirmAccountNumber}
+                onChange={handleChange}
+                placeholder="Confirm account number"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">IFSC Code *</label>
+              <input
+                type="text"
+                name="ifscCode"
+                className="form-input"
+                value={formData.ifscCode}
+                onChange={handleChange}
+                placeholder="Enter IFSC code"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Branch Name *</label>
+              <input
+                type="text"
+                name="branchName"
+                className="form-input"
+                value={formData.branchName}
+                onChange={handleChange}
+                placeholder="Enter branch name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">UPI ID (Optional)</label>
+              <input
+                type="text"
+                name="upiId"
+                className="form-input"
+                value={formData.upiId}
+                onChange={handleChange}
+                placeholder="Enter UPI ID"
               />
             </div>
 
