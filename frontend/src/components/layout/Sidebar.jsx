@@ -76,26 +76,26 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
         {/* Inner Wrapper maintains 240px so text doesn't wrap during width transition */}
         <div className="w-full h-full flex flex-col pt-6">
           
-          <div className="relative flex items-center px-3 flex-shrink-0 mb-8">
+          <div className="relative flex items-center px-5 flex-shrink-0 mb-8 pt-2">
             <Link 
               to={isAdmin ? "/admin" : "/worker"} 
               onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
-              className="flex items-center w-full bg-emerald-50 hover:bg-emerald-100 transition-colors duration-200 rounded-xl py-1"
+              className="flex items-center gap-3 w-full"
             >
-              <div className="w-[48px] h-[40px] flex-shrink-0 flex items-center justify-center">
+              <div className="w-[36px] h-[32px] flex-shrink-0 flex items-center justify-center  rounded-lg">
                 <ShatteredLogo
                   src="/logo.png"
                   alt="Logo"
-                  className="w-[32px] h-[32px] object-contain drop-shadow-sm"
+                  className="w-[90px] h-[85px] object-contain"
                 />
               </div>
-              <div className={`flex flex-col justify-center transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap ml-1 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
-                <h1 className="text-slate-900 font-black text-[15px] tracking-tight leading-none uppercase">
+              <div className={`flex flex-col justify-center transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
+                <h1 className="text-slate-900 font-bold text-[14px] tracking-tight leading-none uppercase">
                   {logoText}
                 </h1>
-                <span className="text-teal-600 text-[9px] font-black tracking-[0.2em] uppercase mt-1">Enterprise</span>
+                <span className="text-teal-600 text-[8px] font-black tracking-[0.2em] uppercase mt-1">Enterprise</span>
               </div>
-              </Link>
+            </Link>
           </div>
 
           {/* Nav Links */}
@@ -116,11 +116,11 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                     <Link
                       to={link.to}
                       onClick={() => { if (window.innerWidth < 768) setIsOpen(false); }}
-                      className={`relative flex items-center h-[46px] rounded-lg transition-all duration-200 ${isActive ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
+                      className={`relative flex items-center h-[46px] rounded-lg transition-all duration-200 ${isActive ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                     >
                       <div className="flex items-center w-full">
                         <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
-                          <span className={`text-[18px] transition-colors duration-200 ${isActive ? 'text-slate-900' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
+                          <span className={`text-[18px] transition-colors duration-200 ${isActive ? 'text-emerald-700' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
                             {link.icon}
                           </span>
                         </div>
@@ -162,11 +162,11 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                 <div key={key} className="space-y-1 relative group/link">
                   <button
                     onClick={() => toggleDropdown(key)}
-                    className={`relative flex items-center w-full h-[46px] rounded-lg transition-all duration-200 ${isExpanded || hasActive ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
+                    className={`relative flex items-center w-full h-[46px] rounded-lg transition-all duration-200 ${isExpanded || hasActive ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                   >
                     <div className="flex items-center w-full">
                       <div className="w-[48px] flex-shrink-0 flex items-center justify-center">
-                        <span className={`text-[18px] transition-colors duration-200 ${isExpanded || hasActive ? 'text-slate-900' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
+                        <span className={`text-[18px] transition-colors duration-200 ${isExpanded || hasActive ? 'text-emerald-700' : 'text-slate-400 group-hover/link:text-slate-900'}`}>
                           {link.icon}
                         </span>
                       </div>
@@ -179,7 +179,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                         <motion.span
                           animate={{ rotate: isExpanded ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
-                          className={`${isExpanded || hasActive ? 'text-slate-900' : 'text-slate-400'}`}
+                          className={`${isExpanded || hasActive ? 'text-emerald-700' : 'text-slate-400'}`}
                         >
                           <FaChevronDown size={10} />
                         </motion.span>
@@ -219,7 +219,7 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                                 onClick={() => {
                                   if (window.innerWidth < 768) setIsOpen(false);
                                 }}
-                                className={`flex items-center justify-between w-full h-[40px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
+                                className={`flex items-center justify-between w-full h-[40px] rounded-lg transition-all duration-200 px-3 ${active ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                               >
                                 <span className={`text-[13px] tracking-tight ${active ? 'font-bold' : 'font-medium'}`}>
                                   {child.label}
@@ -237,11 +237,11 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
           </nav>
 
           {/* User Profile Footer */}
-          <div className="mt-auto px-3 pb-6 pt-4 border-t border-slate-50">
+          <div className="mt-auto px-4 pb-6 pt-4 border-t border-slate-100">
             {user && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center w-full rounded-xl bg-slate-50/50 p-2 border border-slate-100/50 transition-all">
-                  <div className="w-[36px] h-[36px] flex-shrink-0 rounded-lg overflow-hidden relative border-2 border-white shadow-sm">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center flex-1 min-w-0">
+                  <div className="w-[32px] h-[32px] flex-shrink-0 rounded-lg overflow-hidden relative border border-slate-100">
                     <img
                       className="w-full h-full object-cover"
                       src={user.photo ? getFullFileUrl(user.photo) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username)}&background=0D9488&color=ffffff&bold=true`}
@@ -250,32 +250,25 @@ const Sidebar = ({ links, logoText = 'Task Tracker', user, onLogout, mobileOpen,
                   </div>
                   
                   <div className={`ml-3 flex-1 min-w-0 transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap pt-0.5 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover/sidebar:opacity-100 group-hover/sidebar:translate-x-0'}`}>
-                    <p className="text-[13px] font-black text-slate-900 truncate tracking-tight">
+                    <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">
                       {user.displayName || user.name || user.username}
                     </p>
-                    <p className="text-[10px] text-teal-600 font-black uppercase tracking-widest mt-0.5">
+                    <p className="text-[9px] text-teal-600 font-black uppercase tracking-widest mt-0.5">
                       {user.role || 'Admin'}
                     </p>
                   </div>
                 </div>
                 
-                <div className={`flex items-center gap-1 transition-all duration-[200ms] ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isOpen ? 'opacity-100 h-[36px] mt-2' : 'opacity-0 h-0 group-hover/sidebar:h-[36px] group-hover/sidebar:opacity-100 group-hover/sidebar:mt-2'}`}>
-                  <button 
-                    onClick={() => setIsOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-2 h-full rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all text-[11px] font-black uppercase tracking-wider"
-                  >
-                    <FaRegQuestionCircle size={14} />
-                    <span>Help</span>
-                  </button>
+                <div className={`transition-all duration-[200ms] ${isOpen ? 'opacity-100' : 'opacity-0 group-hover/sidebar:opacity-100'}`}>
                   <button
                     onClick={() => {
                       setIsOpen(false);
                       onLogout();
                     }}
-                    className="w-[36px] h-full flex items-center justify-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
+                    className="w-[32px] h-[32px] flex items-center justify-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all"
                     title="Logout"
                   >
-                    <FiLogOut size={16} />
+                    <FiLogOut size={14} />
                   </button>
                 </div>
               </div>

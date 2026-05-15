@@ -69,6 +69,8 @@ const startServer = async () => {
     const repoChatRoutes = require('./routes/repoChatRoutes');
     const exitManagementRoutes = require('./routes/exitManagementRoutes');
     const salesVelocityRoutes = require('./routes/salesVelocityRoutes');
+    const instaxbotRoutes = require('./routes/instaxbotRoutes');
+    const { attachInstaxbotWsProxy } = require('./routes/instaxbotRoutes');
 
     // Test App routes
     const testQuestionRoutes = require('./routes/testQuestionRoutes');
@@ -111,6 +113,7 @@ const startServer = async () => {
     app.use('/api/github/repo-chat', repoChatRoutes);
     app.use('/api/exit-management', exitManagementRoutes);
     app.use('/api/sales-velocity', salesVelocityRoutes);
+    app.use('/api/instaxbot', instaxbotRoutes);
 
 
     // Test App routes
@@ -153,6 +156,7 @@ const startServer = async () => {
     const server = http.createServer(app);
     const { init: initSocket } = require('./utils/socket');
     initSocket(server);
+    attachInstaxbotWsProxy(server);
 
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
@@ -179,4 +183,4 @@ const startServer = async () => {
 // Start the server
 startServer();
 
-// Trigger restart final - Connection string updated
+// Trigger restart final - Connection string updated

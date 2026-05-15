@@ -114,7 +114,7 @@ const SalaryManagement = () => {
     });
     const [showDetailedBreakdown, setShowDetailedBreakdown] = useState(false);
     const [showTaskDeductionBreakdown, setShowTaskDeductionBreakdown] = useState(false);
-    
+
     const [bulkSearchTerm, setBulkSearchTerm] = useState('');
     const [bulkDepartmentFilter, setBulkDepartmentFilter] = useState('All');
     const [bulkAttendanceFilter, setBulkAttendanceFilter] = useState('All');
@@ -160,7 +160,7 @@ const SalaryManagement = () => {
         ? workers.filter(
             worker =>
                 (worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase()))) &&
+                    (worker.department && worker.department.toLowerCase().includes(searchTerm.toLowerCase()))) &&
                 worker.status !== 'Relieved'
         )
         : [];
@@ -169,10 +169,10 @@ const SalaryManagement = () => {
         ? workers.filter(worker => {
             const matchesSearch = worker.name.toLowerCase().includes(bulkSearchTerm.toLowerCase()) ||
                 (worker.department?.name || worker.department || '').toLowerCase().includes(bulkSearchTerm.toLowerCase());
-            
+
             const deptId = worker.department?._id || worker.department;
             const matchesDepartment = bulkDepartmentFilter === 'All' || deptId === bulkDepartmentFilter;
-            
+
             return matchesSearch && matchesDepartment && worker.status !== 'Relieved';
         })
         : [];
@@ -1280,19 +1280,19 @@ const SalaryManagement = () => {
 
         // Thin black border helper
         const thinBorder = {
-            top:    { style: 'thin', color: { argb: 'FF000000' } },
-            left:   { style: 'thin', color: { argb: 'FF000000' } },
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
             bottom: { style: 'thin', color: { argb: 'FF000000' } },
-            right:  { style: 'thin', color: { argb: 'FF000000' } }
+            right: { style: 'thin', color: { argb: 'FF000000' } }
         };
 
         // Header row — red bold centered text, thin borders, no fill
         const headerRow = sheet.addRow(HEADERS);
         headerRow.height = 20;
         headerRow.eachCell((cell) => {
-            cell.font      = { bold: true, color: { argb: 'FFFF0000' }, size: 10, name: 'Calibri' };
+            cell.font = { bold: true, color: { argb: 'FFFF0000' }, size: 10, name: 'Calibri' };
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
-            cell.border    = thinBorder;
+            cell.border = thinBorder;
         });
 
         // Data rows — normal text, left aligned, thin borders
@@ -1300,9 +1300,9 @@ const SalaryManagement = () => {
             const row = sheet.addRow(rowValues);
             row.height = 18;
             row.eachCell({ includeEmpty: true }, (cell, colNum) => {
-                cell.font      = { size: 10, name: 'Calibri' };
+                cell.font = { size: 10, name: 'Calibri' };
                 cell.alignment = { horizontal: 'left', vertical: 'middle' };
-                cell.border    = thinBorder;
+                cell.border = thinBorder;
                 // Keep AMOUNT column as numeric
                 if (colNum === 7 && typeof cell.value === 'number') {
                     cell.numFmt = '#,##0.00';
@@ -1347,7 +1347,7 @@ const SalaryManagement = () => {
             const worker = workers.find(w => w._id === report.workerId);
             const hasBankDetails = worker?.bankDetails?.accountNumber && worker?.bankDetails?.ifscCode;
             const finalSalary = Math.max(0, report.totalFinalSalary - (deductionView ? (report.taskPenalty || 0) : 0));
-            
+
             return [
                 report.name,
                 report.department,
@@ -1757,7 +1757,7 @@ const SalaryManagement = () => {
                                         {selectedWorkersForReport.length === bulkFilteredWorkers.length ? 'Deselect All' : 'Select All'}
                                     </button>
                                 </div>
-                                
+
                                 {/* Filters Section */}
                                 <div className="p-3 border-b border-slate-100 space-y-2 flex-none">
                                     {/* Search */}
@@ -1771,7 +1771,7 @@ const SalaryManagement = () => {
                                         />
                                         <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                     </div>
-                                    
+
                                     {/* Department Filter */}
                                     <select
                                         value={bulkDepartmentFilter}
@@ -1783,7 +1783,7 @@ const SalaryManagement = () => {
                                             <option key={dept._id} value={dept._id}>{dept.name}</option>
                                         ))}
                                     </select>
-                                    
+
                                     {/* Attendance Filter */}
                                     <select
                                         value={bulkAttendanceFilter}
@@ -1801,8 +1801,8 @@ const SalaryManagement = () => {
                                         <label
                                             key={worker._id}
                                             className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer group ${selectedWorkersForReport.includes(worker._id)
-                                                    ? 'bg-teal-50 border-teal-200 shadow-sm'
-                                                    : 'bg-transparent border-slate-100 hover:border-slate-200 hover:bg-slate-50/60'
+                                                ? 'bg-teal-50 border-teal-200 shadow-sm'
+                                                : 'bg-transparent border-slate-100 hover:border-slate-200 hover:bg-slate-50/60'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
@@ -1895,7 +1895,7 @@ const SalaryManagement = () => {
                                             {/* Report Summary Header */}
                                             <div className="flex items-center justify-between flex-wrap gap-3">
                                                 <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">Report Summary</h4>
-                                                
+
                                                 {/* Export Dropdown */}
                                                 <div className="relative">
                                                     <button
@@ -1905,7 +1905,7 @@ const SalaryManagement = () => {
                                                         <span>Export Reports</span>
                                                         <svg className={`w-3 h-3 transition-transform ${isExportDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                                     </button>
-                                                    
+
                                                     {isExportDropdownOpen && (
                                                         <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 z-[1000] overflow-hidden">
                                                             <div className="py-2">
@@ -1965,7 +1965,7 @@ const SalaryManagement = () => {
                                                             {bulkReportData.map((report, index) => {
                                                                 const worker = workers.find(w => w._id === report.workerId);
                                                                 const hasBankDetails = worker?.bankDetails?.accountNumber && worker?.bankDetails?.ifscCode;
-                                                                
+
                                                                 return (
                                                                     <tr key={index} className="hover:bg-slate-50/50 transition-colors">
                                                                         <td className="px-4 py-4">

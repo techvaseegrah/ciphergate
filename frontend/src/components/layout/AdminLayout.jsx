@@ -48,7 +48,7 @@ import {
   FaCog
 } from 'react-icons/fa';
 import { IoMdSettings } from 'react-icons/io';
-import { FiKey } from 'react-icons/fi';
+import { FiKey, FiGrid, FiUsers, FiDollarSign, FiLayers, FiMessageSquare, FiBookOpen, FiSettings } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 import { useAuth } from '../../hooks/useAuth';
@@ -168,11 +168,11 @@ const AdminLayout = () => {
     {
       to: '/admin',
       label: 'Dashboard',
-      icon: <FaHome />,
+      icon: <FiGrid />,
     },
     {
       label: 'HR & People',
-      icon: <FaUsers />,
+      icon: <FiUsers />,
       isDropdown: true,
       children: [
         { to: '/admin/workers', label: 'Employees', icon: <FaUserTie /> },
@@ -183,7 +183,7 @@ const AdminLayout = () => {
     },
     {
       label: 'Finance & Payroll',
-      icon: <FaDollarSign />,
+      icon: <FiDollarSign />,
       isDropdown: true,
       children: [
         { isSubHeader: true, label: 'Compensation' },
@@ -200,7 +200,7 @@ const AdminLayout = () => {
     },
     {
       label: 'Operations & Projects',
-      icon: <FaTasks />,
+      icon: <FiLayers />,
       isDropdown: true,
       children: [
         { to: '/admin/work-allocation', label: 'Work Allocation', icon: <FaNetworkWired /> },
@@ -214,7 +214,7 @@ const AdminLayout = () => {
     },
     {
       label: 'Comms & Requests',
-      icon: <FaComments />,
+      icon: <FiMessageSquare />,
       isDropdown: true,
       children: [
         { to: '/admin/communication', label: 'Communication', icon: <FaComments /> },
@@ -226,7 +226,7 @@ const AdminLayout = () => {
     },
     {
       label: 'Training & Growth',
-      icon: <FaAward />,
+      icon: <FiBookOpen />,
       isDropdown: true,
       children: [
         { isSubHeader: true, label: 'Training' },
@@ -246,7 +246,7 @@ const AdminLayout = () => {
     },
     {
       label: 'System & Admin',
-      icon: <IoMdSettings />,
+      icon: <FiSettings />,
       isDropdown: true,
       children: [
         { to: '/admin/settings', label: 'Settings', icon: <FaCog /> },

@@ -1252,7 +1252,7 @@ const getBulkSalaryReport = asyncHandler(async (req, res) => {
         department: worker.department?.name || 'N/A',
         grossFinalSalary: finalSalaryWithFines,
         taskPenalty: taskPenalty,
-        totalFinalSalary: Math.max(0, finalSalaryWithFines - taskPenalty)
+        totalFinalSalary: finalSalaryWithFines
       };
     });
 
@@ -1405,7 +1405,7 @@ const getTopTeamsEarnings = asyncHandler(async (req, res) => {
         });
       });
 
-      const totalFinalSalary = Math.max(0, finalSalaryWithFines - taskPenalty);
+      const totalFinalSalary = finalSalaryWithFines;
       const deptName = worker.department?.name || 'N/A';
       if (deptName !== 'N/A') {
         teamEarnings[deptName] = (teamEarnings[deptName] || 0) + totalFinalSalary;
